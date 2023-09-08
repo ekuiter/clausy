@@ -77,36 +77,36 @@ impl Formula {
         }
     }
 
-    // fn to_nnf(&mut self, id: Id) {
-    //     let expr = self.exprs.get(&id).unwrap();
-    //     match expr {
-    //         Var(_) => todo!(),
-    //         Not(_) => todo!(),
-    //         And(child_ids) | Or(child_ids) => {
-    //             for (i, child_id) in child_ids.iter().enumerate() {
-    //                 let child = self.exprs.get(&child_id).unwrap();
-    //                 match child {
-    //                     Var(_) => todo!(),
-    //                     Not(child2_id) => {
-    //                         let child2 = self.exprs.get(child2_id).unwrap();
-    //                         match child2 {
-    //                             Var(_) => (),
-    //                             Not(child3_id) => {
-    //                                 if let And(c) = self.exprs.get_mut(&id).unwrap() {
-    //                                     c[i] = *child3_id;
-    //                                 }
-    //                             }
-    //                             And(_) => todo!(),
-    //                             Or(_) => todo!(),
-    //                         }
-    //                     }
-    //                     And(_) => todo!(),
-    //                     Or(_) => todo!(),
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
+    fn to_nnf(&mut self, id: Id) {
+        let expr = self.exprs.get(&id).unwrap();
+        match expr {
+            Var(_) => todo!(),
+            Not(_) => todo!(),
+            And(child_ids) | Or(child_ids) => {
+                for (i, child_id) in child_ids.iter().enumerate() {
+                    let child = self.exprs.get(&child_id).unwrap();
+                    match child {
+                        Var(_) => todo!(),
+                        Not(child2_id) => {
+                            let child2 = self.exprs.get(child2_id).unwrap();
+                            match child2 {
+                                Var(_) => (),
+                                Not(child3_id) => {
+                                    if let And(c) = self.exprs.get_mut(&id).unwrap() {
+                                        c[i] = *child3_id;
+                                    }
+                                }
+                                And(_) => todo!(),
+                                Or(_) => todo!(),
+                            }
+                        }
+                        And(_) => todo!(),
+                        Or(_) => todo!(),
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl fmt::Display for Formula {
@@ -129,7 +129,8 @@ fn main() {
 }
 
 // tseitin formula also has a 'pointer' to another formula, to ease the actual substitution
-// add optimizations for simplification? (e.g., idempotency)
+// add optimizations for simplification? (e.g., idempotency, pure literals, Plaisted, ... -> depending on whether equi-countability is preserved/necessary)
+// https://cca.informatik.uni-freiburg.de/sat/ss23/05/
 // randomize clause order? (scrambler?)
 // during parsing, when the hash of a particular subformula has already been mapped to a usize (already included in the formula), reuse that usize
 // possibly, we need a HashMap<Expr, usize> during parsing to ensure structural sharing
