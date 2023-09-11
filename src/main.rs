@@ -38,7 +38,7 @@ impl Formula {
         debug_assert!(self.root_id > 0 && self.next_id > 0 && self.next_var_id > 0);
     }
 
-    fn set_root(&mut self, root_id: Id) {
+    fn set_root_expr(&mut self, root_id: Id) {
         self.root_id = root_id;
     }
 
@@ -60,7 +60,7 @@ impl Formula {
         self.add_var_str(String::from(var))
     }
 
-    fn get_children<'a>(&self, expr: &'a Expr) -> &'a [Id] {
+    fn get_child_exprs<'a>(&self, expr: &'a Expr) -> &'a [Id] {
         match expr {
             Var(_) => &[],
             Not(id) => slice::from_ref(id),
@@ -68,12 +68,18 @@ impl Formula {
         }
     }
 
-    fn set_children<'a>(&mut self, id: Id, ids: Vec<Id>) {
+    fn set_child_exprs<'a>(&mut self, id: Id, ids: Vec<Id>) {
         match self.exprs.get_mut(&id).unwrap() {
             Var(_) => (),
             Not(child) => *child = ids[0],
             And(child_ids) | Or(child_ids) => *child_ids = ids,
         }
+    }
+
+    fn negate_exprs(&mut self, ids: Vec<Id>) -> Vec<Id> {
+        ids.iter()
+            .map(|id| self.add_expr(Not(*id)))
+            .collect()
     }
 
     fn format_expr(&self, id: Id, f: &mut fmt::Formatter) -> fmt::Result {
@@ -97,9 +103,9 @@ impl Formula {
     }
 
     // adds new expressions without discarding the old ones if they get orphaned
-    fn node_to_nnf(&mut self, id: Id) -> &[Id] {
+    fn to_nnf_expr(&mut self, id: Id) -> &[Id] {
         self.assert_valid();
-        let mut child_ids: Vec<u32> = self.get_children(self.exprs.get(&id).unwrap()).to_vec();
+        let mut child_ids: Vec<u32> = self.get_child_exprs(self.exprs.get(&id).unwrap()).to_vec();
 
         for child_id in child_ids.iter_mut() {
             let child = self.exprs.get(&child_id).unwrap();
@@ -113,19 +119,11 @@ impl Formula {
                             *child_id = *child3_id;
                         }
                         And(child_ids2) => {
-                            let new_expr = Or(child_ids2
-                                .clone()
-                                .iter()
-                                .map(|child3_id| self.add_expr(Not(*child3_id)))
-                                .collect());
+                            let new_expr = Or(self.negate_exprs(child_ids2.clone()));
                             *child_id = self.add_expr(new_expr);
                         }
                         Or(child_ids2) => {
-                            let new_expr = And(child_ids2
-                                .clone()
-                                .iter()
-                                .map(|child3_id| self.add_expr(Not(*child3_id)))
-                                .collect());
+                            let new_expr = And(self.negate_exprs(child_ids2.clone()));
                             *child_id = self.add_expr(new_expr);
                         }
                     }
@@ -133,8 +131,8 @@ impl Formula {
             }
         }
 
-        self.set_children(id, child_ids);
-        self.get_children(self.exprs.get(&id).unwrap())
+        self.set_child_exprs(id, child_ids);
+        self.get_child_exprs(self.exprs.get(&id).unwrap())
     }
 
     fn to_nnf(&mut self) {
@@ -142,7 +140,7 @@ impl Formula {
         let mut id = Some(self.root_id);
         let mut next_ids = VecDeque::<Id>::new();
         while id.is_some() {
-            next_ids.extend(self.node_to_nnf(id.unwrap()));
+            next_ids.extend(self.to_nnf_expr(id.unwrap()));
             id = next_ids.pop_front();
         }
     }
@@ -159,12 +157,14 @@ fn main() {
     let a = f.add_var("a");
     let b = f.add_var("b");
     let c = f.add_var("c");
-    let a_and_c = f.add_expr(And(vec![a, c]));
+    let not_a = f.add_expr(Not(a));
     let not_b = f.add_expr(Not(b));
+    let a_and_c = f.add_expr(And(vec![not_a, c]));
     let b_or_c = f.add_expr(Or(vec![not_b, c]));
     let not_b_or_c = f.add_expr(Not(b_or_c));
-    let root = f.add_expr(Or(vec![a_and_c, not_b_or_c, b_or_c]));
-    f.set_root(root);
+    let not_not_b_or_c = f.add_expr(Not(not_b_or_c));
+    let root = f.add_expr(Or(vec![a_and_c, not_b_or_c, not_not_b_or_c]));
+    f.set_root_expr(root);
     println!("{f}");
     f.to_nnf();
     println!("{f}");
@@ -177,6 +177,7 @@ fn main() {
 // during parsing, when the hash of a particular subformula has already been mapped to a usize (already included in the formula), reuse that usize
 // possibly, we need a HashMap<Expr, usize> during parsing to ensure structural sharing
 // the next_id approach does not work with multi-threading
+// assumes that each expr only has each child at most once (idempotency is already reduced)
 
 // #[derive(Debug)]
 // struct CNF {
