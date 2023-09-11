@@ -21,8 +21,8 @@ enum Expr {
 }
 
 impl Formula {
-    fn new() -> Formula {
-        Formula {
+    fn new() -> Self {
+        Self {
             root_id: 0,
             next_id: 0,
             next_var_id: 0,
@@ -31,8 +31,8 @@ impl Formula {
         }
     }
 
-    fn is_valid(&self) -> bool {
-        self.root_id > 0 && self.next_id > 0 && self.next_var_id > 0
+    fn assert_valid(&self) {
+        debug_assert!(self.root_id > 0 && self.next_id > 0 && self.next_var_id > 0);
     }
 
     fn set_root(&mut self, root_id: Id) {
@@ -58,7 +58,7 @@ impl Formula {
     }
 
     fn format_expr(&self, id: Id, f: &mut fmt::Formatter) -> fmt::Result {
-        debug_assert!(self.is_valid());
+        self.assert_valid();
         let mut write_helper = |kind: &str, ids: &[u32]| {
             write!(f, "{kind}(")?;
             for (i, id) in ids.iter().enumerate() {
@@ -78,12 +78,13 @@ impl Formula {
     }
 
     fn to_nnf(&mut self, id: Id) {
+        self.assert_valid();
         let expr = self.exprs.get(&id).unwrap();
         match expr {
             Var(_) => todo!(),
             Not(_) => todo!(),
             And(child_ids) | Or(child_ids) => {
-                for (i, child_id) in child_ids.iter().enumerate() {
+                for child_id in child_ids {
                     let child = self.exprs.get(&child_id).unwrap();
                     match child {
                         Var(_) => todo!(),
@@ -92,9 +93,7 @@ impl Formula {
                             match child2 {
                                 Var(_) => (),
                                 Not(child3_id) => {
-                                    if let And(c) = self.exprs.get_mut(&id).unwrap() {
-                                        c[i] = *child3_id;
-                                    }
+                                    *child_id = *child3_id;
                                 }
                                 And(_) => todo!(),
                                 Or(_) => todo!(),
@@ -134,6 +133,7 @@ fn main() {
 // randomize clause order? (scrambler?)
 // during parsing, when the hash of a particular subformula has already been mapped to a usize (already included in the formula), reuse that usize
 // possibly, we need a HashMap<Expr, usize> during parsing to ensure structural sharing
+// the next_id approach does not work with multi-threading
 
 // #[derive(Debug)]
 // struct CNF {
