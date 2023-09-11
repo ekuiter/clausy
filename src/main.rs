@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::HashMap,
     fmt, slice,
 };
 use Expr::*;
@@ -42,21 +42,21 @@ impl Formula {
         self.root_id = root_id;
     }
 
-    fn add_expr(&mut self, expr: Expr) -> u32 {
+    fn add_expr(&mut self, expr: Expr) -> Id {
         let id = self.next_id + 1;
         self.exprs.insert(id, expr);
         self.next_id = id;
         id
     }
 
-    fn add_var_str(&mut self, var: String) -> u32 {
+    fn add_var_str(&mut self, var: String) -> Id {
         let id = self.next_var_id + 1;
         self.vars.insert(id, var);
         self.next_var_id += 1;
         self.add_expr(Var(id))
     }
 
-    fn add_var(&mut self, var: &str) -> u32 {
+    fn add_var(&mut self, var: &str) -> Id {
         self.add_var_str(String::from(var))
     }
 
@@ -78,13 +78,13 @@ impl Formula {
 
     fn negate_exprs(&mut self, ids: Vec<Id>) -> Vec<Id> {
         ids.iter()
-            .map(|id| self.add_expr(Not(*id)))
+            .map(|id| self.add_expr(Not(*id))) // does not reuse existing formulas! => need cache to retrieve formulas
             .collect()
     }
 
     fn format_expr(&self, id: Id, f: &mut fmt::Formatter) -> fmt::Result {
         self.assert_valid();
-        let mut write_helper = |kind: &str, ids: &[u32]| {
+        let mut write_helper = |kind: &str, ids: &[Id]| {
             write!(f, "{kind}(")?;
             for (i, id) in ids.iter().enumerate() {
                 if i > 0 {
@@ -105,7 +105,7 @@ impl Formula {
     // adds new expressions without discarding the old ones if they get orphaned
     fn to_nnf_expr(&mut self, id: Id) -> &[Id] {
         self.assert_valid();
-        let mut child_ids: Vec<u32> = self.get_child_exprs(self.exprs.get(&id).unwrap()).to_vec();
+        let mut child_ids: Vec<Id> = self.get_child_exprs(self.exprs.get(&id).unwrap()).to_vec();
 
         for child_id in child_ids.iter_mut() {
             let child = self.exprs.get(&child_id).unwrap();
@@ -135,15 +135,21 @@ impl Formula {
         self.get_child_exprs(self.exprs.get(&id).unwrap())
     }
 
-    fn to_nnf(&mut self) {
+    fn reverse_preorder(mut self, visitor: fn(&mut Self, Id) -> &[Id]) -> Self {
         self.assert_valid();
         let mut id = Some(self.root_id);
-        let mut next_ids = VecDeque::<Id>::new();
+        let mut remaining_ids = Vec::<Id>::new();
         while id.is_some() {
-            next_ids.extend(self.to_nnf_expr(id.unwrap()));
-            id = next_ids.pop_front();
-        }
+            remaining_ids.extend(visitor(&mut self, id.unwrap()));
+            id = remaining_ids.pop();
+        };
+        self
     }
+
+    fn to_nnf(self) -> Self {
+        self.reverse_preorder(Self::to_nnf_expr)
+    }
+
 }
 
 impl fmt::Display for Formula {
@@ -159,14 +165,16 @@ fn main() {
     let c = f.add_var("c");
     let not_a = f.add_expr(Not(a));
     let not_b = f.add_expr(Not(b));
+    let not_c = f.add_expr(Not(c));
+    let not_not_c = f.add_expr(Not(not_c));
     let a_and_c = f.add_expr(And(vec![not_a, c]));
-    let b_or_c = f.add_expr(Or(vec![not_b, c]));
+    let b_or_c = f.add_expr(Or(vec![not_b, not_not_c]));
     let not_b_or_c = f.add_expr(Not(b_or_c));
     let not_not_b_or_c = f.add_expr(Not(not_b_or_c));
     let root = f.add_expr(Or(vec![a_and_c, not_b_or_c, not_not_b_or_c]));
     f.set_root_expr(root);
     println!("{f}");
-    f.to_nnf();
+    f = f.to_nnf();
     println!("{f}");
 }
 
