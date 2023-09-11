@@ -1,4 +1,7 @@
-use std::{collections::HashMap, fmt, slice};
+use std::{
+    collections::{HashMap, VecDeque},
+    fmt, slice,
+};
 use Expr::*;
 
 type Id = u32;
@@ -57,6 +60,22 @@ impl Formula {
         self.add_var_str(String::from(var))
     }
 
+    fn get_children<'a>(&self, expr: &'a Expr) -> &'a [Id] {
+        match expr {
+            Var(_) => &[],
+            Not(id) => slice::from_ref(id),
+            And(ids) | Or(ids) => ids,
+        }
+    }
+
+    fn set_children<'a>(&mut self, id: Id, ids: Vec<Id>) {
+        match self.exprs.get_mut(&id).unwrap() {
+            Var(_) => (),
+            Not(child) => *child = ids[0],
+            And(child_ids) | Or(child_ids) => *child_ids = ids,
+        }
+    }
+
     fn format_expr(&self, id: Id, f: &mut fmt::Formatter) -> fmt::Result {
         self.assert_valid();
         let mut write_helper = |kind: &str, ids: &[u32]| {
@@ -77,33 +96,54 @@ impl Formula {
         }
     }
 
-    fn to_nnf(&mut self, id: Id) {
+    // adds new expressions without discarding the old ones if they get orphaned
+    fn node_to_nnf(&mut self, id: Id) -> &[Id] {
         self.assert_valid();
-        let expr = self.exprs.get(&id).unwrap();
-        match expr {
-            Var(_) => todo!(),
-            Not(_) => todo!(),
-            And(child_ids) | Or(child_ids) => {
-                for child_id in child_ids {
-                    let child = self.exprs.get(&child_id).unwrap();
-                    match child {
-                        Var(_) => todo!(),
-                        Not(child2_id) => {
-                            let child2 = self.exprs.get(child2_id).unwrap();
-                            match child2 {
-                                Var(_) => (),
-                                Not(child3_id) => {
-                                    *child_id = *child3_id;
-                                }
-                                And(_) => todo!(),
-                                Or(_) => todo!(),
-                            }
+        let mut child_ids: Vec<u32> = self.get_children(self.exprs.get(&id).unwrap()).to_vec();
+
+        for child_id in child_ids.iter_mut() {
+            let child = self.exprs.get(&child_id).unwrap();
+            match child {
+                Var(_) | And(_) | Or(_) => (),
+                Not(child2_id) => {
+                    let child2 = self.exprs.get(child2_id).unwrap();
+                    match child2 {
+                        Var(_) => (),
+                        Not(child3_id) => {
+                            *child_id = *child3_id;
                         }
-                        And(_) => todo!(),
-                        Or(_) => todo!(),
+                        And(child_ids2) => {
+                            let new_expr = Or(child_ids2
+                                .clone()
+                                .iter()
+                                .map(|child3_id| self.add_expr(Not(*child3_id)))
+                                .collect());
+                            *child_id = self.add_expr(new_expr);
+                        }
+                        Or(child_ids2) => {
+                            let new_expr = And(child_ids2
+                                .clone()
+                                .iter()
+                                .map(|child3_id| self.add_expr(Not(*child3_id)))
+                                .collect());
+                            *child_id = self.add_expr(new_expr);
+                        }
                     }
                 }
             }
+        }
+
+        self.set_children(id, child_ids);
+        self.get_children(self.exprs.get(&id).unwrap())
+    }
+
+    fn to_nnf(&mut self) {
+        self.assert_valid();
+        let mut id = Some(self.root_id);
+        let mut next_ids = VecDeque::<Id>::new();
+        while id.is_some() {
+            next_ids.extend(self.node_to_nnf(id.unwrap()));
+            id = next_ids.pop_front();
         }
     }
 }
@@ -120,10 +160,13 @@ fn main() {
     let b = f.add_var("b");
     let c = f.add_var("c");
     let a_and_c = f.add_expr(And(vec![a, c]));
-    let b_or_c = f.add_expr(Or(vec![b, c]));
+    let not_b = f.add_expr(Not(b));
+    let b_or_c = f.add_expr(Or(vec![not_b, c]));
     let not_b_or_c = f.add_expr(Not(b_or_c));
     let root = f.add_expr(Or(vec![a_and_c, not_b_or_c, b_or_c]));
     f.set_root(root);
+    println!("{f}");
+    f.to_nnf();
     println!("{f}");
 }
 
