@@ -89,6 +89,13 @@ impl Formula {
         ids.iter().map(|id| self.add_expr(Not(*id))).collect()
     }
 
+    fn child_exprs_refl<'a>(&'a self, id: &'a Id) -> &'a [Id] {
+        match self.exprs.get(&id).unwrap() {
+            Var(_) | Not(_) => slice::from_ref(&id),
+            And(ids) | Or(ids) => ids,
+        }
+    }
+
     fn format_expr(&self, id: Id, f: &mut fmt::Formatter) -> fmt::Result {
         self.assert_valid();
         let mut write_helper = |kind: &str, ids: &[Id]| {
@@ -115,6 +122,7 @@ impl Formula {
 
     // adds new expressions without discarding the old ones if they get orphaned (use Rc?)
     // creates temporary vector (use RefCell?)
+    // assumes that the root is not a Not (force auxiliary And as root?)
     fn to_nnf_expr(&mut self, id: Id) -> &[Id] {
         let mut child_ids: Vec<Id> = self.get_child_exprs(self.exprs.get(&id).unwrap()).to_vec();
 
@@ -147,20 +155,43 @@ impl Formula {
     }
 
     // assumes NNF
-    fn to_cnf_expr_dist(&mut self, id: Id) -> &[Id] {
+    fn to_cnf_expr_dist(&mut self, id: Id) -> () {
         let mut child_ids: Vec<Id> = self.get_child_exprs(self.exprs.get(&id).unwrap()).to_vec();
 
         for child_id in child_ids.iter_mut() {
             let child = self.exprs.get(&child_id).unwrap();
             match child {
-                Var(_) => (),
-                Not(_) => (),
-                And(_) => (),
-                Or(_) => todo!(),
+                // it is still necessary to flatten And's and Or's
+                // also, what about empty/unary Or and And?
+                Var(_) | Not(_) | And(_) => (),
+                Or(cnf_ids) => { // what happens if this is empty/unary?
+                    let mut clauses = Vec::<Vec<Id>>::new();
+                    for (i, cnf_id) in cnf_ids.iter().enumerate() {
+                        let clause_ids = self.child_exprs_refl(cnf_id);
+                        if i == 0 {
+                            clauses.extend(clause_ids.iter().map(|clause_id| { vec![*clause_id] }).collect::<Vec<Vec<Id>>>());
+                        } else {
+                            let mut new_clauses = Vec::<Vec<Id>>::new();
+                            for clause in clauses {
+                                for clause_id in clause_ids {
+                                    let mut new_clause = clause.clone();
+                                    new_clause.push(*clause_id);
+                                    new_clauses.push(new_clause);
+                                }
+                            }
+                            clauses = new_clauses;
+                        }
+                    }
+                    let mut cnf = Vec::<Id>::new();
+                    for clause in clauses {
+                        cnf.push(self.add_expr(Or(clause)));
+                    }
+                    *child_id = self.add_expr(And(cnf));
+                }
             }
         }
 
-        self.set_child_exprs(id, child_ids)
+        self.set_child_exprs(id, child_ids);
     }
 
     fn reverse_preorder(&mut self, visitor: fn(&mut Self, Id) -> &[Id]) {
@@ -201,7 +232,7 @@ impl Formula {
     }
 
     pub fn print_subexprs(&mut self) {
-        self.reverse_postorder(|s, i| { s.print_expr(i) });
+        self.reverse_postorder(|s, i| s.print_expr(i));
     }
 
     pub fn to_nnf(mut self) -> Self {
@@ -210,7 +241,7 @@ impl Formula {
     }
 
     pub fn to_cnf_dist(mut self) -> Self {
-        self.reverse_preorder(Self::to_cnf_expr_dist);
+        self.reverse_postorder(Self::to_cnf_expr_dist);
         self
     }
 }
