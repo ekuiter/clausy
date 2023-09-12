@@ -1,4 +1,7 @@
-use std::{collections::HashMap, fmt, slice};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt, slice,
+};
 use Expr::*;
 
 type Id = u32;
@@ -10,6 +13,7 @@ pub struct Formula {
     next_var_id: Id,
     exprs: HashMap<Id, Expr>,
     vars: HashMap<Id, String>,
+    // make structural sharing optional, so that we can evaluate its impact (e.g., then traversal does not need to track visited nodes)
 }
 
 #[derive(Debug)]
@@ -19,6 +23,8 @@ pub enum Expr {
     And(Vec<Id>),
     Or(Vec<Id>),
 }
+
+pub struct ExprInFormula<'a>(&'a Formula, &'a Id);
 
 impl Formula {
     pub fn new() -> Self {
@@ -80,7 +86,6 @@ impl Formula {
     }
 
     fn negate_exprs(&mut self, ids: Vec<Id>) -> Vec<Id> {
-        // this does not reuse existing formulas yes! => need cache to retrieve formulas (similar for other expr constructions)
         ids.iter().map(|id| self.add_expr(Not(*id))).collect()
     }
 
@@ -104,10 +109,13 @@ impl Formula {
         }
     }
 
+    fn print_expr(&mut self, id: Id) {
+        println!("{}", ExprInFormula(self, &id));
+    }
+
     // adds new expressions without discarding the old ones if they get orphaned (use Rc?)
     // creates temporary vector (use RefCell?)
     fn to_nnf_expr(&mut self, id: Id) -> &[Id] {
-        self.assert_valid();
         let mut child_ids: Vec<Id> = self.get_child_exprs(self.exprs.get(&id).unwrap()).to_vec();
 
         for child_id in child_ids.iter_mut() {
@@ -122,6 +130,7 @@ impl Formula {
                             *child_id = *child3_id;
                         }
                         And(child_ids2) => {
+                            // this does not reuse existing formulas yet! => need cache to retrieve formulas (similar for other expr constructions)
                             let new_expr = Or(self.negate_exprs(child_ids2.clone()));
                             *child_id = self.add_expr(new_expr);
                         }
@@ -137,25 +146,84 @@ impl Formula {
         self.set_child_exprs(id, child_ids)
     }
 
-    fn reverse_preorder(mut self, visitor: fn(&mut Self, Id) -> &[Id]) -> Self {
-        self.assert_valid();
-        let mut id = Some(self.root_id);
-        let mut remaining_ids = Vec::<Id>::new();
-        while id.is_some() {
-            remaining_ids.extend(visitor(&mut self, id.unwrap()));
-            id = remaining_ids.pop();
+    // assumes NNF
+    fn to_cnf_expr_dist(&mut self, id: Id) -> &[Id] {
+        let mut child_ids: Vec<Id> = self.get_child_exprs(self.exprs.get(&id).unwrap()).to_vec();
+
+        for child_id in child_ids.iter_mut() {
+            let child = self.exprs.get(&child_id).unwrap();
+            match child {
+                Var(_) => (),
+                Not(_) => (),
+                And(_) => (),
+                Or(_) => todo!(),
+            }
         }
+
+        self.set_child_exprs(id, child_ids)
+    }
+
+    fn reverse_preorder(&mut self, visitor: fn(&mut Self, Id) -> &[Id]) {
+        self.assert_valid();
+        let mut remaining_ids = vec![self.root_id];
+        // presumably, the following set can get large for large formulas (some for postorder traversal).
+        // maybe it can be compacted in some way. (bit matrix? pre-sized vec<bool> with false as default?)
+        let mut visited_ids = HashSet::<Id>::new();
+        while !remaining_ids.is_empty() {
+            let id = remaining_ids.pop().unwrap();
+            if !visited_ids.contains(&id) {
+                remaining_ids.extend(visitor(self, id));
+                visited_ids.insert(id);
+            }
+        }
+    }
+
+    fn reverse_postorder(&mut self, visitor: fn(&mut Self, Id) -> ()) {
+        self.assert_valid();
+        let mut remaining_ids = vec![self.root_id];
+        let mut seen_ids = HashSet::<Id>::new();
+        let mut visited_ids = HashSet::<Id>::new();
+        while !remaining_ids.is_empty() {
+            let id = remaining_ids.last().unwrap();
+            let child_ids = self.get_child_exprs(self.exprs.get(id).unwrap());
+            if !child_ids.is_empty() && !seen_ids.contains(id) && !visited_ids.contains(id) {
+                seen_ids.insert(*id);
+                remaining_ids.extend(child_ids);
+            } else {
+                if !visited_ids.contains(&id) {
+                    visitor(self, *id);
+                    visited_ids.insert(*id);
+                    seen_ids.remove(id);
+                }
+                remaining_ids.pop();
+            }
+        }
+    }
+
+    pub fn print_subexprs(&mut self) {
+        self.reverse_postorder(|s, i| { s.print_expr(i) });
+    }
+
+    pub fn to_nnf(mut self) -> Self {
+        self.reverse_preorder(Self::to_nnf_expr);
         self
     }
 
-    pub fn to_nnf(self) -> Self {
-        self.reverse_preorder(Self::to_nnf_expr)
+    pub fn to_cnf_dist(mut self) -> Self {
+        self.reverse_preorder(Self::to_cnf_expr_dist);
+        self
+    }
+}
+
+impl<'a> fmt::Display for ExprInFormula<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.format_expr(*self.1, f)
     }
 }
 
 impl fmt::Display for Formula {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.format_expr(self.root_id, f)
+        ExprInFormula(self, &self.root_id).fmt(f)
     }
 }
 
@@ -163,6 +231,8 @@ impl fmt::Display for Formula {
 
 // tseitin formula also has a 'pointer' to another formula, to ease the actual substitution
 // add optimizations for simplification? (e.g., idempotency, pure literals, Plaisted, ... -> depending on whether equi-countability is preserved/necessary)
+// what about eliminating implies/bi-implies? can be exponential, too
+// https://cca.informatik.uni-freiburg.de/sat/ss23/04/
 // https://cca.informatik.uni-freiburg.de/sat/ss23/05/
 // randomize clause order? (scrambler?)
 // during parsing, when the hash of a particular subformula has already been mapped to a usize (already included in the formula), reuse that usize
@@ -170,3 +240,4 @@ impl fmt::Display for Formula {
 // the next_id approach does not work with multi-threading
 // assumes that each expr only has each child at most once (idempotency is already reduced)
 
+// how much impact does structural sharing of common sub-formulas have? does it even happen for FMs?
