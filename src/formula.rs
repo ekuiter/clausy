@@ -7,7 +7,7 @@ use Expr::*;
 type Id = u32;
 
 pub struct Formula {
-    root_id: Id,
+    auxiliary_root_id: Id,
     next_id: Id,
     next_var_id: Id,
     // possibly, Rc is needed to let go of unused formulas
@@ -30,7 +30,7 @@ pub struct ExprInFormula<'a>(&'a Formula, &'a Id);
 impl Formula {
     pub fn new() -> Self {
         Self {
-            root_id: 0,
+            auxiliary_root_id: 0,
             next_id: 0,
             next_var_id: 0,
             exprs: HashMap::new(),
@@ -39,11 +39,24 @@ impl Formula {
     }
 
     fn assert_valid(&self) {
-        assert!(self.root_id > 0 && self.next_id > 0 && self.next_var_id > 0, "formula is invalid");
+        assert!(
+            self.auxiliary_root_id > 0 && self.next_id > 0 && self.next_var_id > 0,
+            "formula is invalid"
+        );
+    }
+
+    pub fn get_root_expr(&self) -> Id {
+        self.assert_valid();
+        if let And(ids) = self.exprs.get(&self.auxiliary_root_id).unwrap() {
+            ids[0]
+        } else {
+            panic!("formula is invalid")
+        }
     }
 
     pub fn set_root_expr(&mut self, root_id: Id) {
-        self.root_id = root_id;
+        let auxiliary_root_id = self.add_expr(And(vec![root_id]));
+        self.auxiliary_root_id = auxiliary_root_id;
     }
 
     pub fn add_expr(&mut self, expr: Expr) -> Id {
@@ -122,7 +135,7 @@ impl Formula {
 
     // adds new expressions without discarding the old ones if they get orphaned (use Rc?)
     // creates temporary vector (use RefCell?)
-    // assumes that the root is not a Not (force auxiliary And as root?)
+    // may destroy structural sharing of originally shared subformulas, so might be beneficial to not run this before Tseitin (this might largely influence negation-CNF reasoning); so, also a polarity-based PG implementation is necessary
     fn to_nnf_expr(&mut self, id: Id) -> &[Id] {
         let mut child_ids: Vec<Id> = self.get_child_exprs(self.exprs.get(&id).unwrap()).to_vec();
 
@@ -164,12 +177,18 @@ impl Formula {
                 // it is still necessary to flatten And's and Or's
                 // also, what about empty/unary Or and And?
                 Var(_) | Not(_) | And(_) => (),
-                Or(cnf_ids) => { // what happens if this is empty/unary?
+                Or(cnf_ids) => {
+                    // what happens if this is empty/unary?
                     let mut clauses = Vec::<Vec<Id>>::new();
                     for (i, cnf_id) in cnf_ids.iter().enumerate() {
                         let clause_ids = self.child_exprs_refl(cnf_id);
                         if i == 0 {
-                            clauses.extend(clause_ids.iter().map(|clause_id| { vec![*clause_id] }).collect::<Vec<Vec<Id>>>());
+                            clauses.extend(
+                                clause_ids
+                                    .iter()
+                                    .map(|clause_id| vec![*clause_id])
+                                    .collect::<Vec<Vec<Id>>>(),
+                            );
                         } else {
                             let mut new_clauses = Vec::<Vec<Id>>::new();
                             for clause in &clauses {
@@ -196,7 +215,7 @@ impl Formula {
 
     fn reverse_preorder(&mut self, visitor: fn(&mut Self, Id) -> &[Id]) {
         self.assert_valid();
-        let mut remaining_ids = vec![self.root_id];
+        let mut remaining_ids = vec![self.auxiliary_root_id];
         // presumably, the following set can get large for large formulas (some for postorder traversal).
         // maybe it can be compacted in some way. (bit matrix? pre-sized vec<bool> with false as default?)
         let mut visited_ids = HashSet::<Id>::new();
@@ -211,7 +230,7 @@ impl Formula {
 
     fn reverse_postorder(&mut self, visitor: fn(&mut Self, Id) -> ()) {
         self.assert_valid();
-        let mut remaining_ids = vec![self.root_id];
+        let mut remaining_ids = vec![self.get_root_expr()]; // todo: should be aux root!
         let mut seen_ids = HashSet::<Id>::new();
         let mut visited_ids = HashSet::<Id>::new();
         while !remaining_ids.is_empty() {
@@ -255,7 +274,7 @@ impl<'a> fmt::Display for ExprInFormula<'a> {
 
 impl fmt::Display for Formula {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        ExprInFormula(self, &self.root_id).fmt(f)
+        ExprInFormula(self, &self.get_root_expr()).fmt(f)
     }
 }
 
@@ -273,3 +292,94 @@ impl fmt::Display for Formula {
 // assumes that each expr only has each child at most once (idempotency is already reduced)
 
 // how much impact does structural sharing of common sub-formulas have? does it even happen for FMs?
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod valid {
+        use super::*;
+
+        #[test]
+        #[should_panic(expected = "formula is invalid")]
+        fn empty() {
+            Formula::new().to_string();
+        }
+
+        #[test]
+        #[should_panic(expected = "formula is invalid")]
+        fn no_root() {
+            let mut f = Formula::new();
+            let a = f.add_var("a");
+            f.add_expr(Not(a));
+            f.to_string();
+        }
+
+        #[test]
+        fn valid() {
+            let mut f = Formula::new();
+            let a = f.add_var("a");
+            let not_a = f.add_expr(Not(a));
+            f.set_root_expr(not_a);
+            f.to_string();
+        }
+    }
+
+    mod nnf {
+        use super::*;
+
+        #[test]
+        fn not_a() {
+            let mut f = Formula::new();
+            let a = f.add_var("a");
+            let not_a = f.add_expr(Not(a));
+            f.set_root_expr(not_a);
+            assert_eq!(f.to_nnf().to_string(), "Not(a)");
+        }
+
+        #[test]
+        fn not_not_a() {
+            let mut f = Formula::new();
+            let a = f.add_var("a");
+            let not_a = f.add_expr(Not(a));
+            let not_not_a = f.add_expr(Not(not_a));
+            f.set_root_expr(not_not_a);
+            assert_eq!(f.to_nnf().to_string(), "a");
+        }
+
+        #[test]
+        fn and_not_not_a() {
+            let mut f = Formula::new();
+            let a = f.add_var("a");
+            let not_a = f.add_expr(Not(a));
+            let not_not_a = f.add_expr(Not(not_a));
+            let and = f.add_expr(And(vec![not_not_a]));
+            f.set_root_expr(and);
+            assert_eq!(f.to_nnf().to_string(), "And(a)");
+        }
+
+        #[test]
+        fn complex() {
+            let mut f = Formula::new();
+            let a = f.add_var("a");
+            let b = f.add_var("b");
+            let c = f.add_var("c");
+            let not_a = f.add_expr(Not(a));
+            let not_b = f.add_expr(Not(b));
+            let not_c = f.add_expr(Not(c));
+            let not_not_c = f.add_expr(Not(not_c));
+            let not_a_and_c = f.add_expr(And(vec![not_a, c]));
+            let not_b_or_not_not_c_or_not_a_and_c = f.add_expr(Or(vec![not_b, not_not_c, not_a_and_c]));
+            let not_not_b_or_not_not_c_or_not_a_and_c = f.add_expr(Not(not_b_or_not_not_c_or_not_a_and_c));
+            let not_not_not_b_or_not_not_c_or_not_a_and_c = f.add_expr(Not(not_not_b_or_not_not_c_or_not_a_and_c));
+            let root = f.add_expr(Or(vec![not_a_and_c, not_not_b_or_not_not_c_or_not_a_and_c, not_not_not_b_or_not_not_c_or_not_a_and_c]));
+            f.set_root_expr(root);
+            assert_eq!(
+                f.to_nnf().to_string(),
+                "Or(And(Not(a), c), And(b, Not(c), Or(a, Not(c))), Or(Not(b), c, And(Not(a), c)))"
+            );
+        }
+    }
+
+    mod cnf_dist {}
+}

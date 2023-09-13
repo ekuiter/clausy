@@ -1,6 +1,11 @@
+use std::env;
+
 use cnfrust::{formula::{Formula,Expr::*}, cnf::CNF};
 
 fn main() {
+    let args: Vec<String> = env::args().collect();
+    dbg!(args);
+
     let mut f = Formula::new();
     let a = f.add_var("a");
     let b = f.add_var("b");
