@@ -1,13 +1,19 @@
 use std::{
     collections::{HashMap, HashSet},
-    fmt, slice,
+    fmt, slice, ops::Deref,
 };
 use Expr::*;
 
 type Id = u32;
 
+// optional features (disable with #cfg, so binary can be optimized):
+// - invariant: no formula is in memory twice, so parse with structural sharing or without, reuse cached formulas
+// - run NNF before other transformations, or don't run it before (interacts with PG and structural sharing)
+// - merge And/Or, auto-simplify terms while creating NNF/CNF or only do it afterwards??
+
+#[derive(Debug)]
 pub struct Formula {
-    auxiliary_root_id: Id,
+    aux_root_id: Id,
     next_id: Id,
     next_var_id: Id,
     // possibly, Rc is needed to let go of unused formulas
@@ -18,6 +24,7 @@ pub struct Formula {
     // make structural sharing optional, so that we can evaluate its impact (e.g., then traversal does not need to track visited nodes)
 }
 
+#[derive(Debug)]
 pub enum Expr {
     Var(Id),
     Not(Id),
@@ -30,7 +37,7 @@ pub struct ExprInFormula<'a>(&'a Formula, &'a Id);
 impl Formula {
     pub fn new() -> Self {
         Self {
-            auxiliary_root_id: 0,
+            aux_root_id: 0,
             next_id: 0,
             next_var_id: 0,
             exprs: HashMap::new(),
@@ -40,14 +47,15 @@ impl Formula {
 
     fn assert_valid(&self) {
         assert!(
-            self.auxiliary_root_id > 0 && self.next_id > 0 && self.next_var_id > 0,
+            self.aux_root_id > 0 && self.next_id > 0 && self.next_var_id > 0,
             "formula is invalid"
         );
     }
 
     pub fn get_root_expr(&self) -> Id {
         self.assert_valid();
-        if let And(ids) = self.exprs.get(&self.auxiliary_root_id).unwrap() {
+        if let And(ids) = self.exprs.get(&self.aux_root_id).unwrap() {
+            assert!(ids.len() == 1, "aux root has more than one child");
             ids[0]
         } else {
             panic!("formula is invalid")
@@ -55,8 +63,8 @@ impl Formula {
     }
 
     pub fn set_root_expr(&mut self, root_id: Id) {
-        let auxiliary_root_id = self.add_expr(And(vec![root_id]));
-        self.auxiliary_root_id = auxiliary_root_id;
+        let aux_root_id = self.add_expr(And(vec![root_id]));
+        self.aux_root_id = aux_root_id;
     }
 
     pub fn add_expr(&mut self, expr: Expr) -> Id {
@@ -100,7 +108,7 @@ impl Formula {
     }
 
     fn negate_exprs(&mut self, ids: Vec<Id>) -> Vec<Id> {
-        ids.iter().map(|id| self.add_expr(Not(*id))).collect()
+        ids.iter().map(|id| self.add_expr(Not(*id))).collect() // use cached formulas!
     }
 
     fn child_exprs_refl<'a>(&'a self, id: &'a Id) -> &'a [Id] {
@@ -110,7 +118,22 @@ impl Formula {
         }
     }
 
-    fn format_expr(&self, id: Id, f: &mut fmt::Formatter) -> fmt::Result {
+    fn is_non_aux_and(&self, id: Id) -> bool {
+        if let And(_) = self.exprs.get(&id).unwrap() {
+            id != self.aux_root_id
+        } else {
+            false
+        }
+    }
+
+    fn dedup(mut vec: Vec<Id>) -> Vec<Id> {
+        // (inefficient) deduplication for idempotency
+        vec.sort();
+        vec.dedup();
+        vec
+    }
+
+    fn format_expr(&self, id: Id, f: &mut fmt::Formatter) -> fmt::Result { // rewrite with preorder traversal?
         let mut write_helper = |kind: &str, ids: &[Id]| {
             write!(f, "{kind}(")?;
             for (i, id) in ids.iter().enumerate() {
@@ -135,7 +158,10 @@ impl Formula {
 
     // adds new expressions without discarding the old ones if they get orphaned (use Rc?)
     // creates temporary vector (use RefCell?)
-    // may destroy structural sharing of originally shared subformulas, so might be beneficial to not run this before Tseitin (this might largely influence negation-CNF reasoning); so, also a polarity-based PG implementation is necessary
+    // may destroy structural sharing of originally shared subformulas,
+    // so might be beneficial to not run this before Tseitin
+    // (this might largely influence negation-CNF reasoning);
+    // so, also a polarity-based PG implementation is necessary
     fn to_nnf_expr(&mut self, id: Id) -> &[Id] {
         let mut child_ids: Vec<Id> = self.get_child_exprs(self.exprs.get(&id).unwrap()).to_vec();
 
@@ -157,7 +183,7 @@ impl Formula {
                         }
                         Or(child_ids2) => {
                             let new_expr = And(self.negate_exprs(child_ids2.clone()));
-                            *child_id = self.add_expr(new_expr);
+                            *child_id = self.add_expr(new_expr); // what if we created an and, but are ourselves an and? could merge here!
                         }
                     }
                 }
@@ -169,14 +195,24 @@ impl Formula {
 
     // assumes NNF
     fn to_cnf_expr_dist(&mut self, id: Id) -> () {
-        let mut child_ids: Vec<Id> = self.get_child_exprs(self.exprs.get(&id).unwrap()).to_vec();
+        // need the children two times on the stack here, could maybe be disabled, but then merging is more complicated
+        let child_ids = self.get_child_exprs(self.exprs.get(&id).unwrap()).to_vec();
+        let mut new_child_ids = Vec::<Id>::new();
 
-        for child_id in child_ids.iter_mut() {
+        for child_id in child_ids {
             let child = self.exprs.get(&child_id).unwrap();
             match child {
                 // it is still necessary to flatten And's and Or's
                 // also, what about empty/unary Or and And?
-                Var(_) | Not(_) | And(_) => (),
+                Var(_) | Not(_) => new_child_ids.push(child_id),
+                And(cnf_ids) => {
+                    if self.is_non_aux_and(id) || cnf_ids.len() == 1 {
+                        new_child_ids.extend(Self::dedup(cnf_ids.clone()));
+                        // new_child_ids.push(self.add_expr(And(cnf))); // unoptimized version
+                    } else {
+                        new_child_ids.push(child_id);
+                    }
+                },
                 Or(cnf_ids) => {
                     // what happens if this is empty/unary?
                     let mut clauses = Vec::<Vec<Id>>::new();
@@ -201,21 +237,32 @@ impl Formula {
                             clauses = new_clauses;
                         }
                     }
-                    let mut cnf = Vec::<Id>::new();
-                    for clause in clauses {
-                        cnf.push(self.add_expr(Or(clause)));
+                    // clauses = Self::dedup(clauses); ???
+                    let mut new_cnf_ids = Vec::<Id>::new();
+                    for mut clause in clauses {
+                        clause = Self::dedup(clause);
+                        if clause.len() > 1 {
+                            new_cnf_ids.push(self.add_expr(Or(clause)));
+                        } else {
+                            new_cnf_ids.push(clause[0]);
+                        }
                     }
-                    *child_id = self.add_expr(And(cnf));
+                    if self.is_non_aux_and(id) || new_cnf_ids.len() == 1 {
+                        new_child_ids.extend(new_cnf_ids);
+                        // new_child_ids.push(self.add_expr(And(cnf))); // unoptimized version
+                    } else {
+                        new_child_ids.push(self.add_expr(And(new_cnf_ids)));
+                    }
                 }
             }
         }
 
-        self.set_child_exprs(id, child_ids);
+        self.set_child_exprs(id, new_child_ids);
     }
 
     fn reverse_preorder(&mut self, visitor: fn(&mut Self, Id) -> &[Id]) {
         self.assert_valid();
-        let mut remaining_ids = vec![self.auxiliary_root_id];
+        let mut remaining_ids = vec![self.aux_root_id];
         // presumably, the following set can get large for large formulas (some for postorder traversal).
         // maybe it can be compacted in some way. (bit matrix? pre-sized vec<bool> with false as default?)
         let mut visited_ids = HashSet::<Id>::new();
@@ -230,7 +277,7 @@ impl Formula {
 
     fn reverse_postorder(&mut self, visitor: fn(&mut Self, Id) -> ()) {
         self.assert_valid();
-        let mut remaining_ids = vec![self.get_root_expr()]; // todo: should be aux root!
+        let mut remaining_ids = vec![self.aux_root_id];
         let mut seen_ids = HashSet::<Id>::new();
         let mut visited_ids = HashSet::<Id>::new();
         while !remaining_ids.is_empty() {
@@ -381,5 +428,20 @@ mod tests {
         }
     }
 
-    mod cnf_dist {}
+    mod cnf_dist {
+        use super::*;
+
+        #[test]
+        fn splice_and() {
+            let mut f = Formula::new();
+            let a = f.add_var("a");
+            let b = f.add_var("b");
+            let a_and_b = f.add_expr(And(vec![a, b]));
+            let a_or_a_and_b= f.add_expr(Or(vec![a, a_and_b]));
+            let a_and_a_or_a_and_b = f.add_expr(And(vec![a, a_or_a_and_b]));
+            f.set_root_expr(a_and_a_or_a_and_b);
+            f = f.to_cnf_dist();
+            assert_eq!(f.to_string(), "And(a, a, Or(a, b))"); // could yet be simplified further
+        }
+    }
 }
