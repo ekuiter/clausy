@@ -10,6 +10,9 @@ pub struct Formula {
     root_id: Id,
     next_id: Id,
     next_var_id: Id,
+    // possibly, Rc is needed to let go of unused formulas
+    // RefCell for internal mutability (do not create unnecessary copies)
+    // and Box for faster moving??
     exprs: HashMap<Id, Expr>,
     vars: HashMap<Id, String>,
     // make structural sharing optional, so that we can evaluate its impact (e.g., then traversal does not need to track visited nodes)
