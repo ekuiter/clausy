@@ -6,7 +6,6 @@ use Expr::*;
 
 type Id = u32;
 
-#[derive(Debug)]
 pub struct Formula {
     root_id: Id,
     next_id: Id,
@@ -16,7 +15,6 @@ pub struct Formula {
     // make structural sharing optional, so that we can evaluate its impact (e.g., then traversal does not need to track visited nodes)
 }
 
-#[derive(Debug)]
 pub enum Expr {
     Var(Id),
     Not(Id),
@@ -38,7 +36,7 @@ impl Formula {
     }
 
     fn assert_valid(&self) {
-        debug_assert!(self.root_id > 0 && self.next_id > 0 && self.next_var_id > 0);
+        assert!(self.root_id > 0 && self.next_id > 0 && self.next_var_id > 0, "formula is invalid");
     }
 
     pub fn set_root_expr(&mut self, root_id: Id) {
@@ -97,7 +95,6 @@ impl Formula {
     }
 
     fn format_expr(&self, id: Id, f: &mut fmt::Formatter) -> fmt::Result {
-        self.assert_valid();
         let mut write_helper = |kind: &str, ids: &[Id]| {
             write!(f, "{kind}(")?;
             for (i, id) in ids.iter().enumerate() {
@@ -172,7 +169,7 @@ impl Formula {
                             clauses.extend(clause_ids.iter().map(|clause_id| { vec![*clause_id] }).collect::<Vec<Vec<Id>>>());
                         } else {
                             let mut new_clauses = Vec::<Vec<Id>>::new();
-                            for clause in clauses {
+                            for clause in &clauses {
                                 for clause_id in clause_ids {
                                     let mut new_clause = clause.clone();
                                     new_clause.push(*clause_id);
@@ -248,6 +245,7 @@ impl Formula {
 
 impl<'a> fmt::Display for ExprInFormula<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.assert_valid();
         self.0.format_expr(*self.1, f)
     }
 }

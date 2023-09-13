@@ -1,4 +1,4 @@
-use cnfrust::formula::{Formula,Expr::*};
+use cnfrust::{formula::{Formula,Expr::*}, cnf::CNF};
 
 fn main() {
     let mut f = Formula::new();
@@ -20,4 +20,7 @@ fn main() {
     println!("{f}");
     f = f.to_cnf_dist();
     println!("{f}");
+
+    let cnf = CNF::new(f);
+    print!("{}", cnf);
 }
