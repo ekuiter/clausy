@@ -4,8 +4,8 @@ use std::{
 };
 use Expr::*;
 
-pub type Id = u32;
-pub type VarId = i32;
+pub(crate) type Id = u32;
+pub(crate) type VarId = i32;
 
 // optional features (disable with #cfg, so binary can be optimized):
 // - invariant: no formula is in memory twice, so parse with structural sharing or without, reuse cached formulas
@@ -27,17 +27,17 @@ pub struct Formula<'a> {
 }
 
 #[derive(Debug)]
-pub enum Expr {
+pub(crate) enum Expr {
     Var(VarId),
     Not(Id),
     And(Vec<Id>),
     Or(Vec<Id>),
 }
 
-pub struct ExprInFormula<'a>(&'a Formula<'a>, &'a Id);
+struct ExprInFormula<'a>(&'a Formula<'a>, &'a Id);
 
 impl<'a> Formula<'a> {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             aux_root_id: 0,
             next_id: 0,
@@ -65,19 +65,19 @@ impl<'a> Formula<'a> {
         }
     }
 
-    pub fn set_root_expr(&mut self, root_id: Id) {
+    pub(crate) fn set_root_expr(&mut self, root_id: Id) {
         let aux_root_id = self.add_expr(And(vec![root_id]));
         self.aux_root_id = aux_root_id;
     }
 
-    pub fn add_expr(&mut self, expr: Expr) -> Id {
+    pub(crate) fn add_expr(&mut self, expr: Expr) -> Id {
         let id = self.next_id + 1;
         self.exprs.insert(id, expr);
         self.next_id = id;
         id
     }
 
-    pub fn add_var(&mut self, var: &'a str) -> Id { // remove all pub's
+    pub(crate) fn add_var(&mut self, var: &'a str) -> Id {
         let id = self.next_var_id + 1;
         self.vars.insert(id, var);
         self.vars_inv.insert(var, id);
@@ -85,13 +85,9 @@ impl<'a> Formula<'a> {
         self.add_expr(Var(id))
     }
 
-    pub fn get_var(&mut self, var: &str) -> Id {
+    pub(crate) fn get_var(&mut self, var: &str) -> Id {
         self.add_expr(Var(*self.vars_inv.get(var).unwrap()))
     }
-
-    // pub fn var(&mut self, var: &str) -> Id {
-
-    // }
 
     fn get_child_exprs<'b>(&self, expr: &'b Expr) -> &'b [Id] {
         match expr {

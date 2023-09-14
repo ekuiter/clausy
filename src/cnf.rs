@@ -7,14 +7,16 @@ pub struct CNF<'a> {
     vars: HashMap<VarId, &'a str>,
 }
 
-impl<'a> CNF<'a> {
-    pub fn new(formula: &'a Formula) -> Self {
+impl<'a> From<&'a Formula<'a>> for CNF<'a> {
+    fn from(formula: &'a Formula<'a>) -> Self {
         Self {
             clauses: formula.get_clauses(),
             vars: formula.get_vars(),
         }
     }
+}
 
+impl<'a> CNF<'a> {
     fn assert_valid(&self) {
         assert!(!self.vars.contains_key(&0) && self.vars.len() > 0 && self.clauses.len() > 0, "CNF is invalid");
     }
@@ -23,11 +25,11 @@ impl<'a> CNF<'a> {
 impl<'a> fmt::Display for CNF<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.assert_valid();
-        write!(f, "p cnf {} {}\n", self.vars.len(), self.clauses.len())?;
         for (i, var) in &self.vars {
             assert!(!var.is_empty(), "variable {i} has empty name");
             write!(f, "c {i} {var}\n")?; // order of variables?
         }
+        write!(f, "p cnf {} {}\n", self.vars.len(), self.clauses.len())?;
         for clause in &self.clauses {
             assert_ne!(clause.len(), 0, "empty clause is not allowed");
             for literal in clause {

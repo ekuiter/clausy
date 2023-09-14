@@ -4,10 +4,11 @@ name = @{ char+ }
 // could use Pratt parsing (https://pest.rs/book/precedence.html) to omit parentheses and def()
 // could also attempt parsing UVL or SAT files (https://www.domagoj-babic.com/uploads/ResearchProjects/Spear/dimacs-cnf.pdf)
 var = { "def" ~ "(" ~ #var = name ~ ")" }
+unsupported = _{ "<unsupported>" }
 not = { "!" ~ expr }
 and = { "(" ~ expr ~ "&" ~ expr ~ ("&" ~ expr)* ~ ")" }
 or = { "(" ~ expr ~ "|" ~ expr ~ ("|" ~ expr)* ~ ")" }
-expr = _{ var | not | and | or }
+expr = _{ var | unsupported | not | and | or }
 
 comment = _{ "#" ~ (!NEWLINE ~ ANY)* }
 line = _{ expr | comment }
