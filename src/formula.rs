@@ -355,6 +355,8 @@ impl Formula {
         }
     }
 
+    // combine pre- and postorder to a DFS that creates NNF on first and distributive CNF on last visit
+
     pub fn print_subexprs(&mut self) {
         self.reverse_postorder(|s, i| s.print_expr(i));
     }
