@@ -26,6 +26,6 @@ fn main() {
     f = f.to_cnf_dist();
     println!("{f}");
 
-    // let cnf = CNF::new(f);
-    // print!("{}", cnf);
+    let cnf = CNF::new(f);
+    print!("{}", cnf);
 }

@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    fmt, slice, ops::Deref,
+    fmt, slice,
 };
 use Expr::*;
 
@@ -133,7 +133,8 @@ impl Formula {
         vec
     }
 
-    fn format_expr(&self, id: Id, f: &mut fmt::Formatter) -> fmt::Result { // rewrite with preorder traversal?
+    fn format_expr(&self, id: Id, f: &mut fmt::Formatter) -> fmt::Result {
+        // rewrite with preorder traversal?
         let mut write_helper = |kind: &str, ids: &[Id]| {
             write!(f, "{kind}(")?;
             for (i, id) in ids.iter().enumerate() {
@@ -202,19 +203,16 @@ impl Formula {
         for child_id in child_ids {
             let child = self.exprs.get(&child_id).unwrap();
             match child {
-                // it is still necessary to flatten And's and Or's
-                // also, what about empty/unary Or and And?
                 Var(_) | Not(_) => new_child_ids.push(child_id),
                 And(cnf_ids) => {
                     if self.is_non_aux_and(id) || cnf_ids.len() == 1 {
-                        new_child_ids.extend(Self::dedup(cnf_ids.clone()));
+                        new_child_ids.extend(cnf_ids.clone());
                         // new_child_ids.push(self.add_expr(And(cnf))); // unoptimized version
                     } else {
                         new_child_ids.push(child_id);
                     }
-                },
+                }
                 Or(cnf_ids) => {
-                    // what happens if this is empty/unary?
                     let mut clauses = Vec::<Vec<Id>>::new();
                     for (i, cnf_id) in cnf_ids.iter().enumerate() {
                         let clause_ids = self.child_exprs_refl(cnf_id);
@@ -237,7 +235,6 @@ impl Formula {
                             clauses = new_clauses;
                         }
                     }
-                    // clauses = Self::dedup(clauses); ???
                     let mut new_cnf_ids = Vec::<Id>::new();
                     for mut clause in clauses {
                         clause = Self::dedup(clause);
@@ -257,7 +254,7 @@ impl Formula {
             }
         }
 
-        self.set_child_exprs(id, new_child_ids);
+        self.set_child_exprs(id, Self::dedup(new_child_ids));
     }
 
     fn reverse_preorder(&mut self, visitor: fn(&mut Self, Id) -> &[Id]) {
@@ -325,7 +322,7 @@ impl fmt::Display for Formula {
     }
 }
 
-// todo: to cnf (distrib); structural reuse; parse SAT/write CNF; tseitin; RC for releasing old subformulas??
+// todo: structural reuse; parse SAT/write CNF; tseitin; RC for releasing old subformulas??
 
 // tseitin formula also has a 'pointer' to another formula, to ease the actual substitution
 // add optimizations for simplification? (e.g., idempotency, pure literals, Plaisted, ... -> depending on whether equi-countability is preserved/necessary)
@@ -416,10 +413,17 @@ mod tests {
             let not_c = f.add_expr(Not(c));
             let not_not_c = f.add_expr(Not(not_c));
             let not_a_and_c = f.add_expr(And(vec![not_a, c]));
-            let not_b_or_not_not_c_or_not_a_and_c = f.add_expr(Or(vec![not_b, not_not_c, not_a_and_c]));
-            let not_not_b_or_not_not_c_or_not_a_and_c = f.add_expr(Not(not_b_or_not_not_c_or_not_a_and_c));
-            let not_not_not_b_or_not_not_c_or_not_a_and_c = f.add_expr(Not(not_not_b_or_not_not_c_or_not_a_and_c));
-            let root = f.add_expr(Or(vec![not_a_and_c, not_not_b_or_not_not_c_or_not_a_and_c, not_not_not_b_or_not_not_c_or_not_a_and_c]));
+            let not_b_or_not_not_c_or_not_a_and_c =
+                f.add_expr(Or(vec![not_b, not_not_c, not_a_and_c]));
+            let not_not_b_or_not_not_c_or_not_a_and_c =
+                f.add_expr(Not(not_b_or_not_not_c_or_not_a_and_c));
+            let not_not_not_b_or_not_not_c_or_not_a_and_c =
+                f.add_expr(Not(not_not_b_or_not_not_c_or_not_a_and_c));
+            let root = f.add_expr(Or(vec![
+                not_a_and_c,
+                not_not_b_or_not_not_c_or_not_a_and_c,
+                not_not_not_b_or_not_not_c_or_not_a_and_c,
+            ]));
             f.set_root_expr(root);
             assert_eq!(
                 f.to_nnf().to_string(),
@@ -432,16 +436,36 @@ mod tests {
         use super::*;
 
         #[test]
-        fn splice_and() {
+        fn simple() {
             let mut f = Formula::new();
             let a = f.add_var("a");
             let b = f.add_var("b");
             let a_and_b = f.add_expr(And(vec![a, b]));
-            let a_or_a_and_b= f.add_expr(Or(vec![a, a_and_b]));
+            let a_or_a_and_b = f.add_expr(Or(vec![a, a_and_b]));
             let a_and_a_or_a_and_b = f.add_expr(And(vec![a, a_or_a_and_b]));
             f.set_root_expr(a_and_a_or_a_and_b);
-            f = f.to_cnf_dist();
-            assert_eq!(f.to_string(), "And(a, a, Or(a, b))"); // could yet be simplified further
+            f = f.to_nnf().to_cnf_dist();
+            assert_eq!(f.to_string(), "And(a, Or(a, b))");
+        }
+
+        #[test]
+        fn complex() {
+            let mut f = Formula::new();
+            let a = f.add_var("a");
+            let b = f.add_var("b");
+            let c = f.add_var("c");
+            let not_a = f.add_expr(Not(a));
+            let not_b = f.add_expr(Not(b));
+            let not_c = f.add_expr(Not(c));
+            let not_not_c = f.add_expr(Not(not_c));
+            let a_and_c = f.add_expr(And(vec![not_a, c]));
+            let b_or_c = f.add_expr(Or(vec![not_b, not_not_c, a_and_c]));
+            let not_b_or_c = f.add_expr(Not(b_or_c));
+            let not_not_b_or_c = f.add_expr(Not(not_b_or_c));
+            let root = f.add_expr(Or(vec![a_and_c, not_b_or_c, not_not_b_or_c]));
+            f.set_root_expr(root);
+            f = f.to_nnf().to_cnf_dist();
+            assert_eq!(f.to_string(), "And(Or(b, c, Or(c, Not(b))), Or(b, c, Or(c, Not(a), Not(b))), Or(c, Not(c), Or(c, Not(b))), Or(c, Not(c), Or(c, Not(a), Not(b))), Or(c, Or(a, Not(c)), Or(c, Not(b))), Or(c, Or(a, Not(c)), Or(c, Not(a), Not(b))), Or(b, Not(a), Or(c, Not(b))), Or(b, Not(a), Or(c, Not(a), Not(b))), Or(Not(a), Not(c), Or(c, Not(b))), Or(Not(a), Not(c), Or(c, Not(a), Not(b))), Or(Not(a), Or(a, Not(c)), Or(c, Not(b))), Or(Not(a), Or(a, Not(c)), Or(c, Not(a), Not(b))))");
         }
     }
 }
