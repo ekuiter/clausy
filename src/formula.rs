@@ -21,7 +21,7 @@ pub struct Formula {
     // RefCell for internal mutability (do not create unnecessary copies)
     // and Box for faster moving??
     exprs: HashMap<Id, Expr>,
-    vars: HashMap<VarId, String>,
+    vars: HashMap<VarId, String>, // possibly borrow 'str from parser and add lifetime 'a to Formula
     // make structural sharing optional, so that we can evaluate its impact (e.g., then traversal does not need to track visited nodes)
 }
 
@@ -82,9 +82,14 @@ impl Formula {
         self.add_expr(Var(id))
     }
 
-    pub fn add_var(&mut self, var: &str) -> Id {
+    pub fn add_var(&mut self, var: &str) -> Id { // remove all pub's
+        //self.vars.get(k)
         self.add_var_str(String::from(var))
     }
+
+    // pub fn var(&mut self, var: &str) -> Id {
+
+    // }
 
     fn get_child_exprs<'a>(&self, expr: &'a Expr) -> &'a [Id] {
         match expr {
@@ -274,7 +279,7 @@ impl Formula {
                     for (i, cnf_id) in cnf_ids.iter().enumerate() {
                         let clause_ids = self.child_exprs_refl(cnf_id);
                         if i == 0 {
-                            clauses.extend(
+                            clauses.extend( // possibly this can be done with a neutral element instead
                                 clause_ids
                                     .iter()
                                     .map(|clause_id| {
