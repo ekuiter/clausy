@@ -2,28 +2,16 @@ use std::{collections::HashMap, fmt};
 
 use crate::formula::{Formula, VarId};
 
-pub struct CNF {
+pub struct CNF<'a> {
     clauses: Vec<Vec<VarId>>,
-    vars: HashMap<VarId, String>,
+    vars: HashMap<VarId, &'a str>,
 }
 
-impl From<Formula> for CNF {
-    fn from(formula: Formula) -> Self {
+impl<'a> CNF<'a> {
+    pub fn new(formula: &'a Formula) -> Self {
         Self {
             clauses: formula.get_clauses(),
             vars: formula.get_vars(),
-        }
-    }
-}
-
-impl CNF {
-    pub fn new() -> Self {
-        let mut vars = HashMap::new();
-        vars.insert(1, "bla".to_string());
-        vars.insert(2, "test".to_string());
-        Self {
-            vars,
-            clauses: vec![vec![1, -2], vec![-1], vec![2]],
         }
     }
 
@@ -32,7 +20,7 @@ impl CNF {
     }
 }
 
-impl fmt::Display for CNF {
+impl<'a> fmt::Display for CNF<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.assert_valid();
         write!(f, "p cnf {} {}\n", self.vars.len(), self.clauses.len())?;

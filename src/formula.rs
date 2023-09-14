@@ -13,7 +13,7 @@ pub type VarId = i32;
 // - merge And/Or, auto-simplify terms while creating NNF/CNF or only do it afterwards??
 
 #[derive(Debug)]
-pub struct Formula {
+pub struct Formula<'a> {
     aux_root_id: Id,
     next_id: Id,
     next_var_id: VarId,
@@ -21,7 +21,8 @@ pub struct Formula {
     // RefCell for internal mutability (do not create unnecessary copies)
     // and Box for faster moving??
     exprs: HashMap<Id, Expr>,
-    vars: HashMap<VarId, String>, // possibly borrow 'str from parser and add lifetime 'a to Formula
+    vars: HashMap<VarId, &'a str>,
+    vars_inv: HashMap<&'a str, VarId>, // or put &str into Var()?
     // make structural sharing optional, so that we can evaluate its impact (e.g., then traversal does not need to track visited nodes)
 }
 
@@ -33,9 +34,9 @@ pub enum Expr {
     Or(Vec<Id>),
 }
 
-pub struct ExprInFormula<'a>(&'a Formula, &'a Id);
+pub struct ExprInFormula<'a>(&'a Formula<'a>, &'a Id);
 
-impl Formula {
+impl<'a> Formula<'a> {
     pub fn new() -> Self {
         Self {
             aux_root_id: 0,
@@ -43,6 +44,7 @@ impl Formula {
             next_var_id: 0,
             exprs: HashMap::new(),
             vars: HashMap::new(),
+            vars_inv: HashMap::new(),
         }
     }
 
@@ -75,23 +77,23 @@ impl Formula {
         id
     }
 
-    pub fn add_var_str(&mut self, var: String) -> Id {
+    pub fn add_var(&mut self, var: &'a str) -> Id { // remove all pub's
         let id = self.next_var_id + 1;
         self.vars.insert(id, var);
+        self.vars_inv.insert(var, id);
         self.next_var_id += 1;
         self.add_expr(Var(id))
     }
 
-    pub fn add_var(&mut self, var: &str) -> Id { // remove all pub's
-        //self.vars.get(k)
-        self.add_var_str(String::from(var))
+    pub fn get_var(&mut self, var: &str) -> Id {
+        self.add_expr(Var(*self.vars_inv.get(var).unwrap()))
     }
 
     // pub fn var(&mut self, var: &str) -> Id {
 
     // }
 
-    fn get_child_exprs<'a>(&self, expr: &'a Expr) -> &'a [Id] {
+    fn get_child_exprs<'b>(&self, expr: &'b Expr) -> &'b [Id] {
         match expr {
             Var(_) => &[],
             Not(id) => slice::from_ref(id),
@@ -99,7 +101,7 @@ impl Formula {
         }
     }
 
-    fn set_child_exprs<'a>(&mut self, id: Id, new_ids: Vec<Id>) -> &[Id] {
+    fn set_child_exprs(&mut self, id: Id, new_ids: Vec<Id>) -> &[Id] {
         match self.exprs.get_mut(&id).unwrap() {
             Var(_) => &[],
             Not(id) => {
@@ -117,7 +119,7 @@ impl Formula {
         ids.iter().map(|id| self.add_expr(Not(*id))).collect() // use cached formulas!
     }
 
-    fn child_exprs_refl<'a>(&'a self, id: &'a Id) -> &'a [Id] {
+    fn child_exprs_refl<'b>(&'b self, id: &'b Id) -> &'b [Id] {
         match self.exprs.get(&id).unwrap() {
             Var(_) | Not(_) => slice::from_ref(&id),
             And(ids) | Or(ids) => ids,
@@ -150,7 +152,7 @@ impl Formula {
         vec
     }
 
-    pub(crate) fn get_vars(&self) -> HashMap<VarId, String> {
+    pub(crate) fn get_vars(&self) -> HashMap<VarId, &str> {
         self.vars.clone()
     }
 
@@ -384,7 +386,7 @@ impl<'a> fmt::Display for ExprInFormula<'a> {
     }
 }
 
-impl fmt::Display for Formula {
+impl<'a> fmt::Display for Formula<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         ExprInFormula(self, &self.get_root_expr()).fmt(f)
     }

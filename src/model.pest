@@ -1,7 +1,7 @@
 char = { !("(" | ")" | WHITESPACE | NEWLINE) ~ ANY }
 name = @{ char+ }
 
-var = { "def" ~ "(" ~ name ~ ")" } // what about implicit vars?
+var = { "def" ~ "(" ~ #var = name ~ ")" } // what about implicit vars?
 not = { "!" ~ expr }
 and = { "(" ~ expr ~ "&" ~ expr ~ ("&" ~ expr)* ~ ")" } // what about implicit ()?
 or = { "(" ~ expr ~ "|" ~ expr ~ ("|" ~ expr)* ~ ")" }
