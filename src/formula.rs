@@ -4,7 +4,8 @@ use std::{
 };
 use Expr::*;
 
-type Id = u32;
+pub type Id = u32;
+pub type VarId = i32;
 
 // optional features (disable with #cfg, so binary can be optimized):
 // - invariant: no formula is in memory twice, so parse with structural sharing or without, reuse cached formulas
@@ -15,18 +16,18 @@ type Id = u32;
 pub struct Formula {
     aux_root_id: Id,
     next_id: Id,
-    next_var_id: Id,
+    next_var_id: VarId,
     // possibly, Rc is needed to let go of unused formulas
     // RefCell for internal mutability (do not create unnecessary copies)
     // and Box for faster moving??
     exprs: HashMap<Id, Expr>,
-    vars: HashMap<Id, String>,
+    vars: HashMap<VarId, String>,
     // make structural sharing optional, so that we can evaluate its impact (e.g., then traversal does not need to track visited nodes)
 }
 
 #[derive(Debug)]
 pub enum Expr {
-    Var(Id),
+    Var(VarId),
     Not(Id),
     And(Vec<Id>),
     Or(Vec<Id>),
@@ -52,7 +53,7 @@ impl Formula {
         );
     }
 
-    pub fn get_root_expr(&self) -> Id {
+    fn get_root_expr(&self) -> Id {
         self.assert_valid();
         if let And(ids) = self.exprs.get(&self.aux_root_id).unwrap() {
             assert!(ids.len() == 1, "aux root has more than one child");
@@ -126,11 +127,67 @@ impl Formula {
         }
     }
 
+    fn splice_or(&self, clause_id: Id, new_clause: &mut Vec<Id>) {
+        // splice child or's
+        if let Or(literal_ids) = self.exprs.get(&clause_id).unwrap() {
+            for literal_id in literal_ids {
+                new_clause.push(*literal_id);
+            }
+        } else {
+            new_clause.push(clause_id);
+        }
+    }
+
     fn dedup(mut vec: Vec<Id>) -> Vec<Id> {
         // (inefficient) deduplication for idempotency
         vec.sort();
         vec.dedup();
         vec
+    }
+
+    pub(crate) fn get_vars(&self) -> HashMap<VarId, String> {
+        self.vars.clone()
+    }
+
+    // requires CNF
+    pub(crate) fn get_clauses(&self) -> Vec<Vec<VarId>> {
+        let mut clauses = Vec::<Vec<VarId>>::new();
+
+        let add_literal = |id, clause: &mut Vec<VarId>| match self.exprs.get(&id).unwrap() {
+            Var(var_id) => clause.push(*var_id),
+            Not(child_id) => {
+                if let Var(var_id) = self.exprs.get(&child_id).unwrap() {
+                    clause.push(-*var_id);
+                } else {
+                    panic!("expected Var below Not, got {}", ExprInFormula(self, &id));
+                }
+            }
+            _ => panic!("expected Var or Not literal, got {}", ExprInFormula(self, &id)),
+        };
+
+        let mut add_clause = |child_ids: &[Id]| {
+            let mut clause = Vec::<VarId>::new();
+            for child_id in child_ids {
+                add_literal(*child_id, &mut clause);
+            }
+            clauses.push(clause);
+        };
+
+        match self.exprs.get(&self.get_root_expr()).unwrap() {
+            Var(_) | Not(_) => add_clause(slice::from_ref(&self.get_root_expr())),
+            Or(child_ids) => add_clause(child_ids),
+            And(child_ids) => {
+                for child_id in child_ids {
+                    match self.exprs.get(&child_id).unwrap() {
+                        Var(_) | Not(_) => add_clause(slice::from_ref(child_id)),
+                        Or(child_ids) => add_clause(child_ids),
+                        _ => panic!("expected Var, Not, or Or expression, got {}", ExprInFormula(self, child_id)),
+                    }
+                }
+            }
+        }
+
+        clauses
     }
 
     fn format_expr(&self, id: Id, f: &mut fmt::Formatter) -> fmt::Result {
@@ -220,7 +277,11 @@ impl Formula {
                             clauses.extend(
                                 clause_ids
                                     .iter()
-                                    .map(|clause_id| vec![*clause_id])
+                                    .map(|clause_id| {
+                                        let mut new_clause = Vec::<Id>::new();
+                                        self.splice_or(*clause_id, &mut new_clause);
+                                        new_clause
+                                    })
                                     .collect::<Vec<Vec<Id>>>(),
                             );
                         } else {
@@ -228,7 +289,7 @@ impl Formula {
                             for clause in &clauses {
                                 for clause_id in clause_ids {
                                     let mut new_clause = clause.clone();
-                                    new_clause.push(*clause_id);
+                                    self.splice_or(*clause_id, &mut new_clause);
                                     new_clauses.push(new_clause);
                                 }
                             }
@@ -237,14 +298,14 @@ impl Formula {
                     }
                     let mut new_cnf_ids = Vec::<Id>::new();
                     for mut clause in clauses {
-                        clause = Self::dedup(clause);
-                        if clause.len() > 1 {
-                            new_cnf_ids.push(self.add_expr(Or(clause)));
+                        clause = Self::dedup(clause); // idempotency
+                        if clause.len() > 1 { // unary or
+                            new_cnf_ids.push(self.add_expr(Or(clause))); // use cached formula
                         } else {
                             new_cnf_ids.push(clause[0]);
                         }
                     }
-                    if self.is_non_aux_and(id) || new_cnf_ids.len() == 1 {
+                    if self.is_non_aux_and(id) || new_cnf_ids.len() == 1 { // splice into parent and
                         new_child_ids.extend(new_cnf_ids);
                         // new_child_ids.push(self.add_expr(And(cnf))); // unoptimized version
                     } else {
@@ -322,7 +383,7 @@ impl fmt::Display for Formula {
     }
 }
 
-// todo: structural reuse; parse SAT/write CNF; tseitin; RC for releasing old subformulas??
+// todo: structural reuse; parse SAT; tseitin; RC for releasing old subformulas??
 
 // tseitin formula also has a 'pointer' to another formula, to ease the actual substitution
 // add optimizations for simplification? (e.g., idempotency, pure literals, Plaisted, ... -> depending on whether equi-countability is preserved/necessary)
@@ -465,7 +526,7 @@ mod tests {
             let root = f.add_expr(Or(vec![a_and_c, not_b_or_c, not_not_b_or_c]));
             f.set_root_expr(root);
             f = f.to_nnf().to_cnf_dist();
-            assert_eq!(f.to_string(), "And(Or(b, c, Or(c, Not(b))), Or(b, c, Or(c, Not(a), Not(b))), Or(c, Not(c), Or(c, Not(b))), Or(c, Not(c), Or(c, Not(a), Not(b))), Or(c, Or(a, Not(c)), Or(c, Not(b))), Or(c, Or(a, Not(c)), Or(c, Not(a), Not(b))), Or(b, Not(a), Or(c, Not(b))), Or(b, Not(a), Or(c, Not(a), Not(b))), Or(Not(a), Not(c), Or(c, Not(b))), Or(Not(a), Not(c), Or(c, Not(a), Not(b))), Or(Not(a), Or(a, Not(c)), Or(c, Not(b))), Or(Not(a), Or(a, Not(c)), Or(c, Not(a), Not(b))))");
+            assert_eq!(f.to_string(), "And(Or(b, c, Not(b)), Or(b, c, Not(a), Not(b)), Or(c, Not(b), Not(c)), Or(c, Not(a), Not(b), Not(c)), Or(a, c, Not(b), Not(c)), Or(a, c, Not(a), Not(b), Not(c)), Or(b, c, Not(a), Not(b)), Or(b, c, Not(a), Not(b)), Or(c, Not(a), Not(b), Not(c)), Or(c, Not(a), Not(b), Not(c)), Or(a, c, Not(a), Not(b), Not(c)), Or(a, c, Not(a), Not(b), Not(c)))");
         }
     }
 }

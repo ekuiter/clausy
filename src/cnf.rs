@@ -1,14 +1,23 @@
 use std::{collections::HashMap, fmt};
 
-use crate::formula::Formula;
+use crate::formula::{Formula, VarId};
 
 pub struct CNF {
-    vars: HashMap<u32, String>,
-    clauses: Vec<Vec<i32>>,
+    clauses: Vec<Vec<VarId>>,
+    vars: HashMap<VarId, String>,
+}
+
+impl From<Formula> for CNF {
+    fn from(formula: Formula) -> Self {
+        Self {
+            clauses: formula.get_clauses(),
+            vars: formula.get_vars(),
+        }
+    }
 }
 
 impl CNF {
-    pub fn new(_formula: Formula) -> Self {
+    pub fn new() -> Self {
         let mut vars = HashMap::new();
         vars.insert(1, "bla".to_string());
         vars.insert(2, "test".to_string());
@@ -35,7 +44,7 @@ impl fmt::Display for CNF {
             assert_ne!(clause.len(), 0, "empty clause is not allowed");
             for literal in clause {
                 assert_ne!(*literal, 0, "literal 0 is not allowed");
-                assert!(self.vars.contains_key(&literal.unsigned_abs()), "variable {} not found", literal.abs());
+                assert!(self.vars.contains_key(&literal.abs()), "variable {} not found", literal.abs());
                 write!(f, "{literal} ")?;
             }
             write!(f, "0\n")?;
