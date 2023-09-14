@@ -1,9 +1,11 @@
 char = { !("(" | ")" | WHITESPACE | NEWLINE) ~ ANY }
 name = @{ char+ }
 
-var = { "def" ~ "(" ~ #var = name ~ ")" } // what about implicit vars?
+// could use Pratt parsing (https://pest.rs/book/precedence.html) to omit parentheses and def()
+// could also attempt parsing UVL or SAT files (https://www.domagoj-babic.com/uploads/ResearchProjects/Spear/dimacs-cnf.pdf)
+var = { "def" ~ "(" ~ #var = name ~ ")" }
 not = { "!" ~ expr }
-and = { "(" ~ expr ~ "&" ~ expr ~ ("&" ~ expr)* ~ ")" } // what about implicit ()?
+and = { "(" ~ expr ~ "&" ~ expr ~ ("&" ~ expr)* ~ ")" }
 or = { "(" ~ expr ~ "|" ~ expr ~ ("|" ~ expr)* ~ ")" }
 expr = _{ var | not | and | or }
 

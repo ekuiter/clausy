@@ -22,7 +22,7 @@ pub struct Formula<'a> {
     // and Box for faster moving??
     exprs: HashMap<Id, Expr>,
     vars: HashMap<VarId, &'a str>,
-    vars_inv: HashMap<&'a str, VarId>, // or put &str into Var()?
+    vars_inv: HashMap<&'a str, VarId>,
     // make structural sharing optional, so that we can evaluate its impact (e.g., then traversal does not need to track visited nodes)
 }
 
