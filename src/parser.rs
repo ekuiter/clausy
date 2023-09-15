@@ -7,9 +7,9 @@ use crate::formula::{Expr::*, Formula, Id};
 #[grammar = "model.pest"]
 struct ModelParser;
 
-fn parse_pair<'a>(pair: Pair<Rule>, formula: &mut Formula) -> Id {
+fn parse_pair<'a>(pair: Pair<'a, Rule>, formula: &mut Formula<'a>) -> Id {
     match pair.as_rule() {
-        Rule::var => formula.get_var(pair.into_inner().next().unwrap().as_str()),
+        Rule::var => formula.var(pair.into_inner().next().unwrap().as_str()),
         Rule::not => {
             let child_id = parse_pair(pair.into_inner().next().unwrap(), formula);
             formula.add_expr(Not(child_id))
@@ -38,17 +38,6 @@ impl<'a> From<&'a str> for Formula<'a> {
         let pairs = ModelParser::parse(Rule::file, model_string).expect("failed to parse model file");
         let mut formula = Formula::new();
         let mut child_ids = Vec::<u32>::new();
-
-        let mut vars: Vec<&str> = pairs
-            .clone()
-            .find_tagged("var")
-            .map(|pair| pair.as_str())
-            .collect();
-        vars.sort();
-        vars.dedup();
-        for var in vars {
-            formula.add_var(var);
-        }
 
         for pair in pairs {
             if let Rule::EOI = pair.as_rule() {

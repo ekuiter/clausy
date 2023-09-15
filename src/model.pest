@@ -1,7 +1,7 @@
 char = { !("(" | ")" | WHITESPACE | NEWLINE) ~ ANY }
 name = @{ char+ }
 
-var = { "def" ~ "(" ~ #var = name ~ ")" }
+var = { "def" ~ "(" ~ name ~ ")" }
 unsupported = _{ "<unsupported>" }
 not = { "!" ~ expr }
 and = { "(" ~ expr ~ "&" ~ expr ~ ("&" ~ expr)* ~ ")" }

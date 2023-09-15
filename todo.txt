@@ -8,4 +8,4 @@ parser:
 - could use Pratt parsing (https://pest.rs/book/precedence.html) to omit parentheses and def()
 - could also attempt parsing UVL or SAT files (https://www.domagoj-babic.com/uploads/ResearchProjects/Spear/dimacs-cnf.pdf)
 - could also implement AST generator parse_pair iteratively
-- 
+- possibly parse lines concurrently (interacts with structural sharing and variable map)

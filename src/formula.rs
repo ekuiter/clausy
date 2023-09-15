@@ -68,7 +68,7 @@ impl<'a> Formula<'a> {
         id
     }
 
-    pub(crate) fn add_var(&mut self, var: &'a str) -> Id {
+    fn add_var(&mut self, var: &'a str) -> Id {
         let id = self.next_var_id + 1;
         self.vars.insert(id, var);
         self.vars_inv.insert(var, id);
@@ -76,9 +76,15 @@ impl<'a> Formula<'a> {
         self.add_expr(Var(id))
     }
 
-    pub(crate) fn get_var(&mut self, var: &str) -> Id {
-        self.add_expr(Var(*self.vars_inv.get(var).unwrap()))
+    fn get_var(&mut self, var: &str) -> Option<Id> {
+        Some(self.add_expr(Var(*self.vars_inv.get(var)?))) // expr instead of add_expr for sharing
     }
+
+    pub(crate) fn var(&mut self, var: &'a str) -> Id {
+        self.get_var(var).unwrap_or_else(|| self.add_var(var))
+    }
+
+    // fn expr() {} // todo
 
     fn get_child_exprs<'b>(&self, expr: &'b Expr) -> &'b [Id] {
         match expr {
@@ -156,7 +162,10 @@ impl<'a> Formula<'a> {
                     panic!("expected Var below Not, got {}", ExprInFormula(self, &id));
                 }
             }
-            _ => panic!("expected Var or Not literal, got {}", ExprInFormula(self, &id)),
+            _ => panic!(
+                "expected Var or Not literal, got {}",
+                ExprInFormula(self, &id)
+            ),
         };
 
         let mut add_clause = |child_ids: &[Id]| {
@@ -175,7 +184,10 @@ impl<'a> Formula<'a> {
                     match self.exprs.get(&child_id).unwrap() {
                         Var(_) | Not(_) => add_clause(slice::from_ref(child_id)),
                         Or(child_ids) => add_clause(child_ids),
-                        _ => panic!("expected Var, Not, or Or expression, got {}", ExprInFormula(self, child_id)),
+                        _ => panic!(
+                            "expected Var, Not, or Or expression, got {}",
+                            ExprInFormula(self, child_id)
+                        ),
                     }
                 }
             }
@@ -268,7 +280,8 @@ impl<'a> Formula<'a> {
                     for (i, cnf_id) in cnf_ids.iter().enumerate() {
                         let clause_ids = self.child_exprs_refl(cnf_id);
                         if i == 0 {
-                            clauses.extend( // possibly this can be done with a neutral element instead
+                            clauses.extend(
+                                // possibly this can be done with a neutral element instead
                                 clause_ids
                                     .iter()
                                     .map(|clause_id| {
@@ -293,13 +306,15 @@ impl<'a> Formula<'a> {
                     let mut new_cnf_ids = Vec::<Id>::new();
                     for mut clause in clauses {
                         clause = Self::dedup(clause); // idempotency
-                        if clause.len() > 1 { // unary or
+                        if clause.len() > 1 {
+                            // unary or
                             new_cnf_ids.push(self.add_expr(Or(clause))); // use cached formula
                         } else {
                             new_cnf_ids.push(clause[0]);
                         }
                     }
-                    if self.is_non_aux_and(id) || new_cnf_ids.len() == 1 { // splice into parent and
+                    if self.is_non_aux_and(id) || new_cnf_ids.len() == 1 {
+                        // splice into parent and
                         new_child_ids.extend(new_cnf_ids);
                         // new_child_ids.push(self.add_expr(And(cnf))); // unoptimized version
                     } else {

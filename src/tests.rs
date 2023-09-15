@@ -13,7 +13,7 @@ mod valid {
     #[should_panic(expected = "formula is invalid")]
     fn no_root() {
         let mut f = Formula::new();
-        let a = f.add_var("a");
+        let a = f.var("a");
         f.add_expr(Not(a));
         f.to_string();
     }
@@ -21,7 +21,7 @@ mod valid {
     #[test]
     fn valid() {
         let mut f = Formula::new();
-        let a = f.add_var("a");
+        let a = f.var("a");
         let not_a = f.add_expr(Not(a));
         f.set_root_expr(not_a);
         f.to_string();
@@ -34,7 +34,7 @@ mod nnf {
     #[test]
     fn not_a() {
         let mut f = Formula::new();
-        let a = f.add_var("a");
+        let a = f.var("a");
         let not_a = f.add_expr(Not(a));
         f.set_root_expr(not_a);
         assert_eq!(f.to_nnf().to_string(), "Not(a)");
@@ -43,7 +43,7 @@ mod nnf {
     #[test]
     fn not_not_a() {
         let mut f = Formula::new();
-        let a = f.add_var("a");
+        let a = f.var("a");
         let not_a = f.add_expr(Not(a));
         let not_not_a = f.add_expr(Not(not_a));
         f.set_root_expr(not_not_a);
@@ -53,7 +53,7 @@ mod nnf {
     #[test]
     fn and_not_not_a() {
         let mut f = Formula::new();
-        let a = f.add_var("a");
+        let a = f.var("a");
         let not_a = f.add_expr(Not(a));
         let not_not_a = f.add_expr(Not(not_a));
         let and = f.add_expr(And(vec![not_not_a]));
@@ -64,9 +64,9 @@ mod nnf {
     #[test]
     fn complex() {
         let mut f = Formula::new();
-        let a = f.add_var("a");
-        let b = f.add_var("b");
-        let c = f.add_var("c");
+        let a = f.var("a");
+        let b = f.var("b");
+        let c = f.var("c");
         let not_a = f.add_expr(Not(a));
         let not_b = f.add_expr(Not(b));
         let not_c = f.add_expr(Not(c));
@@ -97,8 +97,8 @@ mod cnf_dist {
     #[test]
     fn simple() {
         let mut f = Formula::new();
-        let a = f.add_var("a");
-        let b = f.add_var("b");
+        let a = f.var("a");
+        let b = f.var("b");
         let a_and_b = f.add_expr(And(vec![a, b]));
         let a_or_a_and_b = f.add_expr(Or(vec![a, a_and_b]));
         let a_and_a_or_a_and_b = f.add_expr(And(vec![a, a_or_a_and_b]));
@@ -110,9 +110,9 @@ mod cnf_dist {
     #[test]
     fn complex() {
         let mut f = Formula::new();
-        let a = f.add_var("a");
-        let b = f.add_var("b");
-        let c = f.add_var("c");
+        let a = f.var("a");
+        let b = f.var("b");
+        let c = f.var("c");
         let not_a = f.add_expr(Not(a));
         let not_b = f.add_expr(Not(b));
         let not_c = f.add_expr(Not(c));
