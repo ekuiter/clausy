@@ -27,7 +27,7 @@ impl<'a> fmt::Display for CNF<'a> {
         self.assert_valid();
         for (i, var) in &self.vars {
             assert!(!var.is_empty(), "variable {i} has empty name");
-            write!(f, "c {i} {var}\n")?; // order of variables?
+            write!(f, "c {i} {var}\n")?;
         }
         write!(f, "p cnf {} {}\n", self.vars.len(), self.clauses.len())?;
         for clause in &self.clauses {

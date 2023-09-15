@@ -1,4 +1,4 @@
-char = { !("(" | ")" | WHITESPACE | NEWLINE) ~ ANY }
+char = { !("(" | ")" | WHITESPACE) ~ ANY }
 name = @{ char+ }
 
 var = { "def" ~ "(" ~ name ~ ")" }
@@ -8,7 +8,6 @@ and = { "(" ~ expr ~ "&" ~ expr ~ ("&" ~ expr)* ~ ")" }
 or = { "(" ~ expr ~ "|" ~ expr ~ ("|" ~ expr)* ~ ")" }
 expr = _{ var | unsupported | not | and | or }
 
-comment = _{ "#" ~ (!NEWLINE ~ ANY)* }
-line = _{ expr | comment }
-file = _{ SOI ~ (line? ~ NEWLINE)* ~ line? ~ EOI }
+comment = _{ "#" ~ ANY* }
+line = _{ SOI ~ (expr | comment) ~ EOI }
 WHITESPACE = _{ " " | "\t" }

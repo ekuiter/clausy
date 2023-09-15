@@ -9,3 +9,7 @@ parser:
 - could also attempt parsing UVL or SAT files (https://www.domagoj-babic.com/uploads/ResearchProjects/Spear/dimacs-cnf.pdf)
 - could also implement AST generator parse_pair iteratively
 - possibly parse lines concurrently (interacts with structural sharing and variable map)
+- could avoid reading entire file into string (but needs storing variable names somewhere with appropriate lifetime)
+
+cnf:
+- order of variables is undefined due to hash map (possibly sort by variable ID)
