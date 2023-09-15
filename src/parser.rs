@@ -18,15 +18,15 @@ fn parse_pair<'a>(pair: Pair<'a, Rule>, formula: &mut Formula<'a>) -> Id {
         Rule::var => formula.var(pair.into_inner().next().unwrap().as_str()),
         Rule::not => {
             let child_id = parse_pair(pair.into_inner().next().unwrap(), formula);
-            formula.add_expr(Not(child_id))
+            formula.expr(Not(child_id))
         }
         Rule::and => {
             let child_ids = parse_children(pair, formula);
-            formula.add_expr(And(child_ids))
+            formula.expr(And(child_ids))
         }
         Rule::or => {
             let child_ids = parse_children(pair, formula);
-            formula.add_expr(Or(child_ids))
+            formula.expr(Or(child_ids))
         }
         _ => unreachable!(),
     }
@@ -49,7 +49,7 @@ impl<'a> From<&'a str> for Formula<'a> {
             }
         }
 
-        let root_id = formula.add_expr(And(child_ids));
+        let root_id = formula.expr(And(child_ids));
         formula.set_root_expr(root_id);
         formula
     }

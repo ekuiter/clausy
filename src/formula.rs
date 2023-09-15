@@ -1,6 +1,6 @@
 use std::{
-    collections::{HashMap, HashSet},
-    fmt, slice,
+    collections::{HashMap, HashSet, hash_map::DefaultHasher},
+    fmt, slice, hash::{Hasher, Hash},
 };
 use Expr::*;
 
@@ -13,11 +13,12 @@ pub struct Formula<'a> {
     next_id: Id,
     next_var_id: VarId,
     exprs: HashMap<Id, Expr>,
+    exprs_inv: HashMap<u64, Vec<Id>>,
     vars: HashMap<VarId, &'a str>,
     vars_inv: HashMap<&'a str, VarId>,
 }
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq,Eq,Hash)]
 pub(crate) enum Expr {
     Var(VarId),
     Not(Id),
@@ -34,6 +35,7 @@ impl<'a> Formula<'a> {
             next_id: 0,
             next_var_id: 0,
             exprs: HashMap::new(),
+            exprs_inv: HashMap::new(),
             vars: HashMap::new(),
             vars_inv: HashMap::new(),
         }
@@ -57,15 +59,37 @@ impl<'a> Formula<'a> {
     }
 
     pub(crate) fn set_root_expr(&mut self, root_id: Id) {
-        let aux_root_id = self.add_expr(And(vec![root_id]));
+        let aux_root_id = self.expr(And(vec![root_id]));
         self.aux_root_id = aux_root_id;
     }
 
-    pub(crate) fn add_expr(&mut self, expr: Expr) -> Id {
+    fn hash_expr(expr: &Expr) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        expr.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    fn add_expr(&mut self, expr: Expr) -> Id {
         let id = self.next_id + 1;
+        let hash = Self::hash_expr(&expr);
         self.exprs.insert(id, expr);
+        self.exprs_inv.entry(hash).or_default().push(id);
         self.next_id = id;
         id
+    }
+
+    fn get_expr(&mut self, expr: &Expr) -> Option<Id> {
+        let ids = self.exprs_inv.get(&Self::hash_expr(expr))?;
+        for id in ids {
+            if self.exprs.get(id).unwrap() == expr {
+                return Some(*id)
+            }
+        };
+        None
+    }
+
+    pub(crate) fn expr(&mut self, expr: Expr) -> Id {
+        self.get_expr(&expr).unwrap_or_else(|| self.add_expr(expr))
     }
 
     fn add_var(&mut self, var: &'a str) -> Id {
@@ -73,18 +97,16 @@ impl<'a> Formula<'a> {
         self.vars.insert(id, var);
         self.vars_inv.insert(var, id);
         self.next_var_id += 1;
-        self.add_expr(Var(id))
+        self.expr(Var(id))
     }
 
     fn get_var(&mut self, var: &str) -> Option<Id> {
-        Some(self.add_expr(Var(*self.vars_inv.get(var)?))) // expr instead of add_expr for sharing
+        Some(self.expr(Var(*self.vars_inv.get(var)?)))
     }
 
     pub(crate) fn var(&mut self, var: &'a str) -> Id {
         self.get_var(var).unwrap_or_else(|| self.add_var(var))
     }
-
-    // fn expr() {} // todo
 
     fn get_child_exprs<'b>(&self, expr: &'b Expr) -> &'b [Id] {
         match expr {
@@ -109,7 +131,7 @@ impl<'a> Formula<'a> {
     }
 
     fn negate_exprs(&mut self, ids: Vec<Id>) -> Vec<Id> {
-        ids.iter().map(|id| self.add_expr(Not(*id))).collect() // use cached formulas!
+        ids.iter().map(|id| self.expr(Not(*id))).collect()
     }
 
     fn child_exprs_refl<'b>(&'b self, id: &'b Id) -> &'b [Id] {
@@ -225,7 +247,7 @@ impl<'a> Formula<'a> {
     // may destroy structural sharing of originally shared subformulas,
     // so might be beneficial to not run this before Tseitin
     // (this might largely influence negation-CNF reasoning);
-    // so, also a polarity-based PG implementation is necessary
+    // so, also a polarity-based Plaisted-Greenbaum implementation is necessary
     fn to_nnf_expr(&mut self, id: Id) -> &[Id] {
         let mut child_ids: Vec<Id> = self.get_child_exprs(self.exprs.get(&id).unwrap()).to_vec();
 
@@ -243,11 +265,11 @@ impl<'a> Formula<'a> {
                         And(child_ids2) => {
                             // this does not reuse existing formulas yet! => need cache to retrieve formulas (similar for other expr constructions)
                             let new_expr = Or(self.negate_exprs(child_ids2.clone()));
-                            *child_id = self.add_expr(new_expr);
+                            *child_id = self.expr(new_expr);
                         }
                         Or(child_ids2) => {
                             let new_expr = And(self.negate_exprs(child_ids2.clone()));
-                            *child_id = self.add_expr(new_expr); // what if we created an and, but are ourselves an and? could merge here!
+                            *child_id = self.expr(new_expr); // what if we created an and, but are ourselves an and? could merge here!
                         }
                     }
                 }
@@ -270,7 +292,7 @@ impl<'a> Formula<'a> {
                 And(cnf_ids) => {
                     if self.is_non_aux_and(id) || cnf_ids.len() == 1 {
                         new_child_ids.extend(cnf_ids.clone());
-                        // new_child_ids.push(self.add_expr(And(cnf))); // unoptimized version
+                        // new_child_ids.push(self.expr(And(cnf))); // unoptimized version
                     } else {
                         new_child_ids.push(child_id);
                     }
@@ -308,7 +330,7 @@ impl<'a> Formula<'a> {
                         clause = Self::dedup(clause); // idempotency
                         if clause.len() > 1 {
                             // unary or
-                            new_cnf_ids.push(self.add_expr(Or(clause))); // use cached formula
+                            new_cnf_ids.push(self.expr(Or(clause))); // use cached formula
                         } else {
                             new_cnf_ids.push(clause[0]);
                         }
@@ -316,9 +338,9 @@ impl<'a> Formula<'a> {
                     if self.is_non_aux_and(id) || new_cnf_ids.len() == 1 {
                         // splice into parent and
                         new_child_ids.extend(new_cnf_ids);
-                        // new_child_ids.push(self.add_expr(And(cnf))); // unoptimized version
+                        // new_child_ids.push(self.expr(And(cnf))); // unoptimized version
                     } else {
-                        new_child_ids.push(self.add_expr(And(new_cnf_ids)));
+                        new_child_ids.push(self.expr(And(new_cnf_ids)));
                     }
                 }
             }
@@ -393,18 +415,3 @@ impl<'a> fmt::Display for Formula<'a> {
         ExprInFormula(self, &self.get_root_expr()).fmt(f)
     }
 }
-
-// todo: structural reuse; parse SAT; tseitin; RC for releasing old subformulas??
-
-// tseitin formula also has a 'pointer' to another formula, to ease the actual substitution
-// add optimizations for simplification? (e.g., idempotency, pure literals, Plaisted, ... -> depending on whether equi-countability is preserved/necessary)
-// what about eliminating implies/bi-implies? can be exponential, too
-// https://cca.informatik.uni-freiburg.de/sat/ss23/04/
-// https://cca.informatik.uni-freiburg.de/sat/ss23/05/
-// randomize clause order? (scrambler?)
-// during parsing, when the hash of a particular subformula has already been mapped to a usize (already included in the formula), reuse that usize
-// possibly, we need a HashMap<Expr, usize> during parsing to ensure structural sharing
-// the next_id approach does not work with multi-threading
-// assumes that each expr only has each child at most once (idempotency is already reduced)
-
-// how much impact does structural sharing of common sub-formulas have? does it even happen for FMs?

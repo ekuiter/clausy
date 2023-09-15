@@ -1,8 +1,9 @@
 optional features (disable with #cfg, so binary can be optimized):
-- invariant: no formula is in memory twice, so parse with structural sharing or without, reuse (or don't reuse) cached formulas (e.g., then traversal does not need to track visited nodes)
-- run NNF before other transformations, or don't run it before (interacts with PG and structural sharing, as to_nnf creates new sub-formulas)
+- invariant: no formula is in memory twice, so parse with structural sharing or without, reuse (or don't reuse) cached formulas (e.g., then traversal does not need to track visited nodes) - does this actually have any impact?
+- run NNF before other transformations, or don't run it before (interacts with Plaisted-Greenbaum and structural sharing, as to_nnf creates new sub-formulas)
 - auto-simplify terms (e.g., idempotency) while creating NNF/CNF or only do it afterwards?
 - let go of unused formulas with Rc or Arc (RefCell needed for internal mutability? Box for using the heap and thus faster moving?)
+- Plaisted-Greenbaum -> depending on whether equi-countability is preserved/necessary (possibly as a polarity-based variant that does not require NNF)
 
 parser:
 - could use Pratt parsing (https://pest.rs/book/precedence.html) to omit parentheses and def()
@@ -13,3 +14,18 @@ parser:
 
 cnf:
 - order of variables is undefined due to hash map (possibly sort by variable ID)
+
+general:
+- multithreaded tree traversal / transformations where possible? or too much overhead / impossible to implement safely? would require abandoning several approaches (e.g., next_id). alternatively: implement multithreading by parallel transformation of separate formulas (e.g., constraints or entire models) and merging them afterwards.
+
+formula:
+- currently, the same subformula will be transformed multiple times (even with reuse of expressions). instead, with RefCell, it could be done once (internal mutability). does this pay off?
+- check if all relevant simplifications are implemented correctly: idempotency, splicing/merging (and more?), eliminating implies/bi-implies (which may be exponential itself!)
+- faster HashMap? https://nnethercote.github.io/perf-book/hashing.html https://nnethercote.github.io/2021/12/08/a-brutally-effective-hash-function-in-rust.html as keys are unique, maybe use nohash_hasher?
+- vectors in exprs_inv could be kept sorted to speed up lookup
+
+// todo: structural reuse; tseitin; RC for releasing old subformulas??
+// tseitin formula also has a 'pointer' to another formula, to ease the actual substitution
+// https://cca.informatik.uni-freiburg.de/sat/ss23/04/
+// https://cca.informatik.uni-freiburg.de/sat/ss23/05/
+// randomize clause order? (scrambler?)
