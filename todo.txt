@@ -22,7 +22,7 @@ formula:
 - currently, the same subformula will be transformed multiple times (even with reuse of expressions). instead, with RefCell, it could be done once (internal mutability). does this pay off?
 - check if all relevant simplifications are implemented correctly: idempotency, splicing/merging (and more?), eliminating implies/bi-implies (which may be exponential itself!)
 - faster HashMap? https://nnethercote.github.io/perf-book/hashing.html https://nnethercote.github.io/2021/12/08/a-brutally-effective-hash-function-in-rust.html as keys are unique, maybe use nohash_hasher?
-- vectors in exprs_inv could be kept sorted to speed up lookup
+- vectors in exprs_inv could be kept sorted to speed up lookup => actually, they are sorted by construction due to next_id, so binary search/deletion is possible
 
 // todo: structural reuse; tseitin; RC for releasing old subformulas??
 // tseitin formula also has a 'pointer' to another formula, to ease the actual substitution
