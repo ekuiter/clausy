@@ -1,0 +1,11 @@
+optional features (disable with #cfg, so binary can be optimized):
+- invariant: no formula is in memory twice, so parse with structural sharing or without, reuse (or don't reuse) cached formulas (e.g., then traversal does not need to track visited nodes)
+- run NNF before other transformations, or don't run it before (interacts with PG and structural sharing, as to_nnf creates new sub-formulas)
+- auto-simplify terms (e.g., idempotency) while creating NNF/CNF or only do it afterwards?
+- let go of unused formulas with Rc or Arc (RefCell needed for internal mutability? Box for using the heap and thus faster moving?)
+
+parser:
+- could use Pratt parsing (https://pest.rs/book/precedence.html) to omit parentheses and def()
+- could also attempt parsing UVL or SAT files (https://www.domagoj-babic.com/uploads/ResearchProjects/Spear/dimacs-cnf.pdf)
+- could also implement AST generator parse_pair iteratively
+- 

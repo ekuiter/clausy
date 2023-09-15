@@ -7,7 +7,6 @@ use crate::formula::{Expr::*, Formula, Id};
 #[grammar = "model.pest"]
 struct ModelParser;
 
-// could also be implemented iteratively
 fn parse_pair<'a>(pair: Pair<Rule>, formula: &mut Formula) -> Id {
     match pair.as_rule() {
         Rule::var => formula.get_var(pair.into_inner().next().unwrap().as_str()),
@@ -35,7 +34,7 @@ fn parse_pair<'a>(pair: Pair<Rule>, formula: &mut Formula) -> Id {
 
 impl<'a> From<&'a str> for Formula<'a> {
     fn from(model_string: &'a str) -> Self {
-        // could also be parsed line by line and not entire file to save space (variables need to be stored, though)
+        // could also be parsed line by line (using string.lines()) and not entire file to save space (variables need to be stored, though)
         let pairs = ModelParser::parse(Rule::file, model_string).expect("failed to parse model file");
         let mut formula = Formula::new();
         let mut child_ids = Vec::<u32>::new();

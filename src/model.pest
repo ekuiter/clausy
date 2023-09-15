@@ -1,8 +1,6 @@
 char = { !("(" | ")" | WHITESPACE | NEWLINE) ~ ANY }
 name = @{ char+ }
 
-// could use Pratt parsing (https://pest.rs/book/precedence.html) to omit parentheses and def()
-// could also attempt parsing UVL or SAT files (https://www.domagoj-babic.com/uploads/ResearchProjects/Spear/dimacs-cnf.pdf)
 var = { "def" ~ "(" ~ #var = name ~ ")" }
 unsupported = _{ "<unsupported>" }
 not = { "!" ~ expr }

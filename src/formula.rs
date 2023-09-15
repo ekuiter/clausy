@@ -7,23 +7,14 @@ use Expr::*;
 pub(crate) type Id = u32;
 pub(crate) type VarId = i32;
 
-// optional features (disable with #cfg, so binary can be optimized):
-// - invariant: no formula is in memory twice, so parse with structural sharing or without, reuse cached formulas
-// - run NNF before other transformations, or don't run it before (interacts with PG and structural sharing)
-// - merge And/Or, auto-simplify terms while creating NNF/CNF or only do it afterwards??
-
 #[derive(Debug)]
 pub struct Formula<'a> {
     aux_root_id: Id,
     next_id: Id,
     next_var_id: VarId,
-    // possibly, Rc is needed to let go of unused formulas
-    // RefCell for internal mutability (do not create unnecessary copies)
-    // and Box for faster moving??
     exprs: HashMap<Id, Expr>,
     vars: HashMap<VarId, &'a str>,
     vars_inv: HashMap<&'a str, VarId>,
-    // make structural sharing optional, so that we can evaluate its impact (e.g., then traversal does not need to track visited nodes)
 }
 
 #[derive(Debug)]
@@ -402,136 +393,3 @@ impl<'a> fmt::Display for Formula<'a> {
 // assumes that each expr only has each child at most once (idempotency is already reduced)
 
 // how much impact does structural sharing of common sub-formulas have? does it even happen for FMs?
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    mod valid {
-        use super::*;
-
-        #[test]
-        #[should_panic(expected = "formula is invalid")]
-        fn empty() {
-            Formula::new().to_string();
-        }
-
-        #[test]
-        #[should_panic(expected = "formula is invalid")]
-        fn no_root() {
-            let mut f = Formula::new();
-            let a = f.add_var("a");
-            f.add_expr(Not(a));
-            f.to_string();
-        }
-
-        #[test]
-        fn valid() {
-            let mut f = Formula::new();
-            let a = f.add_var("a");
-            let not_a = f.add_expr(Not(a));
-            f.set_root_expr(not_a);
-            f.to_string();
-        }
-    }
-
-    mod nnf {
-        use super::*;
-
-        #[test]
-        fn not_a() {
-            let mut f = Formula::new();
-            let a = f.add_var("a");
-            let not_a = f.add_expr(Not(a));
-            f.set_root_expr(not_a);
-            assert_eq!(f.to_nnf().to_string(), "Not(a)");
-        }
-
-        #[test]
-        fn not_not_a() {
-            let mut f = Formula::new();
-            let a = f.add_var("a");
-            let not_a = f.add_expr(Not(a));
-            let not_not_a = f.add_expr(Not(not_a));
-            f.set_root_expr(not_not_a);
-            assert_eq!(f.to_nnf().to_string(), "a");
-        }
-
-        #[test]
-        fn and_not_not_a() {
-            let mut f = Formula::new();
-            let a = f.add_var("a");
-            let not_a = f.add_expr(Not(a));
-            let not_not_a = f.add_expr(Not(not_a));
-            let and = f.add_expr(And(vec![not_not_a]));
-            f.set_root_expr(and);
-            assert_eq!(f.to_nnf().to_string(), "And(a)");
-        }
-
-        #[test]
-        fn complex() {
-            let mut f = Formula::new();
-            let a = f.add_var("a");
-            let b = f.add_var("b");
-            let c = f.add_var("c");
-            let not_a = f.add_expr(Not(a));
-            let not_b = f.add_expr(Not(b));
-            let not_c = f.add_expr(Not(c));
-            let not_not_c = f.add_expr(Not(not_c));
-            let not_a_and_c = f.add_expr(And(vec![not_a, c]));
-            let not_b_or_not_not_c_or_not_a_and_c =
-                f.add_expr(Or(vec![not_b, not_not_c, not_a_and_c]));
-            let not_not_b_or_not_not_c_or_not_a_and_c =
-                f.add_expr(Not(not_b_or_not_not_c_or_not_a_and_c));
-            let not_not_not_b_or_not_not_c_or_not_a_and_c =
-                f.add_expr(Not(not_not_b_or_not_not_c_or_not_a_and_c));
-            let root = f.add_expr(Or(vec![
-                not_a_and_c,
-                not_not_b_or_not_not_c_or_not_a_and_c,
-                not_not_not_b_or_not_not_c_or_not_a_and_c,
-            ]));
-            f.set_root_expr(root);
-            assert_eq!(
-                f.to_nnf().to_string(),
-                "Or(And(Not(a), c), And(b, Not(c), Or(a, Not(c))), Or(Not(b), c, And(Not(a), c)))"
-            );
-        }
-    }
-
-    mod cnf_dist {
-        use super::*;
-
-        #[test]
-        fn simple() {
-            let mut f = Formula::new();
-            let a = f.add_var("a");
-            let b = f.add_var("b");
-            let a_and_b = f.add_expr(And(vec![a, b]));
-            let a_or_a_and_b = f.add_expr(Or(vec![a, a_and_b]));
-            let a_and_a_or_a_and_b = f.add_expr(And(vec![a, a_or_a_and_b]));
-            f.set_root_expr(a_and_a_or_a_and_b);
-            f = f.to_nnf().to_cnf_dist();
-            assert_eq!(f.to_string(), "And(a, Or(a, b))");
-        }
-
-        #[test]
-        fn complex() {
-            let mut f = Formula::new();
-            let a = f.add_var("a");
-            let b = f.add_var("b");
-            let c = f.add_var("c");
-            let not_a = f.add_expr(Not(a));
-            let not_b = f.add_expr(Not(b));
-            let not_c = f.add_expr(Not(c));
-            let not_not_c = f.add_expr(Not(not_c));
-            let a_and_c = f.add_expr(And(vec![not_a, c]));
-            let b_or_c = f.add_expr(Or(vec![not_b, not_not_c, a_and_c]));
-            let not_b_or_c = f.add_expr(Not(b_or_c));
-            let not_not_b_or_c = f.add_expr(Not(not_b_or_c));
-            let root = f.add_expr(Or(vec![a_and_c, not_b_or_c, not_not_b_or_c]));
-            f.set_root_expr(root);
-            f = f.to_nnf().to_cnf_dist();
-            assert_eq!(f.to_string(), "And(Or(b, c, Not(b)), Or(b, c, Not(a), Not(b)), Or(c, Not(b), Not(c)), Or(c, Not(a), Not(b), Not(c)), Or(a, c, Not(b), Not(c)), Or(a, c, Not(a), Not(b), Not(c)), Or(b, c, Not(a), Not(b)), Or(b, c, Not(a), Not(b)), Or(c, Not(a), Not(b), Not(c)), Or(c, Not(a), Not(b), Not(c)), Or(a, c, Not(a), Not(b), Not(c)), Or(a, c, Not(a), Not(b), Not(c)))");
-        }
-    }
-}

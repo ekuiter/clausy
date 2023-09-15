@@ -3,5 +3,8 @@
     "spellright.documentTypes": [
         "markdown",
         "latex"
+    ],
+    "rust-analyzer.linkedProjects": [
+        "./Cargo.toml"
     ]
 }
