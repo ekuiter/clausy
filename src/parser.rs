@@ -49,7 +49,7 @@ impl<'a> From<&'a str> for Formula<'a> {
             }
         }
 
-        let root_id = formula.expr(And(child_ids));
+        let root_id = if child_ids.len() == 1 { child_ids[0] } else { formula.expr(And(child_ids)) }; // todo: maybe move this unary simplification straight into .expr?
         formula.set_root_expr(root_id);
         formula
     }
