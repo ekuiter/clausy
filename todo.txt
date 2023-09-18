@@ -12,9 +12,6 @@ parser:
 - possibly parse lines concurrently (interacts with structural sharing and variable map)
 - could avoid reading entire file into string (but needs storing variable names somewhere with appropriate lifetime)
 
-cnf:
-- order of variables is undefined due to hash map (possibly sort by variable ID)
-
 general:
 - multithreaded tree traversal / transformations where possible? or too much overhead / impossible to implement safely? would require abandoning several approaches (e.g., next_id). alternatively: implement multithreading by parallel transformation of separate formulas (e.g., constraints or entire models) and merging them afterwards.
 
@@ -24,8 +21,7 @@ formula:
 - faster HashMap? https://nnethercote.github.io/perf-book/hashing.html https://nnethercote.github.io/2021/12/08/a-brutally-effective-hash-function-in-rust.html as keys are unique, maybe use nohash_hasher?
 - vectors in exprs_inv could be kept sorted to speed up lookup => actually, they are sorted by construction due to next_id, so binary search/deletion is possible
 
-// todo: structural reuse; tseitin; RC for releasing old subformulas??
-// tseitin formula also has a 'pointer' to another formula, to ease the actual substitution
+// todo: tseitin
 // https://cca.informatik.uni-freiburg.de/sat/ss23/04/
 // https://cca.informatik.uni-freiburg.de/sat/ss23/05/
 // randomize clause order? (scrambler?)

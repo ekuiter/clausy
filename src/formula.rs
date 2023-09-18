@@ -12,10 +12,9 @@ pub(crate) type VarId = i32;
 #[derive(Debug)]
 pub struct Formula<'a> {
     aux_root_id: Id,
-    next_var_id: VarId,
     exprs: Vec<Expr>,
     exprs_inv: HashMap<u64, Vec<Id>>,
-    vars: HashMap<VarId, &'a str>,
+    vars: Vec<&'a str>,
     vars_inv: HashMap<&'a str, VarId>,
 }
 
@@ -33,17 +32,16 @@ impl<'a> Formula<'a> {
     pub(crate) fn new() -> Self {
         Self {
             aux_root_id: 0,
-            next_var_id: 0,
-            exprs: vec![],
+            exprs: vec![Var(0)],
             exprs_inv: HashMap::new(), // possibly use with_capacity to avoid re-allocations
-            vars: HashMap::new(),
+            vars: vec![""],
             vars_inv: HashMap::new(),
         }
     }
 
     fn assert_valid(&self) {
         assert!(
-            self.aux_root_id > 0 && self.exprs.len() > 0 && self.next_var_id > 0,
+            self.aux_root_id > 0 && self.exprs.len() > 1 && self.vars.len() > 1,
             "formula is invalid"
         );
     }
@@ -92,11 +90,11 @@ impl<'a> Formula<'a> {
     }
 
     fn add_var(&mut self, var: &'a str) -> Id {
-        let id = self.next_var_id + 1;
+        let id = self.vars.len();
+        let id_signed: i32 = id.try_into().unwrap();
         self.vars.insert(id, var);
-        self.vars_inv.insert(var, id);
-        self.next_var_id += 1;
-        self.expr(Var(id))
+        self.vars_inv.insert(var, id_signed);
+        self.expr(Var(id_signed))
     }
 
     fn get_var(&mut self, var: &str) -> Option<Id> {
@@ -193,7 +191,7 @@ impl<'a> Formula<'a> {
         vec
     }
 
-    pub(crate) fn get_vars(&self) -> HashMap<VarId, &str> {
+    pub(crate) fn get_vars(&self) -> Vec<&str> {
         self.vars.clone()
     }
 
@@ -257,7 +255,10 @@ impl<'a> Formula<'a> {
             write!(f, ")")
         };
         match &self.exprs[id] {
-            Var(var_id) => write!(f, "{}", self.vars.get(var_id).unwrap()),
+            Var(var_id) => {
+                let var_id: usize = (*var_id).try_into().unwrap();
+                write!(f, "{}", self.vars.get(var_id).unwrap())
+            },
             Not(id) => write_helper("Not", slice::from_ref(id)),
             And(ids) => write_helper("And", ids),
             Or(ids) => write_helper("Or", ids),
