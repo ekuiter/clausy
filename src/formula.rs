@@ -6,16 +6,15 @@ use std::{
 };
 use Expr::*;
 
-pub(crate) type Id = u32;
+pub(crate) type Id = usize;
 pub(crate) type VarId = i32;
 
 #[derive(Debug)]
 pub struct Formula<'a> {
     aux_root_id: Id,
-    next_id: Id,
     next_var_id: VarId,
-    exprs: HashMap<Id, Expr>, // change to vec<expr> instead of hashmap for expr and var, as long as i do not remove values? also, use donothasher if index is unique?
-    pub exprs_inv: HashMap<u64, Vec<Id>>, //todo no pub
+    exprs: Vec<Expr>,
+    exprs_inv: HashMap<u64, Vec<Id>>,
     vars: HashMap<VarId, &'a str>,
     vars_inv: HashMap<&'a str, VarId>,
 }
@@ -34,9 +33,8 @@ impl<'a> Formula<'a> {
     pub(crate) fn new() -> Self {
         Self {
             aux_root_id: 0,
-            next_id: 0,
             next_var_id: 0,
-            exprs: HashMap::new(),
+            exprs: vec![],
             exprs_inv: HashMap::new(), // possibly use with_capacity to avoid re-allocations
             vars: HashMap::new(),
             vars_inv: HashMap::new(),
@@ -45,14 +43,14 @@ impl<'a> Formula<'a> {
 
     fn assert_valid(&self) {
         assert!(
-            self.aux_root_id > 0 && self.next_id > 0 && self.next_var_id > 0,
+            self.aux_root_id > 0 && self.exprs.len() > 0 && self.next_var_id > 0,
             "formula is invalid"
         );
     }
 
     fn get_root_expr(&self) -> Id {
         self.assert_valid();
-        if let And(ids) = self.exprs.get(&self.aux_root_id).unwrap() {
+        if let And(ids) = &self.exprs[self.aux_root_id] {
             assert!(ids.len() == 1, "aux root has more than one child");
             ids[0]
         } else {
@@ -72,18 +70,17 @@ impl<'a> Formula<'a> {
     }
 
     fn add_expr(&mut self, expr: Expr) -> Id {
-        let id = self.next_id + 1;
+        let id = self.exprs.len();
         let hash = Self::hash_expr(&expr);
         self.exprs.insert(id, expr);
         self.exprs_inv.entry(hash).or_default().push(id);
-        self.next_id = id;
         id
     }
 
     fn get_expr(&self, expr: &Expr) -> Option<Id> {
         let ids = self.exprs_inv.get(&Self::hash_expr(expr))?;
         for id in ids {
-            if self.exprs.get(id).unwrap() == expr {
+            if self.exprs[*id] == *expr {
                 return Some(*id);
             }
         }
@@ -119,21 +116,21 @@ impl<'a> Formula<'a> {
     }
 
     fn set_child_exprs(&mut self, id: Id, mut new_ids: Vec<Id>) {
-        let expr = self.exprs.get(&id).unwrap();
-        let old_hash = Self::hash_expr(&expr);
+        let expr = &self.exprs[id];
+        let old_hash = Self::hash_expr(expr);
         for id in new_ids.iter_mut() {
-            let child_expr = self.exprs.get(id).unwrap();
+            let child_expr = &self.exprs[*id];
             let child_hash = Self::hash_expr(expr);
             let dup_ids = self.exprs_inv.get(&child_hash).unwrap();
             for dup_id in dup_ids {
-                if self.exprs.get(dup_id).unwrap() == child_expr {
+                if self.exprs[*dup_id] == *child_expr {
                     *id = *dup_id;
                     break;
                 }
             }
         }
 
-        let expr = self.exprs.get_mut(&id).unwrap();
+        let expr = &mut self.exprs[id];
         match expr {
             Var(_) => &[],
             Not(id) => {
@@ -146,7 +143,7 @@ impl<'a> Formula<'a> {
             }
         };
         
-        let expr = self.exprs.get(&id).unwrap();
+        let expr = &self.exprs[id];
         let new_hash = Self::hash_expr(&expr);
         // here, the children of id change, so id's hash changes, possibly to some expr we already have - creating a possible duplicate
         // maybe allow temporary violation of the invariant until parent is traversed (have a temporary Set of hashes that collide and check that regularly)
@@ -164,14 +161,14 @@ impl<'a> Formula<'a> {
     }
 
     fn child_exprs_refl<'b>(&'b self, id: &'b Id) -> &'b [Id] {
-        match self.exprs.get(&id).unwrap() {
+        match &self.exprs[*id] {
             Var(_) | Not(_) => slice::from_ref(&id),
-            And(ids) | Or(ids) => ids,
+            And(ids) | Or(ids) => &ids,
         }
     }
 
     fn is_non_aux_and(&self, id: Id) -> bool {
-        if let And(_) = self.exprs.get(&id).unwrap() {
+        if let And(_) = self.exprs[id] {
             id != self.aux_root_id
         } else {
             false
@@ -180,7 +177,7 @@ impl<'a> Formula<'a> {
 
     fn splice_or(&self, clause_id: Id, new_clause: &mut Vec<Id>) {
         // splice child or's
-        if let Or(literal_ids) = self.exprs.get(&clause_id).unwrap() {
+        if let Or(literal_ids) = &self.exprs[clause_id] {
             for literal_id in literal_ids {
                 new_clause.push(*literal_id);
             }
@@ -204,11 +201,11 @@ impl<'a> Formula<'a> {
     pub(crate) fn get_clauses(&self) -> Vec<Vec<VarId>> {
         let mut clauses = Vec::<Vec<VarId>>::new();
 
-        let add_literal = |id, clause: &mut Vec<VarId>| match self.exprs.get(&id).unwrap() {
-            Var(var_id) => clause.push(*var_id),
+        let add_literal = |id, clause: &mut Vec<VarId>| match self.exprs[id] {
+            Var(var_id) => clause.push(var_id),
             Not(child_id) => {
-                if let Var(var_id) = self.exprs.get(&child_id).unwrap() {
-                    clause.push(-*var_id);
+                if let Var(var_id) = self.exprs[child_id] {
+                    clause.push(-var_id);
                 } else {
                     panic!("expected Var below Not, got {}", ExprInFormula(self, &id));
                 }
@@ -227,12 +224,12 @@ impl<'a> Formula<'a> {
             clauses.push(clause);
         };
 
-        match self.exprs.get(&self.get_root_expr()).unwrap() {
+        match &self.exprs[self.get_root_expr()] {
             Var(_) | Not(_) => add_clause(slice::from_ref(&self.get_root_expr())),
             Or(child_ids) => add_clause(child_ids),
             And(child_ids) => {
                 for child_id in child_ids {
-                    match self.exprs.get(&child_id).unwrap() {
+                    match &self.exprs[*child_id] {
                         Var(_) | Not(_) => add_clause(slice::from_ref(child_id)),
                         Or(child_ids) => add_clause(child_ids),
                         _ => panic!(
@@ -250,7 +247,7 @@ impl<'a> Formula<'a> {
     fn format_expr(&self, id: Id, f: &mut fmt::Formatter) -> fmt::Result {
         // rewrite with preorder traversal?
         let mut write_helper = |kind: &str, ids: &[Id]| {
-            write!(f, "{kind}@{id}(")?;
+            write!(f, "{kind}(")?;
             for (i, id) in ids.iter().enumerate() {
                 if i > 0 {
                     write!(f, ", ")?;
@@ -259,8 +256,8 @@ impl<'a> Formula<'a> {
             }
             write!(f, ")")
         };
-        match self.exprs.get(&id).unwrap() {
-            Var(var_id) => write!(f, "{}@{id}", self.vars.get(var_id).unwrap()),
+        match &self.exprs[id] {
+            Var(var_id) => write!(f, "{}", self.vars.get(var_id).unwrap()),
             Not(id) => write_helper("Not", slice::from_ref(id)),
             And(ids) => write_helper("And", ids),
             Or(ids) => write_helper("Or", ids),
@@ -278,14 +275,14 @@ impl<'a> Formula<'a> {
     // (this might largely influence negation-CNF reasoning);
     // so, also a polarity-based Plaisted-Greenbaum implementation is necessary
     fn to_nnf_expr(&mut self, id: Id) {
-        let mut child_ids: Vec<Id> = self.get_child_exprs(self.exprs.get(&id).unwrap()).to_vec();
+        let mut child_ids: Vec<Id> = self.get_child_exprs(&self.exprs[id]).to_vec();
 
         for child_id in child_ids.iter_mut() {
-            let child = self.exprs.get(&child_id).unwrap();
+            let child = &self.exprs[*child_id];
             match child {
                 Var(_) | And(_) | Or(_) => (),
                 Not(child2_id) => {
-                    let child2 = self.exprs.get(child2_id).unwrap();
+                    let child2 = &self.exprs[*child2_id];
                     match child2 {
                         Var(_) => (),
                         Not(child3_id) => {
@@ -310,11 +307,11 @@ impl<'a> Formula<'a> {
     // assumes NNF
     fn to_cnf_expr_dist(&mut self, id: Id) -> () {
         // need the children two times on the stack here, could maybe be disabled, but then merging is more complicated
-        let child_ids = self.get_child_exprs(self.exprs.get(&id).unwrap()).to_vec();
+        let child_ids = self.get_child_exprs(&self.exprs[id]).to_vec();
         let mut new_child_ids = Vec::<Id>::new();
 
         for child_id in child_ids {
-            let child = self.exprs.get(&child_id).unwrap();
+            let child = &self.exprs[child_id];
             match child {
                 Var(_) | Not(_) => new_child_ids.push(child_id),
                 And(cnf_ids) => {
@@ -378,7 +375,7 @@ impl<'a> Formula<'a> {
     }
 
     fn assert_shared_expr(&mut self, id: Id) {
-        assert_eq!(self.get_expr(self.exprs.get(&id).unwrap()).unwrap(), id);
+        assert_eq!(self.get_expr(&self.exprs[id]).unwrap(), id);
     }
 
     // both traversals assume idempotent visitors that only mutate their children with set_child_exprs.
@@ -393,17 +390,17 @@ impl<'a> Formula<'a> {
             let id = remaining_ids.pop().unwrap();
             if !visited_ids.contains(&id) {
                 visitor(self, id);
-                remaining_ids.extend(self.get_child_exprs(self.exprs.get(&id).unwrap()));
+                remaining_ids.extend(self.get_child_exprs(&self.exprs[id]));
                 visited_ids.insert(id);
             }
         }
 
         // duplicate with above
-        let aux_root_expr = self.exprs.get(&self.aux_root_id).unwrap();
+        let aux_root_expr = &self.exprs[self.aux_root_id];
         let aux_root_hash = Self::hash_expr(aux_root_expr);
         let dup_ids = self.exprs_inv.get(&aux_root_hash).unwrap();
         for dup_id in dup_ids {
-            if self.exprs.get(dup_id).unwrap() == aux_root_expr {
+            if self.exprs.get(*dup_id).unwrap() == aux_root_expr {
                 self.aux_root_id = *dup_id;
                 break;
             }
@@ -417,7 +414,7 @@ impl<'a> Formula<'a> {
         let mut visited_ids = HashSet::<Id>::new();
         while !remaining_ids.is_empty() {
             let id = remaining_ids.last().unwrap();
-            let child_ids = self.get_child_exprs(self.exprs.get(id).unwrap());
+            let child_ids = self.get_child_exprs(&self.exprs[*id]);
             if !child_ids.is_empty() && !seen_ids.contains(id) && !visited_ids.contains(id) {
                 seen_ids.insert(*id);
                 remaining_ids.extend(child_ids);
@@ -432,11 +429,11 @@ impl<'a> Formula<'a> {
         }
 
         // duplicate with above
-        let aux_root_expr = self.exprs.get(&self.aux_root_id).unwrap();
+        let aux_root_expr = &self.exprs[self.aux_root_id];
         let aux_root_hash = Self::hash_expr(aux_root_expr);
         let dup_ids = self.exprs_inv.get(&aux_root_hash).unwrap();
         for dup_id in dup_ids {
-            if self.exprs.get(dup_id).unwrap() == aux_root_expr {
+            if self.exprs.get(*dup_id).unwrap() == aux_root_expr {
                 self.aux_root_id = *dup_id;
                 break;
             }

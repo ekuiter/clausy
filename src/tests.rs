@@ -144,6 +144,7 @@ mod formula {
 
         #[test]
         fn shared_expr() {
+            // todo: run this on larger formulas as well
             Formula::from("((def(a)|!def(a))&(def(a)|!(def(a)|def(a))))").to_nnf().to_cnf_dist().assert_shared();
             Formula::from("(((!def(a)))&(((def(c)|!def(a)))|((def(a))&(def(c)|!(def(a)|def(b))))))").to_nnf().to_cnf_dist().assert_shared();
         }
