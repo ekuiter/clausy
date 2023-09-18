@@ -93,6 +93,13 @@ mod formula {
                 "Or(And(Not(a), c), And(b, Not(c), Or(a, Not(c))), Or(Not(b), c, And(Not(a), c)))"
             );
         }
+
+        #[test]
+        fn idempotent() {
+            let f = Formula::from("(((!def(a)))&(((def(c)|!def(a)))|((def(a))&(def(c)|!(def(a)|def(b))))))").to_nnf();
+            let s = f.to_string();
+            assert_eq!(s, f.to_nnf().to_string());
+        }
     }
 
     mod cnf_dist {
@@ -136,16 +143,16 @@ mod formula {
         }
 
         #[test]
-        fn should_not_collide() {
-            let mut f = Formula::from("((def(a)|!def(a))&(def(a)|!(def(a)|def(a))))");
-            println!("{}", f);
-            f = f.to_nnf();
-            println!("{}", f);
-            f = f.to_cnf_dist();
-            println!("{}", f);
-            //dbg!(f.exprs_inv.clone());
+        fn shared_expr() {
+            Formula::from("((def(a)|!def(a))&(def(a)|!(def(a)|def(a))))").to_nnf().to_cnf_dist().assert_shared();
+            Formula::from("(((!def(a)))&(((def(c)|!def(a)))|((def(a))&(def(c)|!(def(a)|def(b))))))").to_nnf().to_cnf_dist().assert_shared();
+        }
 
-            //other example: (((!def(a)))&(((def(c)|!def(a)))|((def(a))&(def(c)|!(def(a)|def(b))))))
+        #[test]
+        fn idempotent() {
+            let f = Formula::from("(((!def(a)))&(((def(c)|!def(a)))|((def(a))&(def(c)|!(def(a)|def(b))))))").to_nnf().to_cnf_dist();
+            let s = f.to_string();
+            assert_eq!(s, f.to_cnf_dist().to_string());
         }
     }
 }

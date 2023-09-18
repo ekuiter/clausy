@@ -1,6 +1,8 @@
 use std::{
-    collections::{HashMap, HashSet, hash_map::DefaultHasher},
-    fmt, slice, hash::{Hasher, Hash},
+    collections::{hash_map::DefaultHasher, HashMap, HashSet},
+    fmt,
+    hash::{Hash, Hasher},
+    slice,
 };
 use Expr::*;
 
@@ -12,13 +14,13 @@ pub struct Formula<'a> {
     aux_root_id: Id,
     next_id: Id,
     next_var_id: VarId,
-    exprs: HashMap<Id, Expr>,
-    exprs_inv: HashMap<u64, Vec<Id>>,
+    exprs: HashMap<Id, Expr>, // change to vec<expr> instead of hashmap for expr and var, as long as i do not remove values? also, use donothasher if index is unique?
+    pub exprs_inv: HashMap<u64, Vec<Id>>, //todo no pub
     vars: HashMap<VarId, &'a str>,
     vars_inv: HashMap<&'a str, VarId>,
 }
 
-#[derive(Debug,PartialEq,Eq,Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub(crate) enum Expr {
     Var(VarId),
     Not(Id),
@@ -35,7 +37,7 @@ impl<'a> Formula<'a> {
             next_id: 0,
             next_var_id: 0,
             exprs: HashMap::new(),
-            exprs_inv: HashMap::new(),
+            exprs_inv: HashMap::new(), // possibly use with_capacity to avoid re-allocations
             vars: HashMap::new(),
             vars_inv: HashMap::new(),
         }
@@ -78,13 +80,13 @@ impl<'a> Formula<'a> {
         id
     }
 
-    fn get_expr(&mut self, expr: &Expr) -> Option<Id> {
+    fn get_expr(&self, expr: &Expr) -> Option<Id> {
         let ids = self.exprs_inv.get(&Self::hash_expr(expr))?;
         for id in ids {
             if self.exprs.get(id).unwrap() == expr {
-                return Some(*id)
+                return Some(*id);
             }
-        };
+        }
         None
     }
 
@@ -116,8 +118,23 @@ impl<'a> Formula<'a> {
         }
     }
 
-    fn set_child_exprs(&mut self, id: Id, new_ids: Vec<Id>) -> &[Id] {
-        match self.exprs.get_mut(&id).unwrap() {
+    fn set_child_exprs(&mut self, id: Id, mut new_ids: Vec<Id>) {
+        let expr = self.exprs.get(&id).unwrap();
+        let old_hash = Self::hash_expr(&expr);
+        for id in new_ids.iter_mut() {
+            let child_expr = self.exprs.get(id).unwrap();
+            let child_hash = Self::hash_expr(expr);
+            let dup_ids = self.exprs_inv.get(&child_hash).unwrap();
+            for dup_id in dup_ids {
+                if self.exprs.get(dup_id).unwrap() == child_expr {
+                    *id = *dup_id;
+                    break;
+                }
+            }
+        }
+
+        let expr = self.exprs.get_mut(&id).unwrap();
+        match expr {
             Var(_) => &[],
             Not(id) => {
                 *id = new_ids[0];
@@ -126,6 +143,18 @@ impl<'a> Formula<'a> {
             And(ids) | Or(ids) => {
                 *ids = new_ids;
                 ids
+            }
+        };
+        
+        let expr = self.exprs.get(&id).unwrap();
+        let new_hash = Self::hash_expr(&expr);
+        // here, the children of id change, so id's hash changes, possibly to some expr we already have - creating a possible duplicate
+        // maybe allow temporary violation of the invariant until parent is traversed (have a temporary Set of hashes that collide and check that regularly)
+        if new_hash != old_hash { // important so if no children are changed, the order in exprs_inv does not change (order is relevant for get_expr and dup_ids)
+            self.exprs_inv.entry(old_hash).or_default().retain(|id2| *id2 != id); // probably, here only the first matching element has to be removed https://stackoverflow.com/questions/26243025
+            self.exprs_inv.entry(new_hash).or_default().push(id); // probably, we could only push here if no equal expr has already been pushed (does this interact weirdly when there are true hash collisions involved?)
+            if self.exprs_inv.get(&old_hash).unwrap().is_empty() {
+                self.exprs_inv.remove(&old_hash);
             }
         }
     }
@@ -221,7 +250,7 @@ impl<'a> Formula<'a> {
     fn format_expr(&self, id: Id, f: &mut fmt::Formatter) -> fmt::Result {
         // rewrite with preorder traversal?
         let mut write_helper = |kind: &str, ids: &[Id]| {
-            write!(f, "{kind}(")?;
+            write!(f, "{kind}@{id}(")?;
             for (i, id) in ids.iter().enumerate() {
                 if i > 0 {
                     write!(f, ", ")?;
@@ -231,7 +260,7 @@ impl<'a> Formula<'a> {
             write!(f, ")")
         };
         match self.exprs.get(&id).unwrap() {
-            Var(var_id) => write!(f, "{}", self.vars.get(var_id).unwrap()),
+            Var(var_id) => write!(f, "{}@{id}", self.vars.get(var_id).unwrap()),
             Not(id) => write_helper("Not", slice::from_ref(id)),
             And(ids) => write_helper("And", ids),
             Or(ids) => write_helper("Or", ids),
@@ -248,7 +277,7 @@ impl<'a> Formula<'a> {
     // so might be beneficial to not run this before Tseitin
     // (this might largely influence negation-CNF reasoning);
     // so, also a polarity-based Plaisted-Greenbaum implementation is necessary
-    fn to_nnf_expr(&mut self, id: Id) -> &[Id] {
+    fn to_nnf_expr(&mut self, id: Id) {
         let mut child_ids: Vec<Id> = self.get_child_exprs(self.exprs.get(&id).unwrap()).to_vec();
 
         for child_id in child_ids.iter_mut() {
@@ -263,7 +292,6 @@ impl<'a> Formula<'a> {
                             *child_id = *child3_id;
                         }
                         And(child_ids2) => {
-                            // this does not reuse existing formulas yet! => need cache to retrieve formulas (similar for other expr constructions)
                             let new_expr = Or(self.negate_exprs(child_ids2.clone()));
                             *child_id = self.expr(new_expr);
                         }
@@ -276,7 +304,7 @@ impl<'a> Formula<'a> {
             }
         }
 
-        self.set_child_exprs(id, child_ids)
+        self.set_child_exprs(id, child_ids);
     }
 
     // assumes NNF
@@ -328,9 +356,9 @@ impl<'a> Formula<'a> {
                     let mut new_cnf_ids = Vec::<Id>::new();
                     for mut clause in clauses {
                         clause = Self::dedup(clause); // idempotency
+                                                      // unary or
                         if clause.len() > 1 {
-                            // unary or
-                            new_cnf_ids.push(self.expr(Or(clause))); // use cached formula
+                            new_cnf_ids.push(self.expr(Or(clause)));
                         } else {
                             new_cnf_ids.push(clause[0]);
                         }
@@ -349,7 +377,13 @@ impl<'a> Formula<'a> {
         self.set_child_exprs(id, Self::dedup(new_child_ids));
     }
 
-    fn reverse_preorder(&mut self, visitor: fn(&mut Self, Id) -> &[Id]) {
+    fn assert_shared_expr(&mut self, id: Id) {
+        assert_eq!(self.get_expr(self.exprs.get(&id).unwrap()).unwrap(), id);
+    }
+
+    // both traversals assume idempotent visitors that only mutate their children with set_child_exprs.
+    // this is needed to ensure structural sharing in set_child_exprs.
+    fn reverse_preorder(&mut self, visitor: fn(&mut Self, Id) -> ()) {
         self.assert_valid();
         let mut remaining_ids = vec![self.aux_root_id];
         // presumably, the following set can get large for large formulas (some for postorder traversal).
@@ -358,8 +392,20 @@ impl<'a> Formula<'a> {
         while !remaining_ids.is_empty() {
             let id = remaining_ids.pop().unwrap();
             if !visited_ids.contains(&id) {
-                remaining_ids.extend(visitor(self, id));
+                visitor(self, id);
+                remaining_ids.extend(self.get_child_exprs(self.exprs.get(&id).unwrap()));
                 visited_ids.insert(id);
+            }
+        }
+
+        // duplicate with above
+        let aux_root_expr = self.exprs.get(&self.aux_root_id).unwrap();
+        let aux_root_hash = Self::hash_expr(aux_root_expr);
+        let dup_ids = self.exprs_inv.get(&aux_root_hash).unwrap();
+        for dup_id in dup_ids {
+            if self.exprs.get(dup_id).unwrap() == aux_root_expr {
+                self.aux_root_id = *dup_id;
+                break;
             }
         }
     }
@@ -384,6 +430,17 @@ impl<'a> Formula<'a> {
                 remaining_ids.pop();
             }
         }
+
+        // duplicate with above
+        let aux_root_expr = self.exprs.get(&self.aux_root_id).unwrap();
+        let aux_root_hash = Self::hash_expr(aux_root_expr);
+        let dup_ids = self.exprs_inv.get(&aux_root_hash).unwrap();
+        for dup_id in dup_ids {
+            if self.exprs.get(dup_id).unwrap() == aux_root_expr {
+                self.aux_root_id = *dup_id;
+                break;
+            }
+        }
     }
 
     // combine pre- and postorder to a DFS that creates NNF on first and distributive CNF on last visit
@@ -400,6 +457,10 @@ impl<'a> Formula<'a> {
     pub fn to_cnf_dist(mut self) -> Self {
         self.reverse_postorder(Self::to_cnf_expr_dist);
         self
+    }
+
+    pub fn assert_shared(&mut self) {
+        self.reverse_preorder(Self::assert_shared_expr);
     }
 }
 

@@ -8,6 +8,9 @@ fn main() {
     let model_string = fs::read_to_string(file_name).expect("could not open model file");
     let mut formula = Formula::from(&model_string[..]);
     //println!("{}", formula);
-    formula = formula.to_nnf().to_cnf_dist();
+    formula = formula.to_nnf();
+    //println!("{}", formula);
+    formula = formula.to_cnf_dist();
+    //println!("{}", formula);
     println!("{}", CNF::from(&formula));
 }
