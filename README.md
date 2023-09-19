@@ -5,9 +5,10 @@
 ## Getting Started
 
 ```
-# compile
+# build
 gradle -p io shadowJar
-cargo build --release && cp target/release/clausy clausy
+cargo build --release
+cp target/release/clausy clausy
 
 # run
 cat my-model.model | ./clausy
