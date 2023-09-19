@@ -33,11 +33,11 @@ fn parse_pair<'a>(pair: Pair<'a, Rule>, formula: &mut Formula<'a>) -> Id {
 }
 
 impl<'a> From<&'a str> for Formula<'a> {
-    fn from(model_string: &'a str) -> Self {
+    fn from(model: &'a str) -> Self {
         let mut formula = Formula::new();
         let mut child_ids = Vec::<Id>::new();
 
-        for line in model_string.lines() {
+        for line in model.lines() {
             let pair = ModelParser::parse(Rule::line, line)
                 .expect("failed to parse model file")
                 .next()

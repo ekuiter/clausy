@@ -4,7 +4,16 @@
 
 ## Getting Started
 
-Run `cargo run --release -- <feature-model-file>` on a [KConfigReader](https://github.com/ckaestne/kconfigreader) .model file.
+```
+# compile
+gradle -p io shadowJar
+cargo build --release && cp target/release/clausy clausy
+
+# run
+cat my-model.model | ./clausy
+cat my-model.uvl | java -jar io.jar -.uvl | ./clausy
+cat my-model.xml | java -jar io.jar -.xml | ./clausy
+```
 
 ## License
 

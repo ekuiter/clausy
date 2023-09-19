@@ -1,16 +1,20 @@
-use std::{fs, env};
+use std::{env, fs, io::Read};
 
-use clausy::{formula::Formula, cnf::CNF};
+use clausy::{cnf::CNF, formula::Formula};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let file_name = if args.len() == 2 { &args[1] } else { "test.model" };
-    let model_string = fs::read_to_string(file_name).expect("could not open model file");
-    let mut formula = Formula::from(&model_string[..]);
+    let mut model;
+    if args.len() == 2 {
+        model = fs::read_to_string(&args[1]).expect("could not open feature model");
+    } else {
+        model = String::new();
+        std::io::stdin().read_to_string(&mut model).unwrap();
+    };
+
+    let mut formula = Formula::from(&model[..]);
     //println!("{}", formula);
     formula = formula.to_nnf();
-    //println!("{}", formula);
     formula = formula.to_cnf_dist();
-    //println!("{}", formula);
     println!("{}", CNF::from(&formula));
 }
