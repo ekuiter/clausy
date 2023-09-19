@@ -1,3 +1,5 @@
+//! Unit tests.
+
 #![allow(unused_imports)]
 use crate::formula::{Formula,Expr::*};
 use crate::cnf::CNF;

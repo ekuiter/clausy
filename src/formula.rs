@@ -1,3 +1,5 @@
+//! Data structures and algorithms for feature-model formulas.
+
 #![allow(unused_imports)]
 use std::{
     collections::{hash_map::DefaultHasher, HashMap, HashSet},
@@ -7,24 +9,61 @@ use std::{
 };
 use Expr::*;
 
+/// Identifier type for expressions.
+///
+/// Serves as an index into [Formula::exprs].
+/// A note on terminology:
+/// An expression can be any propositional term associated with a [Formula].
+/// However, it is not necessarily contained in the syntax tree of said formula (e.g., when it was transformed into another expression).
+/// A sub-expression, on the other hand, is a propositional term associated with a [Formula] that actually appears in its syntax tree.
+/// Thus, all sub-expressions are expressions, but not vice versa.
 pub(crate) type Id = usize;
+
+/// Identifier type for variables.
+///
+/// Serves as an index into [Formula::vars].
+/// We also use this type to represent literals in [crate::cnf::CNF], therefore we use a signed type.
+/// Also, we do not expect too many variables, so a 32-bit integer should usually suffice.
 pub(crate) type VarId = i32;
+
+/// An expression in a formula.
+///
+/// Currently, we only allow propositional primitives.
+/// An expression is always implicitly tied to a [Formula], to which the expression's [Id]s or [VarId] refer.
+/// We implement expressions as an enum to avoid allocating a [Vec] for [Var] and [Not].
+/// Note that we derive the default equality check and hashing algorithm here:
+/// This is sensible because the associated [Formula] guarantees that each of its sub-expressions is assigned exactly one identifier.
+/// Thus, a shallow equality check or hash on is equivalent to a deep one if they are sub-expressions of the same [Formula].
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub(crate) enum Expr {
+    /// A propositional variable.
+    Var(VarId),
+
+    /// A negation of an expression.
+    Not(Id),
+
+    /// A conjunction of an expression.
+    And(Vec<Id>),
+
+    /// A disjunction of an expression.
+    Or(Vec<Id>),
+}
 
 #[derive(Debug)]
 pub struct Formula<'a> {
-    aux_root_id: Id,
+    /// Stores all expressions in this formula.
+    ///
+    /// Expressions are stored in the order of their creation, so new expressions are appended with [Vec::push].
+    /// Also, while some algorithms may update expressions in-place, no expression is ever removed.
+    /// We refer to all expressions that appear below the auxiliary root expression as sub-expressions.
+    /// By not ever removing any expressions, we keep all non-sub-expressions indefinitely.
+    /// This potentially requires a lot of memory, but avoids explicit reference counting or garbage collection.
     exprs: Vec<Expr>,
-    exprs_inv: HashMap<u64, Vec<Id>>,
+
+    exprs_inv: HashMap<u64, Vec<Id>>, // todo: write on structural sharing (all (true) sub-expressions are guaranteed to be unique)
     vars: Vec<&'a str>,
     vars_inv: HashMap<&'a str, VarId>,
-}
-
-#[derive(Debug, PartialEq, Eq, Hash)]
-pub(crate) enum Expr {
-    Var(VarId),
-    Not(Id),
-    And(Vec<Id>),
-    Or(Vec<Id>),
+    aux_root_id: Id,
 }
 
 struct ExprInFormula<'a>(&'a Formula<'a>, &'a Id);
@@ -32,11 +71,11 @@ struct ExprInFormula<'a>(&'a Formula<'a>, &'a Id);
 impl<'a> Formula<'a> {
     pub(crate) fn new() -> Self {
         Self {
-            aux_root_id: 0,
             exprs: vec![Var(0)],
-            exprs_inv: HashMap::new(), // possibly use with_capacity to avoid re-allocations
+            exprs_inv: HashMap::new(),
             vars: vec![""],
             vars_inv: HashMap::new(),
+            aux_root_id: 0,
         }
     }
 
@@ -141,13 +180,17 @@ impl<'a> Formula<'a> {
                 ids
             }
         };
-        
+
         let expr = &self.exprs[id];
         let new_hash = Self::hash_expr(&expr);
         // here, the children of id change, so id's hash changes, possibly to some expr we already have - creating a possible duplicate
         // maybe allow temporary violation of the invariant until parent is traversed (have a temporary Set of hashes that collide and check that regularly)
-        if new_hash != old_hash { // important so if no children are changed, the order in exprs_inv does not change (order is relevant for get_expr and dup_ids)
-            self.exprs_inv.entry(old_hash).or_default().retain(|id2| *id2 != id); // probably, here only the first matching element has to be removed https://stackoverflow.com/questions/26243025
+        if new_hash != old_hash {
+            // important so if no children are changed, the order in exprs_inv does not change (order is relevant for get_expr and dup_ids)
+            self.exprs_inv
+                .entry(old_hash)
+                .or_default()
+                .retain(|id2| *id2 != id); // probably, here only the first matching element has to be removed https://stackoverflow.com/questions/26243025
             self.exprs_inv.entry(new_hash).or_default().push(id); // probably, we could only push here if no equal expr has already been pushed (does this interact weirdly when there are true hash collisions involved?)
             if self.exprs_inv.get(&old_hash).unwrap().is_empty() {
                 self.exprs_inv.remove(&old_hash);
@@ -259,7 +302,7 @@ impl<'a> Formula<'a> {
             Var(var_id) => {
                 let var_id: usize = (*var_id).try_into().unwrap();
                 write!(f, "{}", self.vars.get(var_id).unwrap())
-            },
+            }
             Not(id) => write_helper("Not", slice::from_ref(id)),
             And(ids) => write_helper("And", ids),
             Or(ids) => write_helper("Or", ids),
@@ -272,7 +315,7 @@ impl<'a> Formula<'a> {
 
     // adds new expressions without discarding the old ones if they get orphaned (use Rc?)
     // creates temporary vector (use RefCell?)
-    // may destroy structural sharing of originally shared subformulas,
+    // may destroy structural sharing of originally shared sub-expressions,
     // so might be beneficial to not run this before Tseitin
     // (this might largely influence negation-CNF reasoning);
     // so, also a polarity-based Plaisted-Greenbaum implementation is necessary
@@ -444,7 +487,7 @@ impl<'a> Formula<'a> {
 
     // combine pre- and postorder to a DFS that creates NNF on first and distributive CNF on last visit
 
-    pub fn print_subexprs(&mut self) {
+    pub fn print_sub_exprs(&mut self) {
         self.reverse_postorder(|s, i| s.print_expr(i));
     }
 

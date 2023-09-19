@@ -14,6 +14,9 @@ cp target/release/clausy clausy
 cat my-model.model | ./clausy
 cat my-model.uvl | java -jar io.jar -.uvl | ./clausy
 cat my-model.xml | java -jar io.jar -.xml | ./clausy
+
+# view documentation
+cargo doc --open
 ```
 
 ## License

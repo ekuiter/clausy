@@ -1,3 +1,5 @@
+//! Clause representation of a feature-model formula.
+
 use std::fmt;
 
 use crate::formula::{Formula, VarId};

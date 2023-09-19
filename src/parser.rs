@@ -1,3 +1,5 @@
+//! Parser for feature-model formulas.
+
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
 
