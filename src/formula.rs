@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 use std::{
     collections::{hash_map::DefaultHasher, HashMap, HashSet},
     fmt,

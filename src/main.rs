@@ -1,6 +1,6 @@
 use std::{fs, env};
 
-use cnfrust::{formula::Formula, cnf::CNF};
+use clausy::{formula::Formula, cnf::CNF};
 
 fn main() {
     let args: Vec<String> = env::args().collect();

@@ -4,7 +4,7 @@
 
 ## Getting Started
 
-`TODO`
+Run `cargo run --release -- <feature-model-file>` on a [KConfigReader](https://github.com/ckaestne/kconfigreader) .model file.
 
 ## License
 
