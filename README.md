@@ -24,7 +24,7 @@ cat my-model.xml | java -jar io.jar -.xml | ./clausy
 ## Documentation
 
 Documentation for clausy is available [here](https://ekuiter.github.io/clausy/) or can be generated with rustdoc.
-Most relevant information can be found in `clausy > formula > Formula`.
+Most relevant information can be found in [`clausy > formula > Formula`](https://ekuiter.github.io/clausy/clausy/formula/struct.Formula.html).
 
 ```
 # view documentation
