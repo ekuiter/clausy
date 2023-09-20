@@ -51,11 +51,17 @@ pub(crate) enum Expr {
 
 /// A feature-model formula.
 /// 
-/// We represent formulas by storing their syntax trees.
+/// We represent a formula by storing its syntax tree; that is, each unique sub-expression that appears in it.
+/// As an invariant, sub-expressions are uniquely stored, so no sub-expression can appear twice with distinct identifiers (structural sharing).
+/// This invariant allows for concise representation and facilitates some algorithms (e.g., Tseitin transformation).
+/// However, it also comes with the downside that each sub-expression has potentially many parents.
+/// Thus, owners of sub-expressions are not easily trackable (see [Formula::exprs] on garbage collection).
+/// Consequently, all algorithms must be implemented in a way that only mutates the children of an expression, not their parent(s).
 #[derive(Debug)]
 pub struct Formula<'a> {
     /// Stores all expressions in this formula.
-    ///
+    /// 
+    /// Serves as a fast lookup for an expression, given its identifier.
     /// Expressions are stored in the order of their creation, so new expressions are appended with [Vec::push].
     /// Also, while some algorithms may update expressions in-place, no expression is ever removed.
     /// We refer to all expressions that appear below the auxiliary root expression as sub-expressions.
@@ -63,9 +69,49 @@ pub struct Formula<'a> {
     /// This potentially requires a lot of memory, but avoids explicit reference counting or garbage collection.
     exprs: Vec<Expr>,
 
-    exprs_inv: HashMap<u64, Vec<Id>>, // todo: write on structural sharing (all (true) sub-expressions are guaranteed to be unique)
+    /// Maps expressions to their identifiers.
+    /// 
+    /// Serves as a fast inverse lookup for the unique identifier of a given sub-expression.
+    /// To simplify ownership, we implement this lookup by mapping from the hash of a sub-expression to several identifiers.
+    /// By structural sharing, the identifier for a sub-expression should be unique, but we still need a [Vec] for two reasons:
+    /// First, there might be hash collisions, which we address by checking true equality when reading [Formula::exprs_inv].
+    /// Second, while sub-expressions have a unique identifier, there might be distinct, orphaned expressions that are equal to a given sub-expression.
+    /// For example, such a situation arises when [Formula::set_child_exprs] modifies its expression's children
+    /// and the resulting expression is equal (but not identical) to an existing sub-expression.
+    /// As an expression cannot easily change its own identifier (similar to how a variable cannot change its own type),
+    /// [Formula::set_child_exprs] considers the first identifier in [Formula::exprs_inv] to be the canonical, unique one (modulo hash collisions).
+    /// Whenever [Formula::set_child_exprs] encounters the concerned expression, it then adapts its identifier to the canonical one.
+    /// By this design, [Formula::exprs_inv] indeed maps any sub-expression (precisely: its hash) to its unique identifier
+    /// (precisely: the first identifier whose expression is equal to the given sub-expression).
+    /// Any algorithms that mutate this formula should take this into account to preserve structural sharing as an invariant.
+    exprs_inv: HashMap<u64, Vec<Id>>,
+
+    /// Stores all variables in this formula.
+    /// 
+    /// Conceptually, [Formula::vars] is analogous to [Formula::exprs].
+    /// However, there is no distinction analogous to sub-expressions and expressions, as variables need not be removed.
+    /// Consequently, feature-model slicing (variable forgetting) is currently not supported.
+    /// Another difference to [Formula::exprs] is that variables (which are simply names) are not owned by this formula.
+    /// Thus, we can borrow references to variable names from the parsed string and avoid cloning them.
     vars: Vec<&'a str>,
+
+    /// Maps variables to their identifiers.
+    /// 
+    /// Conceptually, [Formula::vars_inv] is analogous to [Formula::exprs_inv].
+    /// However, the inverse lookup of variables is simpler:
+    /// First, this formula does not own the variables, which avoids the hash collisions discussed for [Formula::exprs_inv].
+    /// Second, variables and their identifiers are never mutated after creation, so no additional [Vec] is needed.
     vars_inv: HashMap<&'a str, VarId>,
+
+    /// Specifies the auxiliary root expression of this formula.
+    /// 
+    /// Serves as an index into [Formula::exprs].
+    /// The corresponding expression is the auxiliary root of this formula's syntax tree and thus the starting point for most algorithms.
+    /// We consider all expressions below this expression (including itself) to be sub-expressions.
+    /// There might be other (non-sub-)expressions that are currently not relevant to this formula.
+    /// Note that [Formula::get_root_expr] and [Formula::set_root_expr] do not store the user-supplied root expression here,
+    /// but an auxiliary [And] expression that has the root expression as its single child.
+    /// This allows algorithms to freely mutate the root expression if necessary (see [Formula] on mutating children).
     aux_root_id: Id,
 }
 
@@ -353,6 +399,7 @@ impl<'a> Formula<'a> {
     }
 
     // assumes NNF
+    // is this idempotent?
     fn to_cnf_expr_dist(&mut self, id: Id) -> () {
         // need the children two times on the stack here, could maybe be disabled, but then merging is more complicated
         let child_ids = self.get_child_exprs(&self.exprs[id]).to_vec();

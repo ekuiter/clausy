@@ -24,12 +24,13 @@ cat my-model.xml | java -jar io.jar -.xml | ./clausy
 ## Documentation
 
 Documentation for clausy is available via rustdoc and can be viewed in any browser.
+Most relevant information can be found in `clausy > formula > Formula`.
 
 ```
 # view documentation
 cargo doc --open
 
-# view live documentation (during development)
+# view live documentation (for developers)
 sudo apt-get update
 sudo apt-get install -y inotify-tools nodejs npm
 npm install -g browser-sync
