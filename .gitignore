@@ -1,4 +1,5 @@
-/target
+/target/*
+!/target/doc
 /io.jar
 /clausy
 /.idea

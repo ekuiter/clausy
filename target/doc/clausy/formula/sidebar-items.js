@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Expr"],"struct":["ExprInFormula","Formula"],"type":["Id","VarId"]};

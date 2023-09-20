@@ -28,13 +28,13 @@ Most relevant information can be found in `clausy > formula > Formula`.
 
 ```
 # view documentation
-cargo doc --open
+cargo doc --no-deps --open
 
 # view live documentation (for developers)
 sudo apt-get update
 sudo apt-get install -y inotify-tools nodejs npm
 npm install -g browser-sync
-while inotifywait -re close_write,moved_to,create src; do cargo doc; done &
+while inotifywait -re close_write,moved_to,create src; do cargo doc --no-deps; done &
 (cd target/doc; browser-sync start --server --files "*.html")
 # then visit http://localhost:3000/clausy/
 ```

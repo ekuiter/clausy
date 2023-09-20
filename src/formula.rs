@@ -1,6 +1,6 @@
 //! Data structures and algorithms for feature-model formulas.
 
-#![allow(unused_imports)]
+#![allow(unused_imports,rustdoc::private_intra_doc_links)]
 use std::{
     collections::{hash_map::DefaultHasher, HashMap, HashSet},
     fmt,
@@ -115,9 +115,19 @@ pub struct Formula<'a> {
     aux_root_id: Id,
 }
 
+/// An expression that is explicitly paired with the formula it is tied to.
+/// 
+/// This struct is useful whenever we need to pass an expression around, but the containing formula is not available.
+/// Using this might be necessary when there is no `self` of type [Formula], for example whenever we want to [fmt::Display] an expression.
 struct ExprInFormula<'a>(&'a Formula<'a>, &'a Id);
 
+/// Algorithms for constructing, mutating, and analyzing formulas.
 impl<'a> Formula<'a> {
+    /// Creates a new, empty formula.
+    /// 
+    /// The created formula is initially invalid (see [Formula::assert_valid]).
+    /// The variable with empty name and identifier 0 has no meaningful sign and can therefore not be used.
+    /// This simplifies the representation of literals in [crate::cnf::CNF].
     pub(crate) fn new() -> Self {
         Self {
             exprs: vec![Var(0)],
@@ -128,26 +138,14 @@ impl<'a> Formula<'a> {
         }
     }
 
+    /// Panics if the formula is invalid.
+    /// 
+    /// A formula is valid if it has at least one variable (added with [Formula::var]) and a root expression (set with [Formula::set_root_expr]).
     fn assert_valid(&self) {
         assert!(
             self.aux_root_id > 0 && self.exprs.len() > 1 && self.vars.len() > 1,
             "formula is invalid"
         );
-    }
-
-    fn get_root_expr(&self) -> Id {
-        self.assert_valid();
-        if let And(ids) = &self.exprs[self.aux_root_id] {
-            assert!(ids.len() == 1, "aux root has more than one child");
-            ids[0]
-        } else {
-            panic!("formula is invalid")
-        }
-    }
-
-    pub(crate) fn set_root_expr(&mut self, root_id: Id) {
-        let aux_root_id = self.expr(And(vec![root_id]));
-        self.aux_root_id = aux_root_id;
     }
 
     fn hash_expr(expr: &Expr) -> u64 {
@@ -192,6 +190,21 @@ impl<'a> Formula<'a> {
 
     pub(crate) fn var(&mut self, var: &'a str) -> Id {
         self.get_var(var).unwrap_or_else(|| self.add_var(var))
+    }
+
+    fn get_root_expr(&self) -> Id {
+        self.assert_valid();
+        if let And(ids) = &self.exprs[self.aux_root_id] {
+            assert!(ids.len() == 1, "aux root has more than one child");
+            ids[0]
+        } else {
+            panic!("formula is invalid")
+        }
+    }
+
+    pub(crate) fn set_root_expr(&mut self, root_id: Id) {
+        let aux_root_id = self.expr(And(vec![root_id]));
+        self.aux_root_id = aux_root_id;
     }
 
     fn get_child_exprs<'b>(&self, expr: &'b Expr) -> &'b [Id] {

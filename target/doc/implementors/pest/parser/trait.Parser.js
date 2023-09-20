@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"clausy":[["impl <a class=\"trait\" href=\"https://docs.rs/pest/pest/parser/trait.Parser.html\" title=\"trait pest::parser::Parser\">Parser</a>&lt;<a class=\"enum\" href=\"clausy/parser/enum.Rule.html\" title=\"enum clausy::parser::Rule\">Rule</a>&gt; for <a class=\"struct\" href=\"clausy/parser/struct.ModelParser.html\" title=\"struct clausy::parser::ModelParser\">ModelParser</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
