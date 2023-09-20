@@ -30,7 +30,7 @@ pub(crate) type VarId = i32;
 ///
 /// Currently, we only allow propositional primitives.
 /// An expression is always implicitly tied to a [Formula], to which the expression's [Id]s or [VarId] refer.
-/// We implement expressions as an enum to avoid allocating a [Vec] for [Var] and [Not].
+/// We implement expressions as an enum to avoid additional heap allocations for [Var] and [Not].
 /// Note that we derive the default equality check and hashing algorithm here:
 /// This is sensible because the associated [Formula] guarantees that each of its sub-expressions is assigned exactly one identifier.
 /// Thus, a shallow equality check or hash on is equivalent to a deep one if they are sub-expressions of the same [Formula].
@@ -49,6 +49,9 @@ pub(crate) enum Expr {
     Or(Vec<Id>),
 }
 
+/// A feature-model formula.
+/// 
+/// We represent formulas by storing their syntax trees.
 #[derive(Debug)]
 pub struct Formula<'a> {
     /// Stores all expressions in this formula.

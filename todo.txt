@@ -2,7 +2,7 @@ optional features (disable with #cfg, so binary can be optimized):
 - invariant: no formula is in memory twice, so parse with structural sharing or without, reuse (or don't reuse) cached formulas (e.g., then traversal does not need to track visited nodes) - does this actually have any impact?
 - run NNF before other transformations, or don't run it before (interacts with Plaisted-Greenbaum and structural sharing, as to_nnf creates new sub-expressions)
 - auto-simplify terms (e.g., idempotency) while creating NNF/CNF or only do it afterwards?
-- let go of unused formulas with Rc or Arc (RefCell needed for internal mutability? Box for using the heap and thus faster moving?)
+- let go of unused formulas with Rc or Arc (RefCell needed for internal mutability?)
 - Plaisted-Greenbaum -> depending on whether equi-countability is preserved/necessary (possibly as a polarity-based variant that does not require NNF)
 
 parser:
