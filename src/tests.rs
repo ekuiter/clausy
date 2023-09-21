@@ -167,7 +167,7 @@ mod cnf {
     #[test]
     fn simple() {
         let f = Formula::from("((def(x)|def(y))&def(ab)&!def(n)&(def(abc)&!(def(x)|def(y))&def(bb)))").to_nnf().to_cnf_dist();
-        let cnf = CNF::from(&f);
+        let cnf = CNF::from(f);
         assert_eq!(cnf.to_string().lines().count(), 14);
     }
 }

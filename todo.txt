@@ -1,5 +1,5 @@
 optional features (disable with #cfg, so binary can be optimized):
-- invariant: no formula is in memory twice, so parse with structural sharing or without, reuse (or don't reuse) cached formulas (e.g., then traversal does not need to track visited nodes) - does this actually have any impact?
+- invariant: no formula is in memory twice, so parse with structural sharing or without, reuse (or don't reuse) cached formulas (e.g., then traversal does not need to track visited nodes) - does this actually have any impact? probably it will for negation-CNF
 - run NNF before other transformations, or don't run it before (interacts with Plaisted-Greenbaum and structural sharing, as to_nnf creates new sub-expressions)
 - auto-simplify terms (e.g., idempotency) while creating NNF/CNF or only do it afterwards?
 - let go of unused formulas with Rc or Arc (RefCell needed for internal mutability?)
@@ -19,8 +19,24 @@ formula:
 - check if all relevant simplifications are implemented correctly: idempotency, splicing/merging (and more?), eliminating implies/bi-implies (which may be exponential itself!)
 - faster HashMap? https://nnethercote.github.io/perf-book/hashing.html https://nnethercote.github.io/2021/12/08/a-brutally-effective-hash-function-in-rust.html as keys are unique, maybe use nohash_hasher?
 - for vectors, could use with_capacity to avoid re-allocations (profiling required)
+- traversal: the set visited_ids can get large for large formulas for both traversals. maybe it can be compacted in some way. (bit matrix? pre-sized vec<bool> with false as default, that is possible extended when new expressions are created?)
+- as an optimization, could combine pre- and postorder traversal to a single DFS that creates NNF on first and distributive CNF on last visit
+- subtle point regarding NNF: as NNF changes certain subexpressions, it might reduce structural sharing (e.g., on And(Not(Or(a, b)), Or(a, b))). thus, it is beneficial to not run NNF before Tseitin and implement a true polarity-based version of Plaisted-Greenbaum. this does not affect correctness, but probably conciseness of the formula
+- randomize clause order? (scrambler?)
 
-// todo: tseitin
-// https://cca.informatik.uni-freiburg.de/sat/ss23/04/
-// https://cca.informatik.uni-freiburg.de/sat/ss23/05/
-// randomize clause order? (scrambler?)
+https://cca.informatik.uni-freiburg.de/sat/ss23/04/
+https://cca.informatik.uni-freiburg.de/sat/ss23/05/
+
+former optimizations, may be re-added if necessary:
+
+// important so if no children are changed, the order in exprs_inv does not change (could also be dropped)
+if new_hash != old_hash {
+    self.exprs_inv
+        .entry(old_hash)
+        .or_default()
+        .retain(|id2| *id2 != id); // probably, here only the first matching element has to be removed https://stackoverflow.com/questions/26243025. it may even be possible to not remove anything.
+    if self.exprs_inv.get(&old_hash).unwrap().is_empty() { // could also be dropped
+        self.exprs_inv.remove(&old_hash);
+    }
+    self.exprs_inv.entry(new_hash).or_default().push(id); // probably, we could only push here if no equal expr has already been pushed (does this interact weirdly when there are true hash collisions involved?)
+}

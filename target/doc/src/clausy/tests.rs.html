@@ -355,7 +355,7 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>simple() {
         <span class="kw">let </span>f = Formula::from(<span class="string">&quot;((def(x)|def(y))&amp;def(ab)&amp;!def(n)&amp;(def(abc)&amp;!(def(x)|def(y))&amp;def(bb)))&quot;</span>).to_nnf().to_cnf_dist();
-        <span class="kw">let </span>cnf = CNF::from(<span class="kw-2">&amp;</span>f);
+        <span class="kw">let </span>cnf = CNF::from(f);
         <span class="macro">assert_eq!</span>(cnf.to_string().lines().count(), <span class="number">14</span>);
     }
 }

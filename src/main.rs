@@ -16,5 +16,5 @@ fn main() {
     //println!("{}", formula);
     formula = formula.to_nnf();
     formula = formula.to_cnf_dist();
-    println!("{}", CNF::from(&formula));
+    println!("{}", CNF::from(formula));
 }

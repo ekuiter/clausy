@@ -36,7 +36,6 @@ sudo apt-get install -y inotify-tools nodejs npm
 npm install -g browser-sync
 while inotifywait -re close_write,moved_to,create src; do cargo doc --no-deps; done &
 (cd target/doc; browser-sync start --server --files "*.html")
-# then visit http://localhost:3000/clausy/
 ```
 
 ## License
