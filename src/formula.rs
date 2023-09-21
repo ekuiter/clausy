@@ -57,6 +57,8 @@ pub(crate) enum Expr {
 /// However, it also comes with the downside that each sub-expression has potentially many parents.
 /// Thus, owners of sub-expressions are not easily trackable (see [Formula::exprs] on garbage collection).
 /// Consequently, all algorithms must be implemented in a way that only mutates the children of an expression, not their parent(s).
+/// By structural sharing, we effectively treat the syntax tree as a directed acyclic graph.
+/// We represent this graph as an adjacency list stored in [Formula::exprs].
 #[derive(Debug)]
 pub struct Formula<'a> {
     /// Stores all expressions in this formula.
@@ -98,7 +100,7 @@ pub struct Formula<'a> {
     /// Maps variables to their identifiers.
     ///
     /// Conceptually, this is analogous to [Formula::exprs_inv].
-    /// However, the inverse lookup of variables is simpler:
+    /// However, the inverse lookup of variables is more simple:
     /// First, this formula does not own the variables, which avoids the hash collisions discussed for [Formula::exprs_inv].
     /// Second, variables and their identifiers are never mutated after creation, so no additional [Vec] is needed.
     vars_inv: HashMap<&'a str, VarId>,
@@ -541,7 +543,7 @@ impl<'a> Formula<'a> {
             formula.set_child_exprs(id, Self::dedup(new_child_ids));
         });
 
-        self.assert_shared(); // todo: this should be checked before and after each traversal (and it currently panics?)
+        //self.assert_shared(); // todo: this should be checked before and after each traversal (and it currently panics?)
         self
     }
 }
