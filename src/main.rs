@@ -13,8 +13,9 @@ fn main() {
     };
 
     let mut formula = Formula::from(&model[..]);
-    //println!("{}", formula);
+    println!("{}", formula);
     formula = formula.to_nnf();
+    println!("{}", formula);
     formula.assert_shared();
     formula = formula.to_cnf_dist();
     formula.assert_shared();

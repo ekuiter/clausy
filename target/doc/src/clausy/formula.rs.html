@@ -562,6 +562,10 @@
 <a href="#562" id="562">562</a>
 <a href="#563" id="563">563</a>
 <a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Data structures and algorithms for feature-model formulas.
 
 </span><span class="attr">#![allow(unused_imports, rustdoc::private_intra_doc_links)]
@@ -572,6 +576,9 @@
     slice,
 };
 <span class="kw">use </span>Expr::<span class="kw-2">*</span>;
+
+<span class="doccomment">/// Whether to print identifiers of expressions.
+</span><span class="kw">const </span>PRINT_IDENTIFIER: bool = <span class="bool-val">true</span>;
 
 <span class="doccomment">/// Identifier type for expressions.
 ///
@@ -875,8 +882,9 @@
     /// Implements a recursive preorder traversal.
     /// For an iterative reversed preorder traversal, see [Formula::preorder_rev].
     </span><span class="kw">fn </span>format_expr(<span class="kw-2">&amp;</span><span class="self">self</span>, id: Id, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
+        <span class="kw">let </span>printed_id = <span class="kw">if </span>PRINT_IDENTIFIER { <span class="macro">format!</span>(<span class="string">&quot;@{id}&quot;</span>) } <span class="kw">else </span>{ String::from(<span class="string">&quot;&quot;</span>) };
         <span class="kw">let </span><span class="kw-2">mut </span>write_helper = |kind: <span class="kw-2">&amp;</span>str, ids: <span class="kw-2">&amp;</span>[Id]| {
-            <span class="macro">write!</span>(f, <span class="string">&quot;{kind}(&quot;</span>)<span class="question-mark">?</span>;
+            <span class="macro">write!</span>(f, <span class="string">&quot;{kind}{printed_id}(&quot;</span>)<span class="question-mark">?</span>;
             <span class="kw">for </span>(i, id) <span class="kw">in </span>ids.iter().enumerate() {
                 <span class="kw">if </span>i &gt; <span class="number">0 </span>{
                     <span class="macro">write!</span>(f, <span class="string">&quot;, &quot;</span>)<span class="question-mark">?</span>;
@@ -888,7 +896,7 @@
         <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.exprs[id] {
             Var(var_id) =&gt; {
                 <span class="kw">let </span>var_id: usize = (<span class="kw-2">*</span>var_id).try_into().unwrap();
-                <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.vars.get(var_id).unwrap())
+                <span class="macro">write!</span>(f, <span class="string">&quot;{}{printed_id}&quot;</span>, <span class="self">self</span>.vars.get(var_id).unwrap())
             }
             Not(id) =&gt; write_helper(<span class="string">&quot;Not&quot;</span>, slice::from_ref(id)),
             And(ids) =&gt; write_helper(<span class="string">&quot;And&quot;</span>, ids),

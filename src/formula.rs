@@ -9,6 +9,9 @@ use std::{
 };
 use Expr::*;
 
+/// Whether to print identifiers of expressions.
+const PRINT_IDENTIFIER: bool = true;
+
 /// Identifier type for expressions.
 ///
 /// Serves as an index into [Formula::exprs].
@@ -311,8 +314,9 @@ impl<'a> Formula<'a> {
     /// Implements a recursive preorder traversal.
     /// For an iterative reversed preorder traversal, see [Formula::preorder_rev].
     fn format_expr(&self, id: Id, f: &mut fmt::Formatter) -> fmt::Result {
+        let printed_id = if PRINT_IDENTIFIER { format!("@{id}") } else { String::from("") };
         let mut write_helper = |kind: &str, ids: &[Id]| {
-            write!(f, "{kind}(")?;
+            write!(f, "{kind}{printed_id}(")?;
             for (i, id) in ids.iter().enumerate() {
                 if i > 0 {
                     write!(f, ", ")?;
@@ -324,7 +328,7 @@ impl<'a> Formula<'a> {
         match &self.exprs[id] {
             Var(var_id) => {
                 let var_id: usize = (*var_id).try_into().unwrap();
-                write!(f, "{}", self.vars.get(var_id).unwrap())
+                write!(f, "{}{printed_id}", self.vars.get(var_id).unwrap())
             }
             Not(id) => write_helper("Not", slice::from_ref(id)),
             And(ids) => write_helper("And", ids),
