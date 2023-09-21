@@ -20,7 +20,7 @@ formula:
 - faster HashMap? https://nnethercote.github.io/perf-book/hashing.html https://nnethercote.github.io/2021/12/08/a-brutally-effective-hash-function-in-rust.html as keys are unique, maybe use nohash_hasher?
 - for vectors, could use with_capacity to avoid re-allocations (profiling required)
 - traversal: the set visited_ids can get large for large formulas for both traversals. maybe it can be compacted in some way. (bit matrix? pre-sized vec<bool> with false as default, that is possible extended when new expressions are created?)
-- as an optimization, could combine pre- and postorder traversal to a single DFS that creates NNF on first and distributive CNF on last visit
+- as an optimization, could combine pre- and postorder traversal to a single DFS that creates NNF on first and distributive CNF on last visit. also, this could be used to avoid calling make_shared after every preorder traversal.
 - subtle point regarding NNF: as NNF changes certain subexpressions, it might reduce structural sharing (e.g., on And(Not(Or(a, b)), Or(a, b))). thus, it is beneficial to not run NNF before Tseitin and implement a true polarity-based version of Plaisted-Greenbaum. this does not affect correctness, but probably conciseness of the formula
 - randomize clause order? (scrambler?)
 

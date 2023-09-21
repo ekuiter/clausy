@@ -12,12 +12,9 @@ fn main() {
         std::io::stdin().read_to_string(&mut model).unwrap();
     };
 
-    let mut formula = Formula::from(&model[..]);
-    println!("{}", formula);
-    formula = formula.to_nnf();
-    println!("{}", formula);
-    formula.assert_shared();
-    formula = formula.to_cnf_dist();
-    formula.assert_shared();
+    let mut formula = Formula::from(&model[..]).assert_valid();
+    // println!("{}", formula);
+    formula = formula.to_nnf().assert_valid();
+    formula = formula.to_cnf_dist().assert_valid();
     println!("{}", CNF::from(formula));
 }

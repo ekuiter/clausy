@@ -566,6 +566,18 @@
 <a href="#566" id="566">566</a>
 <a href="#567" id="567">567</a>
 <a href="#568" id="568">568</a>
+<a href="#569" id="569">569</a>
+<a href="#570" id="570">570</a>
+<a href="#571" id="571">571</a>
+<a href="#572" id="572">572</a>
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Data structures and algorithms for feature-model formulas.
 
 </span><span class="attr">#![allow(unused_imports, rustdoc::private_intra_doc_links)]
@@ -578,7 +590,9 @@
 <span class="kw">use </span>Expr::<span class="kw-2">*</span>;
 
 <span class="doccomment">/// Whether to print identifiers of expressions.
-</span><span class="kw">const </span>PRINT_IDENTIFIER: bool = <span class="bool-val">true</span>;
+/// 
+/// Useful for debugging, but should generally be disabled because as expected by [crate::tests].
+</span><span class="kw">const </span>PRINT_IDENTIFIER: bool = <span class="bool-val">false</span>;
 
 <span class="doccomment">/// Identifier type for expressions.
 ///
@@ -714,12 +728,15 @@
     <span class="doccomment">/// Panics if this formula is invalid.
     ///
     /// A formula is valid if it has at least one variable (added with [Formula::var]) and a root expression (set with [Formula::set_root_expr]).
-    </span><span class="kw">fn </span>assert_valid(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+    /// In addition, we ensure that structural sharing is not violated.
+    </span><span class="kw">pub fn </span>assert_valid(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
         <span class="macro">assert!</span>(
             <span class="self">self</span>.aux_root_id &gt; <span class="number">0 </span>&amp;&amp; <span class="self">self</span>.exprs.len() &gt; <span class="number">1 </span>&amp;&amp; <span class="self">self</span>.vars.len() &gt; <span class="number">1</span>,
             <span class="string">&quot;formula is invalid&quot;
         </span>);
-    }
+        <span class="self">self</span>.assert_shared();
+        <span class="self">self
+    </span>}
 
     <span class="doccomment">/// Computes the hash of an expression.
     ///
@@ -797,7 +814,6 @@
     ///
     /// That is, we return the only child of the auxiliary root expression (see [Formula::aux_root_id]).
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_root_expr(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Id {
-        <span class="self">self</span>.assert_valid();
         <span class="kw">if let </span>And(ids) = <span class="kw-2">&amp;</span><span class="self">self</span>.exprs[<span class="self">self</span>.aux_root_id] {
             <span class="macro">assert!</span>(ids.len() == <span class="number">1</span>, <span class="string">&quot;aux root has more than one child&quot;</span>);
             ids[<span class="number">0</span>]
@@ -842,6 +858,8 @@
     /// Thus, we can just push the expression&#39;s identifier as the new canonical identifier for the expression.
     /// In the second case, the expression already exists and already has a canonical identifier.
     /// Still, we can push the identifier anyway, as only the first identifier will be considered.
+    /// Because this function cleans up violations of children, it must be called after, not before children have been mutated.
+    /// Thus, it does not preserve structural sharing on its own when used in [Formula::preorder_rev].
     </span><span class="kw">fn </span>set_child_exprs(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: Id, <span class="kw-2">mut </span>ids: Vec&lt;Id&gt;) {
         <span class="kw">for </span>id <span class="kw">in </span>ids.iter_mut() {
             <span class="kw-2">*</span>id = <span class="self">self</span>.get_expr(<span class="kw-2">&amp;</span><span class="self">self</span>.exprs[<span class="kw-2">*</span>id]).unwrap(); <span class="comment">// todo: (when) does this actually do something?
@@ -942,7 +960,6 @@
     /// However, we can also not guarantee it to be called on all sub-expressions - as it might change the set of sub-expressions.
     /// For improved performance, the traversal is reversed, so children are traversed right-to-left.
     </span><span class="kw">fn </span>preorder_rev(<span class="kw-2">&amp;mut </span><span class="self">self</span>, visitor: <span class="kw">fn</span>(<span class="kw-2">&amp;mut </span><span class="self">Self</span>, Id) -&gt; ()) {
-        <span class="self">self</span>.assert_valid();
         <span class="kw">let </span><span class="kw-2">mut </span>remaining_ids = <span class="macro">vec!</span>[<span class="self">self</span>.aux_root_id];
         <span class="kw">let </span><span class="kw-2">mut </span>visited_ids = HashSet::&lt;Id&gt;::new();
         <span class="kw">while </span>!remaining_ids.is_empty() {
@@ -960,7 +977,6 @@
     ///
     /// Conceptually, this is similar to [Formula::preorder_rev], but sub-expressions are visited bottom-up instead of top-down.
     </span><span class="kw">fn </span>postorder_rev(<span class="kw-2">&amp;mut </span><span class="self">self</span>, visitor: <span class="kw">fn</span>(<span class="kw-2">&amp;mut </span><span class="self">Self</span>, Id) -&gt; ()) {
-        <span class="self">self</span>.assert_valid();
         <span class="kw">let </span><span class="kw-2">mut </span>remaining_ids = <span class="macro">vec!</span>[<span class="self">self</span>.aux_root_id];
         <span class="kw">let </span><span class="kw-2">mut </span>seen_ids = HashSet::&lt;Id&gt;::new();
         <span class="kw">let </span><span class="kw-2">mut </span>visited_ids = HashSet::&lt;Id&gt;::new();
@@ -982,18 +998,28 @@
         <span class="self">self</span>.reset_aux_root_expr();
     }
 
-    <span class="doccomment">/// Prints all sub-expression of this formula.
-    </span><span class="kw">pub fn </span>print_sub_exprs(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="self">self</span>.postorder_rev(|formula, id| <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, ExprInFormula(formula, <span class="kw-2">&amp;</span>id)));
-    }
-
     <span class="doccomment">/// Panics if structural sharing is violated in this formula.
     ///
     /// That is, we assert that every sub-expression&#39;s identifier is indeed the canonical one.
-    </span><span class="kw">pub fn </span>assert_shared(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    </span><span class="kw">fn </span>assert_shared(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.preorder_rev(|formula, id| {
             <span class="macro">assert_eq!</span>(formula.get_expr(<span class="kw-2">&amp;</span>formula.exprs[id]).unwrap(), id)
         });
+    }
+
+    <span class="doccomment">/// Manually enforces structural sharing in this formula.
+    ///
+    /// As [Formula::preorder_rev] mutates expressions before their children, it may violate structural sharing.
+    /// The easiest way to fix this is by calling this function, which establishes the invariant again with a postorder traversal.
+    </span><span class="kw">fn </span>make_shared(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.postorder_rev(|formula, id| {
+            formula.set_child_exprs(id, <span class="self">Self</span>::get_child_exprs(<span class="kw-2">&amp;</span>formula.exprs[id]).to_vec());
+        });
+    }
+
+    <span class="doccomment">/// Prints all sub-expression of this formula.
+    </span><span class="kw">pub fn </span>print_sub_exprs(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.postorder_rev(|formula, id| <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, ExprInFormula(formula, <span class="kw-2">&amp;</span>id)));
     }
 
     <span class="doccomment">/// Transforms this formula into negation normal form by applying De Morgan&#39;s laws.
@@ -1030,6 +1056,7 @@
 
             formula.set_child_exprs(id, child_ids);
         });
+        <span class="self">self</span>.make_shared();
         <span class="self">self
     </span>}
 
@@ -1114,16 +1141,13 @@
 
             formula.set_child_exprs(id, <span class="self">Self</span>::dedup(new_child_ids));
         });
-
-        <span class="comment">//self.assert_shared(); // todo: this should be checked before and after each traversal (and it currently panics?)
-        </span><span class="self">self
+        <span class="self">self
     </span>}
 }
 
 <span class="doccomment">/// Displays an expression in a formula.
 </span><span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; fmt::Display <span class="kw">for </span>ExprInFormula&lt;<span class="lifetime">&#39;a</span>&gt; {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
-        <span class="self">self</span>.<span class="number">0</span>.assert_valid();
         <span class="self">self</span>.<span class="number">0</span>.format_expr(<span class="kw-2">*</span><span class="self">self</span>.<span class="number">1</span>, f)
     }
 }

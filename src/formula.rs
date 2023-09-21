@@ -10,7 +10,9 @@ use std::{
 use Expr::*;
 
 /// Whether to print identifiers of expressions.
-const PRINT_IDENTIFIER: bool = true;
+/// 
+/// Useful for debugging, but should generally be disabled because as expected by [crate::tests].
+const PRINT_IDENTIFIER: bool = false;
 
 /// Identifier type for expressions.
 ///
@@ -146,11 +148,14 @@ impl<'a> Formula<'a> {
     /// Panics if this formula is invalid.
     ///
     /// A formula is valid if it has at least one variable (added with [Formula::var]) and a root expression (set with [Formula::set_root_expr]).
-    fn assert_valid(&self) {
+    /// In addition, we ensure that structural sharing is not violated.
+    pub fn assert_valid(mut self) -> Self {
         assert!(
             self.aux_root_id > 0 && self.exprs.len() > 1 && self.vars.len() > 1,
             "formula is invalid"
         );
+        self.assert_shared();
+        self
     }
 
     /// Computes the hash of an expression.
@@ -229,7 +234,6 @@ impl<'a> Formula<'a> {
     ///
     /// That is, we return the only child of the auxiliary root expression (see [Formula::aux_root_id]).
     pub(crate) fn get_root_expr(&self) -> Id {
-        self.assert_valid();
         if let And(ids) = &self.exprs[self.aux_root_id] {
             assert!(ids.len() == 1, "aux root has more than one child");
             ids[0]
@@ -274,6 +278,8 @@ impl<'a> Formula<'a> {
     /// Thus, we can just push the expression's identifier as the new canonical identifier for the expression.
     /// In the second case, the expression already exists and already has a canonical identifier.
     /// Still, we can push the identifier anyway, as only the first identifier will be considered.
+    /// Because this function cleans up violations of children, it must be called after, not before children have been mutated.
+    /// Thus, it does not preserve structural sharing on its own when used in [Formula::preorder_rev].
     fn set_child_exprs(&mut self, id: Id, mut ids: Vec<Id>) {
         for id in ids.iter_mut() {
             *id = self.get_expr(&self.exprs[*id]).unwrap(); // todo: (when) does this actually do something?
@@ -374,7 +380,6 @@ impl<'a> Formula<'a> {
     /// However, we can also not guarantee it to be called on all sub-expressions - as it might change the set of sub-expressions.
     /// For improved performance, the traversal is reversed, so children are traversed right-to-left.
     fn preorder_rev(&mut self, visitor: fn(&mut Self, Id) -> ()) {
-        self.assert_valid();
         let mut remaining_ids = vec![self.aux_root_id];
         let mut visited_ids = HashSet::<Id>::new();
         while !remaining_ids.is_empty() {
@@ -392,7 +397,6 @@ impl<'a> Formula<'a> {
     ///
     /// Conceptually, this is similar to [Formula::preorder_rev], but sub-expressions are visited bottom-up instead of top-down.
     fn postorder_rev(&mut self, visitor: fn(&mut Self, Id) -> ()) {
-        self.assert_valid();
         let mut remaining_ids = vec![self.aux_root_id];
         let mut seen_ids = HashSet::<Id>::new();
         let mut visited_ids = HashSet::<Id>::new();
@@ -414,18 +418,28 @@ impl<'a> Formula<'a> {
         self.reset_aux_root_expr();
     }
 
-    /// Prints all sub-expression of this formula.
-    pub fn print_sub_exprs(&mut self) {
-        self.postorder_rev(|formula, id| println!("{}", ExprInFormula(formula, &id)));
-    }
-
     /// Panics if structural sharing is violated in this formula.
     ///
     /// That is, we assert that every sub-expression's identifier is indeed the canonical one.
-    pub fn assert_shared(&mut self) {
+    fn assert_shared(&mut self) {
         self.preorder_rev(|formula, id| {
             assert_eq!(formula.get_expr(&formula.exprs[id]).unwrap(), id)
         });
+    }
+
+    /// Manually enforces structural sharing in this formula.
+    ///
+    /// As [Formula::preorder_rev] mutates expressions before their children, it may violate structural sharing.
+    /// The easiest way to fix this is by calling this function, which establishes the invariant again with a postorder traversal.
+    fn make_shared(&mut self) {
+        self.postorder_rev(|formula, id| {
+            formula.set_child_exprs(id, Self::get_child_exprs(&formula.exprs[id]).to_vec());
+        });
+    }
+
+    /// Prints all sub-expression of this formula.
+    pub fn print_sub_exprs(&mut self) {
+        self.postorder_rev(|formula, id| println!("{}", ExprInFormula(formula, &id)));
     }
 
     /// Transforms this formula into negation normal form by applying De Morgan's laws.
@@ -462,6 +476,7 @@ impl<'a> Formula<'a> {
 
             formula.set_child_exprs(id, child_ids);
         });
+        self.make_shared();
         self
     }
 
@@ -546,8 +561,6 @@ impl<'a> Formula<'a> {
 
             formula.set_child_exprs(id, Self::dedup(new_child_ids));
         });
-
-        //self.assert_shared(); // todo: this should be checked before and after each traversal (and it currently panics?)
         self
     }
 }
@@ -555,7 +568,6 @@ impl<'a> Formula<'a> {
 /// Displays an expression in a formula.
 impl<'a> fmt::Display for ExprInFormula<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.0.assert_valid();
         self.0.format_expr(*self.1, f)
     }
 }

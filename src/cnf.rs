@@ -2,7 +2,7 @@
 
 use std::{fmt, slice};
 
-use crate::formula::{Expr::{*, self}, ExprInFormula, Formula, VarId, Id};
+use crate::formula::{Expr::*, ExprInFormula, Formula, VarId, Id};
 
 pub struct CNF<'a> {
     clauses: Vec<Vec<VarId>>,
