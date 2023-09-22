@@ -14,7 +14,9 @@ use Expr::*;
 /// Useful for debugging, but should generally be disabled because as expected by [crate::tests].
 const PRINT_ID: bool = false;
 
-/// Prefix for auxiliary variables created during Tseitin transformation.
+/// Prefix for auxiliary variables.
+/// 
+/// Auxiliary variables are required by some algorithms on formulas and can be created with [Var::Aux].
 const AUX_VAR_PREFIX: &str = "_aux_";
 
 /// Identifier type for expressions.
@@ -31,7 +33,7 @@ pub(crate) type Id = usize;
 ///
 /// Serves as an index into [Formula::vars].
 /// We also use this type to represent literals in [crate::cnf::CNF], therefore we use a signed type.
-/// Also, we do not expect too many variables, so a 32-bit integer should usually suffice.
+/// Also, we do not expect too many variables, so a 32-bit integer should suffice.
 pub(crate) type VarId = i32;
 
 /// An expression in a formula.
@@ -57,17 +59,28 @@ pub(crate) enum Expr {
     Or(Vec<Id>),
 }
 
+/// A variable in a formula.
+/// 
+/// Variables can either be named or auxiliary.
+/// Named variables refer to a string, which represents their name.
+/// To avoid unnecessary copies, we use a reference that must outlive the [Formula] the variable is tied to (e.g., created by [crate::parser]).
+/// Some algorithms on formulas (e.g., [Formula::to_cnf_tseitin]) require creating new, auxiliary variables.
+/// As these variables are anonymous and have no designated meaning in the feature-modeling domain, we assign them arbitrary numbers.
+/// To avoid creating unnecessary strings, we store these as native numbers.
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub(crate) enum Var<'a> {
+    /// A named variable.
     Named(&'a str),
-    Aux(VarId),
+
+    /// An auxiliary variable.
+    Aux(u32),
 }
 
 /// A feature-model formula.
 ///
 /// We represent a formula by storing its syntax tree; that is, each unique sub-expression that appears in it.
 /// As an invariant, sub-expressions are uniquely stored, so no sub-expression can appear twice with distinct identifiers (structural sharing).
-/// This invariant allows for concise representation and facilitates some algorithms (e.g., Tseitin transformation).
+/// This invariant allows for concise representation and facilitates some algorithms (e.g., [Formula::to_cnf_tseitin]).
 /// However, it also comes with the downside that each sub-expression has potentially many parents.
 /// Thus, owners of sub-expressions are not easily trackable (see [Formula::exprs] on garbage collection).
 /// Consequently, all algorithms must be implemented in a way that only mutates the children of an expression, not their parent(s).
@@ -107,15 +120,15 @@ pub struct Formula<'a> {
     /// Conceptually, this is analogous to [Formula::exprs].
     /// However, there is no distinction analogous to sub-expressions and expressions, as variables need not be removed.
     /// Consequently, feature-model slicing (variable forgetting) is currently not supported.
-    /// Another difference to [Formula::exprs] is that variables (which are simply names) are not owned by this formula.
+    /// Another difference to [Formula::exprs] is that named variables are not owned by this formula.
     /// Thus, we can borrow references to variable names from the parsed string and avoid cloning them.
-    pub(crate) vars: Vec<Var<'a>>, // todo: update documentation everywhere to reflect that vars can be aux
+    pub(crate) vars: Vec<Var<'a>>,
 
     /// Maps variables to their identifiers.
     ///
     /// Conceptually, this is analogous to [Formula::exprs_inv].
     /// However, the inverse lookup of variables is more simple:
-    /// First, this formula does not own the variables, which avoids the hash collisions discussed for [Formula::exprs_inv].
+    /// First, this formula does not own the variable names, which avoids the hash collisions discussed for [Formula::exprs_inv].
     /// Second, variables and their identifiers are never mutated after creation, so no additional [Vec] is needed.
     vars_inv: HashMap<Var<'a>, VarId>,
 
@@ -130,7 +143,7 @@ pub struct Formula<'a> {
     /// This allows algorithms to freely mutate the root expression if necessary (see [Formula] on mutating children).
     aux_root_id: Id,
 
-    aux_var_id: VarId,
+    aux_var_id: u32,
 }
 
 /// An expression that is explicitly paired with the formula it is tied to.
@@ -144,7 +157,7 @@ impl<'a> Formula<'a> {
     /// Creates a new, empty formula.
     ///
     /// The created formula is initially invalid (see [Formula::assert_valid]).
-    /// The variable with empty name and identifier 0 has no meaningful sign and can therefore not be used.
+    /// The auxiliary variable with number 0 has no meaningful sign and can therefore not be used.
     /// This simplifies the representation of literals in [crate::cnf::CNF].
     pub(crate) fn new() -> Self {
         Self {
@@ -214,6 +227,11 @@ impl<'a> Formula<'a> {
         self.get_expr(&expr).unwrap_or_else(|| self.add_expr(expr))
     }
 
+    /// Adds a new variable to this formula, returning the identifier of its [Var] expression.
+    ///
+    /// Works analogously to [Formula::add_expr] (see [Formula::vars_inv]).
+    /// However, it does not return the variable's identifier, but its [Var] expression's identifier.
+    /// This is usually more convenient.
     fn add_var(&mut self, var: Var<'a>) -> Id {
         let id = self.vars.len();
         let id_signed: i32 = id.try_into().unwrap();
@@ -222,33 +240,30 @@ impl<'a> Formula<'a> {
         self.expr(Var(id_signed))
     }
 
-    /// Adds a new variable to this formula, returning the identifier of its [Var] expression.
-    ///
-    /// Works analogously to [Formula::add_expr] (see [Formula::vars_inv]).
-    /// However, it does not return the variable's identifier, but its [Var] expression's identifier.
-    /// This is usually more convenient.
+    /// Adds a new named variable to this formula, returning the identifier of its [Var] expression.
     fn add_var_named(&mut self, var: &'a str) -> Id {
         self.add_var(Var::Named(var))
     }
 
+    /// Adds a new auxiliary variable to this formula, returning the identifier of its [Var] expression.
     fn add_var_aux(&mut self) -> Id {
         self.aux_var_id += 1;
         self.add_var(Var::Aux(self.aux_var_id))
     }
 
-    /// Looks ups the identifier for the [Var] expression of a variable in this formula.
+    /// Looks ups the identifier for the [Var] expression of a named variable in this formula.
     ///
     /// Works analogously to [Formula::get_expr] (see [Formula::vars_inv]).
     /// As for [Formula::add_var], it is usually more convenient to return the [Var] expression's identifier.
-    fn get_var(&mut self, var: &str) -> Option<Id> {
+    fn get_var_named(&mut self, var: &str) -> Option<Id> {
         Some(self.expr(Var(*self.vars_inv.get(&Var::Named(var))?)))
     }
 
-    /// Adds or looks up a variable of this formula, returning its [Var] expression's identifier.
+    /// Adds or looks up a named variable of this formula, returning its [Var] expression's identifier.
     ///
     /// This is the preferred way to obtain a [Var] expression's identifier (see [Formula::expr]).
     pub(crate) fn var(&mut self, var: &'a str) -> Id {
-        self.get_var(var).unwrap_or_else(|| self.add_var_named(var))
+        self.get_var_named(var).unwrap_or_else(|| self.add_var_named(var))
     }
 
     /// Returns the root expression of this formula.
@@ -367,7 +382,6 @@ impl<'a> Formula<'a> {
         }
     }
 
-    /// `TODO`
     fn is_non_aux_and(&self, id: Id) -> bool {
         if let And(_) = self.exprs[id] {
             id != self.aux_root_id
@@ -376,7 +390,7 @@ impl<'a> Formula<'a> {
         }
     }
 
-    /// `TODO` (maybe combine with unary simplification?)
+    // (maybe combine with unary simplification?)
     fn splice_or(&self, clause_id: Id, new_clause: &mut Vec<Id>) {
         // splice child or's
         if let Or(literal_ids) = &self.exprs[clause_id] {
@@ -388,7 +402,6 @@ impl<'a> Formula<'a> {
         }
     }
 
-    /// `TODO`
     fn dedup(mut vec: Vec<Id>) -> Vec<Id> {
         // (inefficient) deduplication for idempotency
         vec.sort();
@@ -591,6 +604,9 @@ impl<'a> Formula<'a> {
         self
     }
 
+    /// Defines an [And] expression with a new auxiliary variable.
+    /// 
+    /// That is, we create a new auxiliary variable and clauses that let it imply all conjuncts and let it be implied by the conjunction.
     fn def_and(&mut self, ids: &[Id]) -> (Id, Vec<Id>) {
         let var = self.add_var_aux();
         let not_var = self.expr(Not(var));
@@ -599,12 +615,16 @@ impl<'a> Formula<'a> {
             clauses.push(self.expr(Or(vec![not_var, *id])));
         }
         let mut clause = vec![var];
-        clause.extend(self.negate_exprs(ids.to_vec())); // might create double negation, avoid this (presumably already in expr(Not(...)))
+        // might create double negation here, avoid this (presumably already in expr(Not(...))? although this would affect parsing, maybe extra method)
+        clause.extend(self.negate_exprs(ids.to_vec()));
         clauses.push(self.expr(Or(clause)));
         // add these to the formula, ideally also splicing correctly
         (var, clauses)
     }
 
+    /// Defines an [Or] expression with a new auxiliary variable.
+    /// 
+    /// That is, we create a new auxiliary variable and clauses that let it imply the disjunction and let it be implied by all disjuncts.
     fn def_or(&mut self, ids: &[Id]) -> (Id, Vec<Id>) {
         let var = self.add_var_aux();
         let not_var = self.expr(Not(var));
@@ -618,7 +638,7 @@ impl<'a> Formula<'a> {
         (var, clauses)
     }
 
-    // currently assumes NNF for simplicity, but not a good idea generally
+    // currently assumes NNF for simplicity, but not a good idea generally - also, does not guarantee NNF itself
     pub fn to_cnf_tseitin(mut self) -> Self {
         // is this idempotent?
         let mut new_clauses = Vec::<Id>::new();

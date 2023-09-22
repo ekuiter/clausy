@@ -14,6 +14,7 @@ parser:
 
 general:
 - multithreaded tree traversal / transformations where possible? or too much overhead / impossible to implement safely? would require abandoning several approaches (e.g., next_id). alternatively: implement multithreading by parallel transformation of separate formulas (e.g., constraints or entire models) and merging them afterwards.
+- document other modules than formula
 
 formula:
 - check if all relevant simplifications are implemented correctly: idempotency, splicing/merging (and more?), eliminating implies/bi-implies (which may be exponential itself!)
