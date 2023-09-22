@@ -404,7 +404,7 @@ impl<'a> Formula<'a> {
     /// It will not be called several times on the same sub-expression - this leverages structural sharing.
     /// However, we can also not guarantee it to be called on all sub-expressions - as it might change the set of sub-expressions.
     /// For improved performance, the traversal is reversed, so children are traversed right-to-left.
-    fn preorder_rev(&mut self, visitor: fn(&mut Self, Id) -> ()) {
+    fn preorder_rev(&mut self, mut visitor: impl FnMut(&mut Self, Id) -> ()) {
         let mut remaining_ids = vec![self.aux_root_id];
         let mut visited_ids = HashSet::<Id>::new();
         while !remaining_ids.is_empty() {
@@ -421,7 +421,7 @@ impl<'a> Formula<'a> {
     /// Visits all sub-expressions of this formula using a reverse postorder traversal.
     ///
     /// Conceptually, this is similar to [Formula::preorder_rev], but sub-expressions are visited bottom-up instead of top-down.
-    fn postorder_rev(&mut self, visitor: fn(&mut Self, Id) -> ()) {
+    fn postorder_rev(&mut self, mut visitor: impl FnMut(&mut Self, Id) -> ()) {
         let mut remaining_ids = vec![self.aux_root_id];
         let mut seen_ids = HashSet::<Id>::new();
         let mut visited_ids = HashSet::<Id>::new();
@@ -515,12 +515,13 @@ impl<'a> Formula<'a> {
     pub fn to_cnf_dist(mut self) -> Self {
         // todo: refactor code
         // also, is this idempotent?
+        // currently, this seems correct, but much less efficient than FeatureIDE, possibly optimize
         self.postorder_rev(|formula, id| {
             // need the children two times on the stack here, could maybe be disabled, but then merging is more complicated
             let child_ids = Self::get_child_exprs(&formula.exprs[id]).to_vec();
             let mut new_child_ids = Vec::<Id>::new();
 
-            for child_id in child_ids {
+            for child_id in child_ids { // extract this as a helper function for hybrid tseitin
                 match &formula.exprs[child_id] {
                     Var(_) | Not(_) => new_child_ids.push(child_id),
                     And(grandchild_ids) => {
@@ -535,7 +536,7 @@ impl<'a> Formula<'a> {
                         let mut clauses = Vec::<Vec<Id>>::new();
                         for (i, grandchild_id) in grandchild_ids.iter().enumerate() {
                             // there might be a bug here: Or(...) should be moved to the first arm as | Or(_)
-                            let clause_ids = match &formula.exprs[*grandchild_id] {
+                            let clause_ids = match &formula.exprs[*grandchild_id] { // could multiply all len's to calculate a threshold for hybrid tseitin
                                 Var(_) | Not(_) | Or(_) => slice::from_ref(grandchild_id),
                                 And(ids) => ids,
                             };
@@ -590,35 +591,38 @@ impl<'a> Formula<'a> {
         self
     }
 
-    fn def_and(&mut self, ids: &[Id]) -> (Id, Vec<Id>, Vec<Id>) {
+    fn def_and(&mut self, ids: &[Id]) -> (Id, Vec<Id>) {
         let var = self.add_var_aux();
         let not_var = self.expr(Not(var));
-        let mut implies = Vec::<Id>::new();
+        let mut clauses = Vec::<Id>::new();
         for id in ids {
-            implies.push(self.expr(Or(vec![not_var, *id])));
+            clauses.push(self.expr(Or(vec![not_var, *id])));
         }
-        let mut implied = vec![var];
-        implied.extend(self.negate_exprs(ids.to_vec()));
-        // add these to the formula, ideally also splicing correctly, also requires top-level And, also replace child with var
-        (var, implies, implied) // var, then some And, then some Or clause
+        let mut clause = vec![var];
+        clause.extend(self.negate_exprs(ids.to_vec())); // might create double negation, avoid this (presumably already in expr(Not(...)))
+        clauses.push(self.expr(Or(clause)));
+        // add these to the formula, ideally also splicing correctly
+        (var, clauses)
     }
 
-    fn def_or(&mut self, ids: &[Id]) -> (Id, Vec<Id>, Vec<Id>) {
+    fn def_or(&mut self, ids: &[Id]) -> (Id, Vec<Id>) {
         let var = self.add_var_aux();
         let not_var = self.expr(Not(var));
-        let mut implies = vec![not_var];
-        implies.extend(ids);
-        let mut implied = Vec::<Id>::new();
+        let mut clause = vec![not_var];
+        clause.extend(ids);
+        let mut clauses = vec![self.expr(Or(clause))];
         for id in ids {
             let new_expr = Or(vec![var, self.expr(Not(*id))]);
-            implied.push(self.expr(new_expr));
+            clauses.push(self.expr(new_expr));
         }
-        (var, implied, implies)
+        (var, clauses)
     }
 
     // currently assumes NNF for simplicity, but not a good idea generally
     pub fn to_cnf_tseitin(mut self) -> Self {
         // is this idempotent?
+        let mut new_clauses = Vec::<Id>::new();
+
         self.postorder_rev(|formula, id| {
             let child_ids = Self::get_child_exprs(&formula.exprs[id]).to_vec();
             let mut new_child_ids = Vec::<Id>::new();
@@ -629,15 +633,24 @@ impl<'a> Formula<'a> {
                     And(grandchild_ids) => {
                         // what about unary And?
                         // ...
+                        let (var, clauses) = formula.def_and(&grandchild_ids.clone());
+                        new_clauses.extend(clauses);
+                        new_child_ids.push(var);
                     }
                     Or(grandchild_ids) => {
-                        // ...
+                        let (var, clauses) = formula.def_or(&grandchild_ids.clone());
+                        new_clauses.extend(clauses);
+                        new_child_ids.push(var);
                     }
                 }
             }
 
             formula.set_child_exprs(id, new_child_ids); // dedup?
         });
+
+        new_clauses.push(self.get_root_expr());
+        let root_id = self.expr(And(new_clauses));
+        self.set_root_expr(root_id);
         self
     }
 }

@@ -179,44 +179,49 @@ mod formula {
         #[test]
         fn shared_expr() {
             // todo: run this on larger formulas as well
-            Formula::from("((def(a)|!def(a))&(def(a)|!(def(a)|def(a))))")
+            let model = "((def(a)|!def(a))&(def(a)|!(def(a)|def(a))))";
+            let f = Formula::from(model)
                 .assert_valid()
                 .to_nnf()
                 .assert_valid()
                 .to_cnf_dist()
                 .assert_valid();
-            Formula::from(
-                "(((!def(a)))&(((def(c)|!def(a)))|((def(a))&(def(c)|!(def(a)|def(b))))))",
-            )
-            .assert_valid()
-            .to_nnf()
-            .assert_valid()
-            .to_cnf_dist()
-            .assert_valid();
+            CNF::from(f).assert_count(&model);
+            let model = "(((!def(a)))&(((def(c)|!def(a)))|((def(a))&(def(c)|!(def(a)|def(b))))))";
+            let f = Formula::from(model)
+                .assert_valid()
+                .to_nnf()
+                .assert_valid()
+                .to_cnf_dist()
+                .assert_valid();
+            CNF::from(f).assert_count(&model);
         }
 
         #[test]
         fn idempotent() {
-            let f = Formula::from(
-                "(((!def(a)))&(((def(c)|!def(a)))|((def(a))&(def(c)|!(def(a)|def(b))))))",
-            )
-            .assert_valid()
-            .to_nnf()
-            .assert_valid()
-            .to_cnf_dist()
-            .assert_valid();
+            let model = "(((!def(a)))&(((def(c)|!def(a)))|((def(a))&(def(c)|!(def(a)|def(b))))))";
+            let f = Formula::from(model)
+                .assert_valid()
+                .to_nnf()
+                .assert_valid()
+                .to_cnf_dist()
+                .assert_valid();
             let s = f.to_string();
-            assert_eq!(s, f.assert_valid().to_cnf_dist().assert_valid().to_string());
+            let f = f.assert_valid().to_cnf_dist().assert_valid();
+            assert_eq!(s, f.to_string());
+            CNF::from(f).assert_count(&model);
         }
 
         #[test]
         fn shared() {
-            Formula::from("((((!(def(a))&def(a)))&(!(!(def(a))&def(a))))&((!(!(def(a))&def(a)))&(!((def(a))&def(a)))))")
-            .assert_valid()
-            .to_nnf()
-            .assert_valid()
-            .to_cnf_dist()
-            .assert_valid();
+            let model = "((((!(def(a))&def(a)))&(!(!(def(a))&def(a))))&((!(!(def(a))&def(a)))&(!((def(a))&def(a)))))";
+            let f = Formula::from(model)
+                .assert_valid()
+                .to_nnf()
+                .assert_valid()
+                .to_cnf_dist()
+                .assert_valid();
+            CNF::from(f).assert_count(&model);
         }
     }
 }
@@ -226,15 +231,16 @@ mod cnf {
 
     #[test]
     fn simple() {
-        let f =
-            Formula::from("((def(x)|def(y))&def(ab)&!def(n)&(def(abc)&!(def(x)|def(y))&def(bb)))")
-                .assert_valid()
-                .to_nnf()
-                .assert_valid()
-                .to_cnf_dist()
-                .assert_valid();
+        let model = "((def(x)|def(y))&def(ab)&!def(n)&(def(abc)&!(def(x)|def(y))&def(bb)))";
+        let f = Formula::from(model)
+            .assert_valid()
+            .to_nnf()
+            .assert_valid()
+            .to_cnf_dist()
+            .assert_valid();
         let cnf = CNF::from(f);
         assert_eq!(cnf.to_string().lines().count(), 14);
+        cnf.assert_count(&model);
     }
 }
 
@@ -243,15 +249,13 @@ mod parser {
 
     #[test]
     fn simple() {
-        let f = Formula::from(
-            "# comment
+        let model = "# comment
             (def(x)|def(y))
             # coaoeu
             def( ab )
             !def(n)
-            (def( abc)& !(def(x)|def(y))   & def( bb ))",
-        )
-        .assert_valid();
+            (def( abc)& !(def(x)|def(y))   & def( bb ))";
+        let f = Formula::from(model).assert_valid();
         assert_eq!(
             f.to_string(),
             "And(Or(x, y), ab, Not(n), And(abc, Not(Or(x, y)), bb))"

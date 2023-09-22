@@ -1,2 +1,5 @@
 [build]
 rustdocflags = ["--document-private-items"]
+
+[env]
+RUST_TEST_THREADS = "1"

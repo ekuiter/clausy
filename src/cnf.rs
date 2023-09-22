@@ -1,6 +1,6 @@
 //! Clause representation of a feature-model formula.
 
-use std::{fmt, slice};
+use std::{fmt, fs, process::{Command, Stdio}, slice, io::{Write, Read}};
 
 use crate::formula::{Expr::*, ExprInFormula, Formula, Id, Var, VarId};
 
@@ -68,6 +68,58 @@ impl<'a> CNF<'a> {
             self.vars.len() > 0 && self.clauses.len() > 0,
             "CNF is invalid"
         );
+    }
+
+    // requires d4 and write access to .
+    fn count_d4(dimacs: &str) -> String {
+        fs::write("tmp.dimacs", dimacs).expect("could not write temporary DIMACS file");
+        let output = Command::new("./d4")
+            .arg("-i")
+            .arg("tmp.dimacs")
+            .arg("-m")
+            .arg("counting")
+            .arg("-p")
+            .arg("sharp-equiv")
+            .output()
+            .unwrap();
+        fs::remove_file("tmp.dimacs").expect("could not remove temporary DIMACS file");
+        String::from(
+            String::from_utf8_lossy(&output.stdout)
+                .lines()
+                .find(|line| line.starts_with("s "))
+                .unwrap()
+                .split_at(2)
+                .1,
+        )
+    }
+
+    // requires java + io.jar
+    fn dimacs_featureide(model: &str) -> String {
+        let process = Command::new("java")
+            .arg("-jar")
+            .arg("io.jar")
+            .arg("-.model")
+            .arg("dimacs")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
+        process.stdin.unwrap().write_all(model.as_bytes()).unwrap();
+        let mut dimacs = String::new();
+        process.stdout.unwrap().read_to_string(&mut dimacs).unwrap();
+        dimacs
+    }
+
+    pub fn count(&self) -> String {
+        Self::count_d4(&self.to_string())
+    }
+
+    pub fn count_featureide(model: &str) -> String {
+        Self::count_d4(&Self::dimacs_featureide(model))
+    }
+
+    pub fn assert_count(&self, model: &str) {
+        assert_eq!(self.count(), Self::count_featureide(model));
     }
 }
 

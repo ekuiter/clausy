@@ -19,6 +19,11 @@ cp target/release/clausy clausy
 cat my-model.model | ./clausy
 cat my-model.uvl | java -jar io.jar -.uvl | ./clausy
 cat my-model.xml | java -jar io.jar -.xml | ./clausy
+
+# test
+curl https://github.com/ekuiter/torte/raw/main/docker/solver/model-counting-competition-2022/d4 -Lo d4
+chmod +x d4
+cargo test
 ```
 
 ## Documentation

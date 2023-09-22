@@ -2,4 +2,6 @@
 !/target/doc
 /io.jar
 /clausy
+/d4
+/tmp.dimacs
 /.idea
