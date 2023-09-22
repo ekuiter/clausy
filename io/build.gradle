@@ -19,7 +19,7 @@ shadowJar {
 
 task copyJar(type: Copy) {
     from shadowJar
-    into '..'
+    into '../bin'
 }
 
 shadowJar.finalizedBy copyJar

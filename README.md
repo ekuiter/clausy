@@ -7,22 +7,19 @@
 Run the following to transform any feature-model format accepted by [FeatureIDE](https://featureide.github.io/) into CNF (printed in DIMACS format).
 
 ```
-# install Rust
+# install dependencies
+sudo apt update && sudo apt install default-jre
 curl https://sh.rustup.rs -sSf | sh
 
 # build
 io/gradlew -p io shadowJar
-cargo build --release
-cp target/release/clausy clausy
+cargo build --release && cp target/release/clausy bin/clausy
+curl https://github.com/ekuiter/torte/raw/main/docker/solver/model-counting-competition-2022/d4 -Lo bin/d4 && chmod +x bin/d4
 
 # run
-cat my-model.model | ./clausy
-cat my-model.uvl | java -jar io.jar -.uvl | ./clausy
-cat my-model.xml | java -jar io.jar -.xml | ./clausy
+bin/clausy my-model.uvl
 
 # test
-curl https://github.com/ekuiter/torte/raw/main/docker/solver/model-counting-competition-2022/d4 -Lo d4
-chmod +x d4
 cargo test
 ```
 
