@@ -2,11 +2,11 @@
 
 use std::{fmt, slice};
 
-use crate::formula::{Expr::*, ExprInFormula, Formula, VarId, Id};
+use crate::formula::{Expr::*, ExprInFormula, Formula, Id, Var, VarId};
 
 pub struct CNF<'a> {
     clauses: Vec<Vec<VarId>>,
-    vars: Vec<&'a str>,
+    vars: Vec<Var<'a>>,
 }
 
 impl<'a> CNF<'a> {
@@ -87,7 +87,9 @@ impl<'a> fmt::Display for CNF<'a> {
             if i == 0 {
                 continue;
             }
-            assert!(!var.is_empty(), "variable {i} has empty name");
+            if let Var::Named(name) = var {
+                assert!(!name.is_empty(), "variable {i} has empty name");
+            }
             write!(f, "c {i} {var}\n")?;
         }
         write!(f, "p cnf {} {}\n", self.vars.len() - 1, self.clauses.len())?;

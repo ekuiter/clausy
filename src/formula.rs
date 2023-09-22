@@ -10,9 +10,12 @@ use std::{
 use Expr::*;
 
 /// Whether to print identifiers of expressions.
-/// 
+///
 /// Useful for debugging, but should generally be disabled because as expected by [crate::tests].
-const PRINT_IDENTIFIER: bool = false;
+const PRINT_ID: bool = false;
+
+/// Prefix for auxiliary variables created during Tseitin transformation.
+const AUX_VAR_PREFIX: &str = "_aux_";
 
 /// Identifier type for expressions.
 ///
@@ -52,6 +55,12 @@ pub(crate) enum Expr {
 
     /// A disjunction of an expression.
     Or(Vec<Id>),
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+pub(crate) enum Var<'a> {
+    Named(&'a str),
+    Aux(VarId),
 }
 
 /// A feature-model formula.
@@ -100,7 +109,7 @@ pub struct Formula<'a> {
     /// Consequently, feature-model slicing (variable forgetting) is currently not supported.
     /// Another difference to [Formula::exprs] is that variables (which are simply names) are not owned by this formula.
     /// Thus, we can borrow references to variable names from the parsed string and avoid cloning them.
-    pub(crate) vars: Vec<&'a str>,
+    pub(crate) vars: Vec<Var<'a>>, // todo: update documentation everywhere to reflect that vars can be aux
 
     /// Maps variables to their identifiers.
     ///
@@ -108,7 +117,7 @@ pub struct Formula<'a> {
     /// However, the inverse lookup of variables is more simple:
     /// First, this formula does not own the variables, which avoids the hash collisions discussed for [Formula::exprs_inv].
     /// Second, variables and their identifiers are never mutated after creation, so no additional [Vec] is needed.
-    vars_inv: HashMap<&'a str, VarId>,
+    vars_inv: HashMap<Var<'a>, VarId>,
 
     /// Specifies the auxiliary root expression of this formula.
     ///
@@ -120,6 +129,8 @@ pub struct Formula<'a> {
     /// but an auxiliary [And] expression that has the root expression as its single child.
     /// This allows algorithms to freely mutate the root expression if necessary (see [Formula] on mutating children).
     aux_root_id: Id,
+
+    aux_var_id: VarId,
 }
 
 /// An expression that is explicitly paired with the formula it is tied to.
@@ -139,9 +150,10 @@ impl<'a> Formula<'a> {
         Self {
             exprs: vec![Var(0)],
             exprs_inv: HashMap::new(),
-            vars: vec![""],
+            vars: vec![Var::Aux(0)],
             vars_inv: HashMap::new(),
             aux_root_id: 0,
+            aux_var_id: 0,
         }
     }
 
@@ -202,17 +214,26 @@ impl<'a> Formula<'a> {
         self.get_expr(&expr).unwrap_or_else(|| self.add_expr(expr))
     }
 
+    fn add_var(&mut self, var: Var<'a>) -> Id {
+        let id = self.vars.len();
+        let id_signed: i32 = id.try_into().unwrap();
+        self.vars.insert(id, var);
+        self.vars_inv.insert(var.clone(), id_signed);
+        self.expr(Var(id_signed))
+    }
+
     /// Adds a new variable to this formula, returning the identifier of its [Var] expression.
     ///
     /// Works analogously to [Formula::add_expr] (see [Formula::vars_inv]).
     /// However, it does not return the variable's identifier, but its [Var] expression's identifier.
     /// This is usually more convenient.
-    fn add_var(&mut self, var: &'a str) -> Id {
-        let id = self.vars.len();
-        let id_signed: i32 = id.try_into().unwrap();
-        self.vars.insert(id, var);
-        self.vars_inv.insert(var, id_signed);
-        self.expr(Var(id_signed))
+    fn add_var_named(&mut self, var: &'a str) -> Id {
+        self.add_var(Var::Named(var))
+    }
+
+    fn add_var_aux(&mut self) -> Id {
+        self.aux_var_id += 1;
+        self.add_var(Var::Aux(self.aux_var_id))
     }
 
     /// Looks ups the identifier for the [Var] expression of a variable in this formula.
@@ -220,14 +241,14 @@ impl<'a> Formula<'a> {
     /// Works analogously to [Formula::get_expr] (see [Formula::vars_inv]).
     /// As for [Formula::add_var], it is usually more convenient to return the [Var] expression's identifier.
     fn get_var(&mut self, var: &str) -> Option<Id> {
-        Some(self.expr(Var(*self.vars_inv.get(var)?)))
+        Some(self.expr(Var(*self.vars_inv.get(&Var::Named(var))?)))
     }
 
     /// Adds or looks up a variable of this formula, returning its [Var] expression's identifier.
     ///
     /// This is the preferred way to obtain a [Var] expression's identifier (see [Formula::expr]).
     pub(crate) fn var(&mut self, var: &'a str) -> Id {
-        self.get_var(var).unwrap_or_else(|| self.add_var(var))
+        self.get_var(var).unwrap_or_else(|| self.add_var_named(var))
     }
 
     /// Returns the root expression of this formula.
@@ -320,7 +341,11 @@ impl<'a> Formula<'a> {
     /// Implements a recursive preorder traversal.
     /// For an iterative reversed preorder traversal, see [Formula::preorder_rev].
     fn format_expr(&self, id: Id, f: &mut fmt::Formatter) -> fmt::Result {
-        let printed_id = if PRINT_IDENTIFIER { format!("@{id}") } else { String::from("") };
+        let printed_id = if PRINT_ID {
+            format!("@{id}")
+        } else {
+            String::from("")
+        };
         let mut write_helper = |kind: &str, ids: &[Id]| {
             write!(f, "{kind}{printed_id}(")?;
             for (i, id) in ids.iter().enumerate() {
@@ -351,7 +376,7 @@ impl<'a> Formula<'a> {
         }
     }
 
-    /// `TODO`
+    /// `TODO` (maybe combine with unary simplification?)
     fn splice_or(&self, clause_id: Id, new_clause: &mut Vec<Id>) {
         // splice child or's
         if let Or(literal_ids) = &self.exprs[clause_id] {
@@ -442,38 +467,39 @@ impl<'a> Formula<'a> {
         self.postorder_rev(|formula, id| println!("{}", ExprInFormula(formula, &id)));
     }
 
-    /// Transforms this formula into negation normal form by applying De Morgan's laws.
+    /// Transforms this formula into negation normal form by applying De Morgan's laws and removing double negations.
     ///
-    /// We do this by traversing the formula top-down and pushing negations towards the leaves (i.e., [Var] expressions).
-    /// `TODO`
+    /// We do this by traversing the formula top-down.
+    /// Meanwhile, we push negations towards the leaves (i.e., [Var] expressions) and we remove double negations.
+    /// After the traversal, we re-establish structural sharing (see [Formula::make_shared]).
     pub fn to_nnf(mut self) -> Self {
         self.preorder_rev(|formula, id| {
+            // probably need another copy here as for to_cnf_dist to make splicing/unary handling easier
             let mut child_ids: Vec<Id> = Self::get_child_exprs(&formula.exprs[id]).to_vec();
-
             for child_id in child_ids.iter_mut() {
-                let child = &formula.exprs[*child_id];
-                match child {
+                match &formula.exprs[*child_id] {
                     Var(_) | And(_) | Or(_) => (),
-                    Not(child2_id) => {
-                        let child2 = &formula.exprs[*child2_id];
-                        match child2 {
+                    Not(grandchild_id) => {
+                        match &formula.exprs[*grandchild_id] {
                             Var(_) => (),
-                            Not(child3_id) => {
-                                *child_id = *child3_id; // this is currently buggy ( violates sharing) in some way, probably due to this line?
+                            Not(greatgrandchild_id) => {
+                                *child_id = *greatgrandchild_id; // what if this is an and and we are, too? could splice (maybe also remove unary)
                             }
-                            And(child_ids2) => {
-                                let new_expr = Or(formula.negate_exprs(child_ids2.clone()));
+                            And(greatgrandchild_ids) => {
+                                let new_expr =
+                                    Or(formula.negate_exprs(greatgrandchild_ids.clone()));
                                 *child_id = formula.expr(new_expr);
                             }
-                            Or(child_ids2) => {
-                                let new_expr = And(formula.negate_exprs(child_ids2.clone()));
-                                *child_id = formula.expr(new_expr); // what if we created an and, but are ourselves an and? could merge here!
+                            Or(greatgrandchild_ids) => {
+                                // todo: what if we created an and, but are ourselves an and? could splice here!
+                                let new_expr =
+                                    And(formula.negate_exprs(greatgrandchild_ids.clone()));
+                                *child_id = formula.expr(new_expr);
                             }
                         }
                     }
                 }
             }
-
             formula.set_child_exprs(id, child_ids);
         });
         self.make_shared();
@@ -484,33 +510,33 @@ impl<'a> Formula<'a> {
     ///
     /// We do this by traversing the formula bottom-up and pushing [Or] expressions below [And] expressions via multiplication.
     /// This algorithm has exponential worst-case complexity, but ensures logical equivalence to the original formula.
+    /// Note that the formula must already be in negation normal form (see [Formula::to_nnf]).
     /// `TODO`
-    /// `TODO` refactor code
-    /// `TODO` is this idempotent?
     pub fn to_cnf_dist(mut self) -> Self {
+        // todo: refactor code
+        // also, is this idempotent?
         self.postorder_rev(|formula, id| {
             // need the children two times on the stack here, could maybe be disabled, but then merging is more complicated
             let child_ids = Self::get_child_exprs(&formula.exprs[id]).to_vec();
             let mut new_child_ids = Vec::<Id>::new();
 
             for child_id in child_ids {
-                let child = &formula.exprs[child_id];
-                match child {
+                match &formula.exprs[child_id] {
                     Var(_) | Not(_) => new_child_ids.push(child_id),
-                    And(cnf_ids) => {
-                        if formula.is_non_aux_and(id) || cnf_ids.len() == 1 {
-                            new_child_ids.extend(cnf_ids.clone());
+                    And(grandchild_ids) => {
+                        if formula.is_non_aux_and(id) || grandchild_ids.len() == 1 {
+                            new_child_ids.extend(grandchild_ids.clone());
                             // new_child_ids.push(self.expr(And(cnf))); // unoptimized version
                         } else {
                             new_child_ids.push(child_id);
                         }
                     }
-                    Or(cnf_ids) => {
+                    Or(grandchild_ids) => {
                         let mut clauses = Vec::<Vec<Id>>::new();
-                        for (i, cnf_id) in cnf_ids.iter().enumerate() {
+                        for (i, grandchild_id) in grandchild_ids.iter().enumerate() {
                             // there might be a bug here: Or(...) should be moved to the first arm as | Or(_)
-                            let clause_ids = match &formula.exprs[*cnf_id] {
-                                Var(_) | Not(_) | Or(_) => slice::from_ref(cnf_id),
+                            let clause_ids = match &formula.exprs[*grandchild_id] {
+                                Var(_) | Not(_) | Or(_) => slice::from_ref(grandchild_id),
                                 And(ids) => ids,
                             };
 
@@ -562,6 +588,67 @@ impl<'a> Formula<'a> {
             formula.set_child_exprs(id, Self::dedup(new_child_ids));
         });
         self
+    }
+
+    fn def_and(&mut self, ids: &[Id]) -> (Id, Vec<Id>, Vec<Id>) {
+        let var = self.add_var_aux();
+        let not_var = self.expr(Not(var));
+        let mut implies = Vec::<Id>::new();
+        for id in ids {
+            implies.push(self.expr(Or(vec![not_var, *id])));
+        }
+        let mut implied = vec![var];
+        implied.extend(self.negate_exprs(ids.to_vec()));
+        // add these to the formula, ideally also splicing correctly, also requires top-level And, also replace child with var
+        (var, implies, implied) // var, then some And, then some Or clause
+    }
+
+    fn def_or(&mut self, ids: &[Id]) -> (Id, Vec<Id>, Vec<Id>) {
+        let var = self.add_var_aux();
+        let not_var = self.expr(Not(var));
+        let mut implies = vec![not_var];
+        implies.extend(ids);
+        let mut implied = Vec::<Id>::new();
+        for id in ids {
+            let new_expr = Or(vec![var, self.expr(Not(*id))]);
+            implied.push(self.expr(new_expr));
+        }
+        (var, implied, implies)
+    }
+
+    // currently assumes NNF for simplicity, but not a good idea generally
+    pub fn to_cnf_tseitin(mut self) -> Self {
+        // is this idempotent?
+        self.postorder_rev(|formula, id| {
+            let child_ids = Self::get_child_exprs(&formula.exprs[id]).to_vec();
+            let mut new_child_ids = Vec::<Id>::new();
+
+            for child_id in child_ids {
+                match &formula.exprs[child_id] {
+                    Var(_) | Not(_) => new_child_ids.push(child_id),
+                    And(grandchild_ids) => {
+                        // what about unary And?
+                        // ...
+                    }
+                    Or(grandchild_ids) => {
+                        // ...
+                    }
+                }
+            }
+
+            formula.set_child_exprs(id, new_child_ids); // dedup?
+        });
+        self
+    }
+}
+
+/// Displays a formula.
+impl<'a> fmt::Display for Var<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Var::Named(name) => write!(f, "{name}"),
+            Var::Aux(id) => write!(f, "{}{id}", AUX_VAR_PREFIX),
+        }
     }
 }
 

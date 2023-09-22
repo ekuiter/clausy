@@ -16,5 +16,6 @@ fn main() {
     // println!("{}", formula);
     formula = formula.to_nnf().assert_valid();
     formula = formula.to_cnf_dist().assert_valid();
+    //formula = formula.to_cnf_tseitin().assert_valid();
     println!("{}", CNF::from(formula));
 }

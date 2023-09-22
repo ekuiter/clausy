@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["PRINT_IDENTIFIER"],"enum":["Expr"],"struct":["ExprInFormula","Formula"],"type":["Id","VarId"]};
+window.SIDEBAR_ITEMS = {"constant":["AUX_VAR_PREFIX","PRINT_ID"],"enum":["Expr","Var"],"struct":["ExprInFormula","Formula"],"type":["Id","VarId"]};
