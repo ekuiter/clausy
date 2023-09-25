@@ -41,3 +41,5 @@ if new_hash != old_hash {
     }
     self.exprs_inv.entry(new_hash).or_default().push(id); // probably, we could only push here if no equal expr has already been pushed (does this interact weirdly when there are true hash collisions involved?)
 }
+
+link to https://www.domagoj-babic.com/uploads/ResearchProjects/Spear/dimacs-cnf.pdf, use .cnf instead of .dimacs (also in torte?)

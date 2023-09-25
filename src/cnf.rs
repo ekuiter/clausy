@@ -102,7 +102,7 @@ impl<'a> fmt::Display for CNF<'a> {
             if let Var::Named(name) = var {
                 assert!(!name.is_empty(), "variable {i} has empty name");
             }
-            write!(f, "c {i} {var}\n")?;
+            write!(f, "c {i} {var}\n")?; // to save space, do not print aux variables? or pass an option for that (with configurable prefix?)
         }
         write!(f, "p cnf {} {}\n", self.vars.len() - 1, self.clauses.len())?;
         for clause in &self.clauses {

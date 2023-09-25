@@ -1,0 +1,16 @@
+space = _{ " " | "\t" }
+WHITESPACE = _{ " " | "\t" | NEWLINE }
+number = @{ ASCII_DIGIT+ }
+
+comment_text = { (!NEWLINE ~ ANY)* }
+comment_var = { space* ~ number ~ space* ~ comment_text }
+comment = ${ "c" ~ (comment_var | comment_text) ~ NEWLINE }
+problem = { "p" ~ "sat" ~ number }
+
+var = ${ "-"? ~ number }
+not = { "-" ~ "(" ~ expr ~ ")" }
+and = { "*" ~ "(" ~ expr* ~ ")" }
+or = { "+" ~ "(" ~ expr* ~ ")" }
+expr = _{ var | not | and | or | "(" ~ expr ~ ")" }
+
+file = _{ SOI ~ comment* ~ problem ~ expr ~ EOI }

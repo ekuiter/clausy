@@ -45,7 +45,7 @@ pub(crate) type VarId = i32;
 /// This is sensible because the associated [Formula] guarantees that each of its sub-expressions is assigned exactly one identifier.
 /// Thus, a shallow equality check or hash on is equivalent to a deep one if they are sub-expressions of the same [Formula].
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub(crate) enum Expr {
+pub enum Expr {
     /// A propositional variable.
     Var(VarId),
 
@@ -223,7 +223,7 @@ impl<'a> Formula<'a> {
     ///
     /// This is the preferred way to obtain an expression's identifier, as it ensures structural sharing.
     /// That is, the expression is only added to this formula if it does not already exist.
-    pub(crate) fn expr(&mut self, expr: Expr) -> Id {
+    pub fn expr(&mut self, expr: Expr) -> Id {
         self.get_expr(&expr).unwrap_or_else(|| self.add_expr(expr))
     }
 
@@ -246,7 +246,7 @@ impl<'a> Formula<'a> {
     }
 
     /// Adds a new auxiliary variable to this formula, returning the identifier of its [Var] expression.
-    fn add_var_aux(&mut self) -> Id {
+    pub(crate) fn add_var_aux(&mut self) -> Id {
         self.aux_var_id += 1;
         self.add_var(Var::Aux(self.aux_var_id))
     }
@@ -269,7 +269,7 @@ impl<'a> Formula<'a> {
     /// Returns the root expression of this formula.
     ///
     /// That is, we return the only child of the auxiliary root expression (see [Formula::aux_root_id]).
-    pub(crate) fn get_root_expr(&self) -> Id {
+    pub fn get_root_expr(&self) -> Id {
         if let And(ids) = &self.exprs[self.aux_root_id] {
             assert!(ids.len() == 1, "aux root has more than one child");
             ids[0]
@@ -283,7 +283,7 @@ impl<'a> Formula<'a> {
     /// That is, we update this formula's auxiliary root expression with the given expression (see [Formula::aux_root_id]).
     /// For a formula to be valid, the root expression has to be set at least once.
     /// It may also be updated subsequently to focus on other expressions of the formula.
-    pub(crate) fn set_root_expr(&mut self, root_id: Id) {
+    pub fn set_root_expr(&mut self, root_id: Id) {
         self.aux_root_id = self.expr(And(vec![root_id]));
     }
 
