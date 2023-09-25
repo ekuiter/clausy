@@ -6,7 +6,7 @@ use pest_derive::Parser;
 use crate::formula::{Expr::*, Formula, Id};
 
 #[derive(Parser)]
-#[grammar = "model.pest"]
+#[grammar = "parser/model.pest"]
 struct ModelParser;
 
 fn parse_children<'a>(pair: Pair<'a, Rule>, formula: &mut Formula<'a>) -> Vec<Id> {

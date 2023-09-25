@@ -6,8 +6,8 @@ optional features (disable with #cfg, so binary can be optimized):
 - Plaisted-Greenbaum -> depending on whether equi-countability is preserved/necessary (possibly as a polarity-based variant that does not require NNF)
 
 parser:
-- could use Pratt parsing (https://pest.rs/book/precedence.html) to omit parentheses and def()
 - could also attempt parsing UVL or SAT files (https://www.domagoj-babic.com/uploads/ResearchProjects/Spear/dimacs-cnf.pdf)
+  - indeed, we should use SAT as canonical input (as its s-expressions are much easier to parse) and convert UVL and friends into SAT, possibly keep .model parser (and add specific format parsers) and only fall back to featureide for unknown file extensions
 - could also implement AST generator parse_pair iteratively
 - possibly parse lines concurrently (interacts with structural sharing and variable map)
 - could avoid reading entire file into string (but needs storing variable names somewhere with appropriate lifetime)
