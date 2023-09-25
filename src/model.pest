@@ -1,14 +1,23 @@
-char = { !("(" | ")" | WHITESPACE) ~ ANY }
-name = @{ char+ }
+// char = { !("(" | ")" | WHITESPACE) ~ ANY }
+// name = @{ char+ }
 
-var = { "def" ~ "(" ~ name ~ ")" }
-unsupported = _{ "<unsupported>" }
-not = { "!" ~ expr }
-and = { "(" ~ expr ~ "&" ~ expr ~ ("&" ~ expr)* ~ ")" }
-or = { "(" ~ expr ~ "|" ~ expr ~ ("|" ~ expr)* ~ ")" }
-paren_expr = _{ "(" ~ expr ~ ")" }
-expr = _{ var | unsupported | not | and | or | paren_expr }
+// var = { "def" ~ "(" ~ name ~ ")" }
+// unsupported = _{ "<unsupported>" }
+// not = { "!" ~ expr }
+// and = { "(" ~ expr ~ "&" ~ expr ~ ("&" ~ expr)* ~ ")" }
+// or = { "(" ~ expr ~ "|" ~ expr ~ ("|" ~ expr)* ~ ")" }
+// paren_expr = _{ "(" ~ expr ~ ")" }
+// expr = _{ var | unsupported | not | and | or | paren_expr }
 
-comment = _{ "#" ~ ANY* }
-line = _{ SOI ~ (expr | comment | WHITESPACE*) ~ EOI }
 WHITESPACE = _{ " " | "\t" }
+
+line = _{ SOI ~ (expr | comment | WHITESPACE*) ~ EOI }
+comment = _{ "#" ~ ANY* }
+expr = { prefix? ~ primary ~ (infix ~ prefix? ~ primary )* }
+infix =  _{ or | and }
+or = { "|" }
+and = { "&" }
+prefix =  _{ not }
+not = { "!" }
+primary  =  _{ int | "(" ~ expr ~ ")" }
+int =  @{ (ASCII_NONZERO_DIGIT ~ ASCII_DIGIT+ | ASCII_DIGIT) }

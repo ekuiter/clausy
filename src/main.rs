@@ -25,12 +25,12 @@ fn main() {
 
     let mut formula = Formula::from(&model[..]).assert_valid(); // todo: parsing takes long for linux
     println!("{}", formula);
-    formula = formula.to_nnf().assert_valid();
-    //formula = formula.to_cnf_dist().assert_valid();
-    formula = formula.to_cnf_tseitin().assert_valid();
-    formula = formula.to_nnf().assert_valid();
-    // println!("{}", formula);
-    let cnf = CNF::from(formula);
-    println!("{}", cnf);
-    // cnf.assert_count(&model);
+    // formula = formula.to_nnf().assert_valid();
+    // //formula = formula.to_cnf_dist().assert_valid();
+    // formula = formula.to_cnf_tseitin().assert_valid();
+    // formula = formula.to_nnf().assert_valid();
+    // // println!("{}", formula);
+    // let cnf = CNF::from(formula);
+    // println!("{}", cnf);
+    // // cnf.assert_count(&model);
 }
