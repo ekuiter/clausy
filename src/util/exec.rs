@@ -1,7 +1,13 @@
+//! Utilities for executing external programs.
+
 use std::{process::{Command, Stdio},io::{Write, Read}, env, path::Path};
 
 use tempfile::NamedTempFile;
 
+/// Returns the path of a bundled external program.
+/// 
+/// Looks up the program (a) as a sibling of the currently running executable, (b) in the working directory,
+/// and (c) in the `bin` directory in the working directory, if that exists.
 fn path(file: &str) -> String {
     let mut path = env::current_exe().unwrap();
     path.pop();
@@ -46,6 +52,9 @@ pub(crate) fn d4(dimacs: &str) -> String {
     )
 }
 
+/// Converts a given feature-model file from one format into another.
+/// 
+/// Runs the tool FeatureIDE using the Java runtime environment.
 pub(crate) fn io(input: &str, input_format: &str, output_format: &str) -> String {
     let process = Command::new("java")
         .arg("-jar")
@@ -58,7 +67,8 @@ pub(crate) fn io(input: &str, input_format: &str, output_format: &str) -> String
         .spawn()
         .unwrap();
     process.stdin.unwrap().write_all(input.as_bytes()).unwrap();
-    let mut dimacs = String::new();
-    process.stdout.unwrap().read_to_string(&mut dimacs).unwrap();
-    dimacs
+    let mut output = String::new();
+    process.stdout.unwrap().read_to_string(&mut output).unwrap();
+    assert!(!output.is_empty());
+    output
 }

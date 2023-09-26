@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["io","model","sat"],"trait":["FormulaParser"]};
+window.SIDEBAR_ITEMS = {"fn":["get_parser"],"mod":["io","model","sat"],"trait":["FormulaParser"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["IOFormulaParser"]};
+window.SIDEBAR_ITEMS = {"struct":["IoFormulaParser"]};

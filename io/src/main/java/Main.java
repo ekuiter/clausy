@@ -34,7 +34,7 @@ public class Main {
                 sb.append('\n');
             }
             featureModel = FeatureModelIO.getInstance()
-                    .loadFromSource(sb, Paths.get(args.length > 0 ? args[0] : "-.uvl"));
+                    .loadFromSource(sb, Paths.get(args.length > 0 ? args[0].replace("cnf", "dimacs") : "-.uvl"));
         }
         if (featureModel == null)
             throw new RuntimeException("failed to load feature model");

@@ -15,19 +15,37 @@
 <a href="#15" id="15">15</a>
 <a href="#16" id="16">16</a>
 <a href="#17" id="17">17</a>
-</pre></div><pre class="rust"><code><span class="doccomment">//! Parser for feature-model formula files in any format accepted by FeatureIDE.
-
+<a href="#18" id="18">18</a>
+<a href="#19" id="19">19</a>
+<a href="#20" id="20">20</a>
+<a href="#21" id="21">21</a>
+<a href="#22" id="22">22</a>
+<a href="#23" id="23">23</a>
+<a href="#24" id="24">24</a>
+<a href="#25" id="25">25</a>
+<a href="#26" id="26">26</a>
+</pre></div><pre class="rust"><code><span class="doccomment">//! Parser for any file format accepted by FeatureIDE.
 
 </span><span class="kw">use crate</span>::{core::formula::{Formula, Id}, util};
 
 <span class="kw">use super</span>::{FormulaParser, sat::SatFormulaParser};
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>IOFormulaParser {
-    extension: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str
+<span class="doccomment">/// Parses feature-model formula files in any file format accepted by FeatureIDE.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>IoFormulaParser&lt;<span class="lifetime">&#39;a</span>&gt; {
+    <span class="doccomment">/// The extension of the parsed file.
+    /// 
+    /// Used by FeatureIDE to determine the file format.
+    </span>extension: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str
 }
 
-<span class="kw">impl </span>FormulaParser <span class="kw">for </span>IOFormulaParser {
-    <span class="kw">fn </span>parse_into&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>String, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; Id {
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; IoFormulaParser&lt;<span class="lifetime">&#39;a</span>&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(extension: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str) -&gt; <span class="self">Self </span>{
+        IoFormulaParser { extension }
+    }
+}
+
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; FormulaParser <span class="kw">for </span>IoFormulaParser&lt;<span class="lifetime">&#39;a</span>&gt; {
+    <span class="kw">fn </span>parse_into&lt;<span class="lifetime">&#39;b</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;b </span><span class="kw-2">mut </span>String, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;b</span>&gt;) -&gt; Id {
         <span class="kw-2">*</span>file = util::exec::io(<span class="kw-2">&amp;</span>file, <span class="self">self</span>.extension, <span class="string">&quot;sat&quot;</span>);
         SatFormulaParser.parse_into(file, formula)
     }

@@ -11,29 +11,25 @@ mod parser;
 mod tests;
 
 pub fn main(args: &[String]) {
-    let mut model;
+    let mut file;
+    let extension;
     if args.len() == 2 {
         // 2 {
-        model = fs::read_to_string(&args[1]).expect("could not read feature model");
+        file = fs::read_to_string(&args[1]).expect("could not read feature model");
         // todo: move to parser.rs
-        let extension = Path::new(&args[1])
+        extension = Path::new(&args[1])
             .extension()
-            .or(Some(OsStr::new("model")))
-            .unwrap()
-            .to_str()
-            .unwrap();
-        if extension != "model" {
-            model = util::exec::io(&model, extension, "model");
-        }
+            .map_or(None, |e| e.to_str());
     } else {
-        model = String::new();
-        std::io::stdin().read_to_string(&mut model).unwrap();
+        file = String::new();
+        extension = None;
+        std::io::stdin().read_to_string(&mut file).unwrap();
     };
 
     // todo: implement command parser:
     // e.g., "a.uvl; b.uvl; nnf; cnf tseitin root; root a.uvl -b.uvl; count" would count the number of removed products
 
-    let mut formula = Formula::from((&mut model, ModelFormulaParser)).assert_valid(); // todo: parsing takes long for linux
+    let mut formula = Formula::from((&mut file, extension)).assert_valid(); // todo: parsing takes long for linux
     //let model2 = fs::read_to_string(&args[2]).expect("could not read feature model");
     //let id = parser::sat::parse_model(&model2, &mut formula);
     //let expr = And(vec![formula.get_root_expr(), formula.expr(Not(id))]);
