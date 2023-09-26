@@ -1,2 +1,2 @@
-pub mod model;
-pub mod sat;
+pub(crate) mod model;
+pub(crate) mod sat;

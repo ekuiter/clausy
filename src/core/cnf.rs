@@ -2,9 +2,9 @@
 
 use std::{fmt, slice};
 
-use crate::{formula::{Expr::*, ExprInFormula, Formula, Id, Var, VarId}, exec};
+use crate::{core::formula::{Expr::*, ExprInFormula, Formula, Id, Var, VarId}, util::exec};
 
-pub struct CNF<'a> {
+pub(crate) struct CNF<'a> {
     clauses: Vec<Vec<VarId>>,
     vars: Vec<Var<'a>>,
 }
@@ -14,7 +14,7 @@ impl<'a> CNF<'a> {
     ///
     /// We require that the formula is in conjunctive normal form (see [Formula::to_cnf_dist]).
     /// Clauses are represented as [Vec]s of literals, which are (possibly negative) variable identifiers.
-    pub(crate) fn get_clauses(formula: &Formula) -> Vec<Vec<VarId>> {
+    fn get_clauses(formula: &Formula) -> Vec<Vec<VarId>> {
         let mut clauses = Vec::<Vec<VarId>>::new();
 
         let add_literal = |id, clause: &mut Vec<VarId>| match formula.exprs[id] {
@@ -70,15 +70,15 @@ impl<'a> CNF<'a> {
         );
     }
 
-    pub fn count(&self) -> String {
+    fn count(&self) -> String {
         exec::d4(&self.to_string())
     }
 
-    pub fn count_featureide(model: &str) -> String {
+    fn count_featureide(model: &str) -> String {
         exec::d4(&exec::io(model, "model", "dimacs"))
     }
 
-    pub fn assert_count(&self, model: &str) {
+    pub(crate) fn assert_count(&self, model: &str) {
         assert_eq!(self.count(), Self::count_featureide(model));
     }
 }

@@ -3,7 +3,7 @@ use std::{collections::HashMap, vec};
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
 
-use crate::formula::{Expr::*, Formula, Id, VarId};
+use crate::core::formula::{Expr::*, Formula, Id, VarId};
 
 #[derive(Parser)]
 #[grammar = "parser/sat.pest"]
@@ -42,7 +42,7 @@ fn parse_pair<'a>(pair: Pair<'a, Rule>, vars: &[Id], formula: &mut Formula<'a>) 
     }
 }
 
-pub fn parse_model<'a>(model: &'a str, formula: &mut Formula<'a>) -> Id {
+pub(crate) fn parse_model<'a>(model: &'a str, formula: &mut Formula<'a>) -> Id {
     let mut pairs = SatParser::parse(Rule::file, model).expect("failed to parse sat file");
 
     let mut variable_names = HashMap::<VarId, &str>::new();

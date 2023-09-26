@@ -42,7 +42,7 @@ pub(crate) fn d4(dimacs: &str) -> String {
     )
 }
 
-pub fn io(input: &str, input_format: &str, output_format: &str) -> String {
+pub(crate) fn io(input: &str, input_format: &str, output_format: &str) -> String {
     let process = Command::new("java")
         .arg("-jar")
         .arg(path("io.jar"))

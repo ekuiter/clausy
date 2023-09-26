@@ -3,7 +3,7 @@
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
 
-use crate::formula::{Expr::*, Formula, Id};
+use crate::core::formula::{Expr::*, Formula, Id};
 
 #[derive(Parser)]
 #[grammar = "parser/model.pest"]
@@ -34,7 +34,7 @@ fn parse_pair<'a>(pair: Pair<'a, Rule>, formula: &mut Formula<'a>) -> Id {
     }
 }
 
-pub fn parse_model<'a>(model: &'a str, formula: &mut Formula<'a>) -> Id {
+pub(crate) fn parse_model<'a>(model: &'a str, formula: &mut Formula<'a>) -> Id {
     let mut child_ids = Vec::<Id>::new();
 
     for line in model.lines() {

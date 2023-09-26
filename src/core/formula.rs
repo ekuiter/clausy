@@ -45,7 +45,7 @@ pub(crate) type VarId = i32;
 /// This is sensible because the associated [Formula] guarantees that each of its sub-expressions is assigned exactly one identifier.
 /// Thus, a shallow equality check or hash on is equivalent to a deep one if they are sub-expressions of the same [Formula].
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub enum Expr {
+pub(crate) enum Expr {
     /// A propositional variable.
     Var(VarId),
 
@@ -87,7 +87,7 @@ pub(crate) enum Var<'a> {
 /// By structural sharing, we effectively treat the syntax tree as a directed acyclic graph.
 /// We represent this graph as an adjacency list stored in [Formula::exprs].
 #[derive(Debug)]
-pub struct Formula<'a> {
+pub(crate) struct Formula<'a> {
     /// Stores all expressions in this formula.
     ///
     /// Serves as a fast lookup for an expression, given its identifier.
@@ -174,7 +174,7 @@ impl<'a> Formula<'a> {
     ///
     /// A formula is valid if it has at least one variable (added with [Formula::var]) and a root expression (set with [Formula::set_root_expr]).
     /// In addition, we ensure that structural sharing is not violated.
-    pub fn assert_valid(mut self) -> Self {
+    pub(crate) fn assert_valid(mut self) -> Self {
         assert!(
             self.aux_root_id > 0 && self.exprs.len() > 1 && self.vars.len() > 1,
             "formula is invalid"
@@ -223,7 +223,7 @@ impl<'a> Formula<'a> {
     ///
     /// This is the preferred way to obtain an expression's identifier, as it ensures structural sharing.
     /// That is, the expression is only added to this formula if it does not already exist.
-    pub fn expr(&mut self, expr: Expr) -> Id {
+    pub(crate) fn expr(&mut self, expr: Expr) -> Id {
         self.get_expr(&expr).unwrap_or_else(|| self.add_expr(expr))
     }
 
@@ -269,7 +269,7 @@ impl<'a> Formula<'a> {
     /// Returns the root expression of this formula.
     ///
     /// That is, we return the only child of the auxiliary root expression (see [Formula::aux_root_id]).
-    pub fn get_root_expr(&self) -> Id {
+    pub(crate) fn get_root_expr(&self) -> Id {
         if let And(ids) = &self.exprs[self.aux_root_id] {
             assert!(ids.len() == 1, "aux root has more than one child");
             ids[0]
@@ -283,7 +283,7 @@ impl<'a> Formula<'a> {
     /// That is, we update this formula's auxiliary root expression with the given expression (see [Formula::aux_root_id]).
     /// For a formula to be valid, the root expression has to be set at least once.
     /// It may also be updated subsequently to focus on other expressions of the formula.
-    pub fn set_root_expr(&mut self, root_id: Id) {
+    pub(crate) fn set_root_expr(&mut self, root_id: Id) {
         self.aux_root_id = self.expr(And(vec![root_id]));
     }
 
@@ -476,7 +476,7 @@ impl<'a> Formula<'a> {
     }
 
     /// Prints all sub-expression of this formula.
-    pub fn print_sub_exprs(&mut self) {
+    fn print_sub_exprs(&mut self) {
         self.postorder_rev(|formula, id| println!("{}", ExprInFormula(formula, &id)));
     }
 
@@ -485,7 +485,7 @@ impl<'a> Formula<'a> {
     /// We do this by traversing the formula top-down.
     /// Meanwhile, we push negations towards the leaves (i.e., [Var] expressions) and we remove double negations.
     /// After the traversal, we re-establish structural sharing (see [Formula::make_shared]).
-    pub fn to_nnf(mut self) -> Self {
+    pub(crate) fn to_nnf(mut self) -> Self {
         self.preorder_rev(|formula, id| {
             // probably need another copy here as for to_cnf_dist to make splicing/unary handling easier
             let mut child_ids: Vec<Id> = Self::get_child_exprs(&formula.exprs[id]).to_vec();
@@ -525,7 +525,7 @@ impl<'a> Formula<'a> {
     /// This algorithm has exponential worst-case complexity, but ensures logical equivalence to the original formula.
     /// Note that the formula must already be in negation normal form (see [Formula::to_nnf]).
     /// `TODO`
-    pub fn to_cnf_dist(mut self) -> Self {
+    pub(crate) fn to_cnf_dist(mut self) -> Self {
         // todo: refactor code
         // also, is this idempotent?
         // currently, this seems correct, but much less efficient than FeatureIDE, possibly optimize
@@ -639,7 +639,7 @@ impl<'a> Formula<'a> {
     }
 
     // currently assumes NNF for simplicity, but not a good idea generally - also, does not guarantee NNF itself
-    pub fn to_cnf_tseitin(mut self) -> Self {
+    pub(crate) fn to_cnf_tseitin(mut self) -> Self {
         // is this idempotent?
         let mut new_clauses = Vec::<Id>::new();
 

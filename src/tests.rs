@@ -1,8 +1,7 @@
 //! Unit tests.
 
 #![allow(unused_imports)]
-use crate::cnf::CNF;
-use crate::formula::{Expr::*, Formula};
+use crate::core::{cnf::CNF, formula::{Expr::*, Formula}};
 
 mod formula {
     use super::*;
