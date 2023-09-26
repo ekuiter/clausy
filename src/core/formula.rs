@@ -32,7 +32,7 @@ pub(crate) type Id = usize;
 /// Identifier type for variables.
 ///
 /// Serves as an index into [Formula::vars].
-/// We also use this type to represent literals in [crate::cnf::Cnf], therefore we use a signed type.
+/// We also use this type to represent literals in [crate::core::cnf::Cnf], therefore we use a signed type.
 /// Also, we do not expect too many variables, so a 32-bit integer should suffice.
 pub(crate) type VarId = i32;
 
@@ -63,7 +63,7 @@ pub(crate) enum Expr {
 /// 
 /// Variables can either be named or auxiliary.
 /// Named variables refer to a string, which represents their name.
-/// To avoid unnecessary copies, we use a reference that must outlive the [Formula] the variable is tied to (e.g., created by [crate::parser]).
+/// To avoid unnecessary copies, we use a reference that must outlive the [Formula] the variable is tied to (e.g., created by [mod@crate::parser]).
 /// Some algorithms on formulas (e.g., [Formula::to_cnf_tseitin]) require creating new, auxiliary variables.
 /// As these variables are anonymous and have no designated meaning in the feature-modeling domain, we assign them arbitrary numbers.
 /// To avoid creating unnecessary strings, we store these as native numbers.
@@ -158,7 +158,7 @@ impl<'a> Formula<'a> {
     ///
     /// The created formula is initially invalid (see [Formula::assert_valid]).
     /// The auxiliary variable with number 0 has no meaningful sign and can therefore not be used.
-    /// This simplifies the representation of literals in [crate::cnf::Cnf].
+    /// This simplifies the representation of literals in [crate::core::cnf::Cnf].
     pub(crate) fn new() -> Self {
         Self {
             exprs: vec![Var(0)],

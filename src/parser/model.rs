@@ -42,7 +42,7 @@ fn parse_into<'a>(model: &'a str, formula: &mut Formula<'a>) -> Id {
 
     for line in model.lines() {
         let pair = ModelFormulaParser::parse(Rule::line, line)
-            .expect("failed to parse model file")
+            .unwrap()
             .next()
             .unwrap();
 
@@ -61,7 +61,7 @@ fn parse_into<'a>(model: &'a str, formula: &mut Formula<'a>) -> Id {
 }
 
 impl FormulaParser for ModelFormulaParser {
-    fn parse_into<'a>(&self, model: &'a mut String, formula: &mut Formula<'a>) -> Id {
+    fn parse_into<'a>(&self, model: &'a String, formula: &mut Formula<'a>) -> Id {
         parse_into(model, formula)
     }
 }

@@ -25,7 +25,7 @@ impl<'a> Cnf<'a> {
     /// Returns the sub-expressions of a formula as clauses.
     ///
     /// We require that the formula already is in conjunctive normal form (see [Formula::to_cnf_dist]).
-    fn get_clauses(formula: &Formula) -> Vec<Vec<VarId>> {
+    fn clauses(formula: &Formula) -> Vec<Vec<VarId>> {
         let mut clauses = Vec::<Vec<VarId>>::new();
 
         let add_literal = |id, clause: &mut Vec<VarId>| match formula.exprs[id] {
@@ -85,7 +85,7 @@ impl<'a> Cnf<'a> {
     }
 
     /// Counts the number of satisfying assignments of this CNF.
-    fn count(&self) -> String {
+    pub(crate) fn count(&self) -> String {
         exec::d4(&self.to_string())
     }
 
@@ -98,11 +98,11 @@ impl<'a> Cnf<'a> {
     }
 }
 
-impl<'a> From<Formula<'a>> for Cnf<'a> {
-    fn from(formula: Formula<'a>) -> Self {
+impl<'a> From<&Formula<'a>> for Cnf<'a> {
+    fn from(formula: &Formula<'a>) -> Self {
         Self {
-            clauses: Self::get_clauses(&formula),
-            vars: formula.vars,
+            clauses: Self::clauses(&formula),
+            vars: formula.vars.clone(),
         }
     }
 }

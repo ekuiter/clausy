@@ -448,7 +448,7 @@
                 .assert_valid()
                 .to_cnf_dist()
                 .assert_valid();
-            Cnf::from(f).assert_count(<span class="kw-2">&amp;</span>model);
+            Cnf::from(<span class="kw-2">&amp;</span>f).assert_count(<span class="kw-2">&amp;</span>model);
             <span class="kw">let </span>model = <span class="string">&quot;(((!def(a)))&amp;(((def(c)|!def(a)))|((def(a))&amp;(def(c)|!(def(a)|def(b))))))&quot;</span>;
             <span class="kw">let </span>f = Formula::from(model)
                 .assert_valid()
@@ -456,7 +456,7 @@
                 .assert_valid()
                 .to_cnf_dist()
                 .assert_valid();
-            Cnf::from(f).assert_count(<span class="kw-2">&amp;</span>model);
+            Cnf::from(<span class="kw-2">&amp;</span>f).assert_count(<span class="kw-2">&amp;</span>model);
         }
 
         <span class="attr">#[test]
@@ -471,7 +471,7 @@
             <span class="kw">let </span>s = f.to_string();
             <span class="kw">let </span>f = f.assert_valid().to_cnf_dist().assert_valid();
             <span class="macro">assert_eq!</span>(s, f.to_string());
-            Cnf::from(f).assert_count(<span class="kw-2">&amp;</span>model);
+            Cnf::from(<span class="kw-2">&amp;</span>f).assert_count(<span class="kw-2">&amp;</span>model);
         }
 
         <span class="attr">#[test]
@@ -483,7 +483,7 @@
                 .assert_valid()
                 .to_cnf_dist()
                 .assert_valid();
-            Cnf::from(f).assert_count(<span class="kw-2">&amp;</span>model);
+            Cnf::from(<span class="kw-2">&amp;</span>f).assert_count(<span class="kw-2">&amp;</span>model);
         }
     }
 }
@@ -500,7 +500,7 @@
             .assert_valid()
             .to_cnf_dist()
             .assert_valid();
-        <span class="kw">let </span>cnf = Cnf::from(f);
+        <span class="kw">let </span>cnf = Cnf::from(<span class="kw-2">&amp;</span>f);
         <span class="macro">assert_eq!</span>(cnf.to_string().lines().count(), <span class="number">14</span>);
         cnf.assert_count(<span class="kw-2">&amp;</span>model);
     }

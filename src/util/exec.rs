@@ -8,22 +8,22 @@ use tempfile::NamedTempFile;
 /// 
 /// Looks up the program (a) as a sibling of the currently running executable, (b) in the working directory,
 /// and (c) in the `bin` directory in the working directory, if that exists.
-fn path(file: &str) -> String {
+fn path(file_name: &str) -> String {
     let mut path = env::current_exe().unwrap();
     path.pop();
-    path.push(file);
+    path.push(file_name);
     if path.exists() {
         return path.to_str().unwrap().to_owned()
     }
-    let path = Path::new(file).to_path_buf();
+    let path = Path::new(file_name).to_path_buf();
     if path.exists() {
-        return format!("./{}", file)
+        return format!("./{}", file_name)
     }
-    let path = Path::new(&format!("bin/{}", file)).to_path_buf();
+    let path = Path::new(&format!("bin/{}", file_name)).to_path_buf();
     if path.exists() {
         return path.to_str().unwrap().to_owned()
     }
-    panic!("could not locate file {}", file);
+    panic!("could not locate file {}", file_name);
 }
 
 /// Counts the number of satisfying assignments of some CNF in DIMACS format.

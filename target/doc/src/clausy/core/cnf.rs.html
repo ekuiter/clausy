@@ -164,7 +164,7 @@
     <span class="doccomment">/// Returns the sub-expressions of a formula as clauses.
     ///
     /// We require that the formula already is in conjunctive normal form (see [Formula::to_cnf_dist]).
-    </span><span class="kw">fn </span>get_clauses(formula: <span class="kw-2">&amp;</span>Formula) -&gt; Vec&lt;Vec&lt;VarId&gt;&gt; {
+    </span><span class="kw">fn </span>clauses(formula: <span class="kw-2">&amp;</span>Formula) -&gt; Vec&lt;Vec&lt;VarId&gt;&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>clauses = Vec::&lt;Vec&lt;VarId&gt;&gt;::new();
 
         <span class="kw">let </span>add_literal = |id, clause: <span class="kw-2">&amp;mut </span>Vec&lt;VarId&gt;| <span class="kw">match </span>formula.exprs[id] {
@@ -224,7 +224,7 @@
     }
 
     <span class="doccomment">/// Counts the number of satisfying assignments of this CNF.
-    </span><span class="kw">fn </span>count(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>count(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
         exec::d4(<span class="kw-2">&amp;</span><span class="self">self</span>.to_string())
     }
 
@@ -237,11 +237,11 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; From&lt;Formula&lt;<span class="lifetime">&#39;a</span>&gt;&gt; <span class="kw">for </span>Cnf&lt;<span class="lifetime">&#39;a</span>&gt; {
-    <span class="kw">fn </span>from(formula: Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; <span class="self">Self </span>{
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; From&lt;<span class="kw-2">&amp;</span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;&gt; <span class="kw">for </span>Cnf&lt;<span class="lifetime">&#39;a</span>&gt; {
+    <span class="kw">fn </span>from(formula: <span class="kw-2">&amp;</span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
-            clauses: <span class="self">Self</span>::get_clauses(<span class="kw-2">&amp;</span>formula),
-            vars: formula.vars,
+            clauses: <span class="self">Self</span>::clauses(<span class="kw-2">&amp;</span>formula),
+            vars: formula.vars.clone(),
         }
     }
 }

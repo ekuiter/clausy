@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["exec"]};
+window.SIDEBAR_ITEMS = {"fn":["read_file","readable_file"],"mod":["exec"]};

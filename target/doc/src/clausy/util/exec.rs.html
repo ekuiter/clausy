@@ -82,22 +82,22 @@
 /// 
 /// Looks up the program (a) as a sibling of the currently running executable, (b) in the working directory,
 /// and (c) in the `bin` directory in the working directory, if that exists.
-</span><span class="kw">fn </span>path(file: <span class="kw-2">&amp;</span>str) -&gt; String {
+</span><span class="kw">fn </span>path(file_name: <span class="kw-2">&amp;</span>str) -&gt; String {
     <span class="kw">let </span><span class="kw-2">mut </span>path = env::current_exe().unwrap();
     path.pop();
-    path.push(file);
+    path.push(file_name);
     <span class="kw">if </span>path.exists() {
         <span class="kw">return </span>path.to_str().unwrap().to_owned()
     }
-    <span class="kw">let </span>path = Path::new(file).to_path_buf();
+    <span class="kw">let </span>path = Path::new(file_name).to_path_buf();
     <span class="kw">if </span>path.exists() {
-        <span class="kw">return </span><span class="macro">format!</span>(<span class="string">&quot;./{}&quot;</span>, file)
+        <span class="kw">return </span><span class="macro">format!</span>(<span class="string">&quot;./{}&quot;</span>, file_name)
     }
-    <span class="kw">let </span>path = Path::new(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;bin/{}&quot;</span>, file)).to_path_buf();
+    <span class="kw">let </span>path = Path::new(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;bin/{}&quot;</span>, file_name)).to_path_buf();
     <span class="kw">if </span>path.exists() {
         <span class="kw">return </span>path.to_str().unwrap().to_owned()
     }
-    <span class="macro">panic!</span>(<span class="string">&quot;could not locate file {}&quot;</span>, file);
+    <span class="macro">panic!</span>(<span class="string">&quot;could not locate file {}&quot;</span>, file_name);
 }
 
 <span class="doccomment">/// Counts the number of satisfying assignments of some CNF in DIMACS format.

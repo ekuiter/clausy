@@ -185,7 +185,7 @@ mod formula {
                 .assert_valid()
                 .to_cnf_dist()
                 .assert_valid();
-            Cnf::from(f).assert_count(&model);
+            Cnf::from(&f).assert_count(&model);
             let model = "(((!def(a)))&(((def(c)|!def(a)))|((def(a))&(def(c)|!(def(a)|def(b))))))";
             let f = Formula::from(model)
                 .assert_valid()
@@ -193,7 +193,7 @@ mod formula {
                 .assert_valid()
                 .to_cnf_dist()
                 .assert_valid();
-            Cnf::from(f).assert_count(&model);
+            Cnf::from(&f).assert_count(&model);
         }
 
         #[test]
@@ -208,7 +208,7 @@ mod formula {
             let s = f.to_string();
             let f = f.assert_valid().to_cnf_dist().assert_valid();
             assert_eq!(s, f.to_string());
-            Cnf::from(f).assert_count(&model);
+            Cnf::from(&f).assert_count(&model);
         }
 
         #[test]
@@ -220,7 +220,7 @@ mod formula {
                 .assert_valid()
                 .to_cnf_dist()
                 .assert_valid();
-            Cnf::from(f).assert_count(&model);
+            Cnf::from(&f).assert_count(&model);
         }
     }
 }
@@ -237,7 +237,7 @@ mod cnf {
             .assert_valid()
             .to_cnf_dist()
             .assert_valid();
-        let cnf = Cnf::from(f);
+        let cnf = Cnf::from(&f);
         assert_eq!(cnf.to_string().lines().count(), 14);
         cnf.assert_count(&model);
     }
