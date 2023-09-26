@@ -16,10 +16,11 @@ import java.util.Scanner;
 public class Main {
     public static void main(String[] args) {
         if (args.length > 2)
-            throw new RuntimeException("usage: java -jar io.jar [file|-] [uvl|xml|model|dimacs]");
+            throw new RuntimeException("usage: java -jar io.jar [file|-] [uvl|xml|model|cnf|dimacs|sat]");
 
         LibraryManager.registerLibrary(FMCoreLibrary.getInstance());
-        FMFormatManager.getInstance().addExtension(new KConfigReaderFormat());
+        FMFormatManager.getInstance().addExtension(new ModelFormat());
+        FMFormatManager.getInstance().addExtension(new SatFormat());
 
         IFeatureModel featureModel;
         if (args.length > 0 && !args[0].startsWith("-")) {
@@ -38,7 +39,7 @@ public class Main {
         if (featureModel == null)
             throw new RuntimeException("failed to load feature model");
 
-        IFeatureModelFormat format = new KConfigReaderFormat();
+        IFeatureModelFormat format = new ModelFormat();
         if (args.length == 2) {
             String formatString = args[1];
             switch (formatString) {
@@ -49,10 +50,14 @@ public class Main {
                     format = new XmlFeatureModelFormat();
                     break;
                 case "model":
-                    format = new KConfigReaderFormat();
+                    format = new ModelFormat();
                     break;
+                case "cnf":
                 case "dimacs":
                     format = new DIMACSFormat();
+                    break;
+                case "sat":
+                    format = new SatFormat();
                     break;
                 default:
                     throw new RuntimeException("invalid format");

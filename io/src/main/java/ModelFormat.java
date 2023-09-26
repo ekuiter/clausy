@@ -11,13 +11,13 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Format for reading KConfigReader .model files.
+ * Format for reading and writing KConfigReader .model files.
  * Alternatively, we could use FeatureIDE's {@link de.ovgu.featureide.fm.core.io.propositionalModel.MODELFormat}.
  * However, that format does not read non-Boolean constraints correctly and writes only CNFs.
  */
-public class KConfigReaderFormat extends AFeatureModelFormat {
-	private static class KConfigNodeReader extends NodeReader {
-		KConfigNodeReader() {
+public class ModelFormat extends AFeatureModelFormat {
+	private static class ModelNodeReader extends NodeReader {
+		ModelNodeReader() {
 			try {
 				Field field = NodeReader.class.getDeclaredField("symbols");
 				field.setAccessible(true);
@@ -28,8 +28,8 @@ public class KConfigReaderFormat extends AFeatureModelFormat {
 		}
 	}
 
-	private static class KConfigNodeWriter extends NodeWriter {
-		KConfigNodeWriter(Node root) {
+	private static class ModelNodeWriter extends NodeWriter {
+		ModelNodeWriter(Node root) {
 			super(root);
 			setEnforceBrackets(true);
 			try {
@@ -63,12 +63,12 @@ public class KConfigReaderFormat extends AFeatureModelFormat {
 	public ProblemList read(IFeatureModel featureModel, CharSequence source) {
 		setFactory(featureModel);
 
-		final NodeReader nodeReader = new KConfigNodeReader();
+		final NodeReader nodeReader = new ModelNodeReader();
 		List<Node> constraints = source.toString().lines() //
 			.map(String::trim) //
 			.filter(l -> !l.isEmpty()) //
 			.filter(l -> !l.startsWith("#")) //
-			.map(KConfigReaderFormat::fixNonBooleanConstraints)
+			.map(ModelFormat::fixNonBooleanConstraints)
 			.map(l -> l.replaceAll("def\\((\\w+)\\)", "$1"))
 			.map(nodeReader::stringToNode) //
 			.filter(Objects::nonNull) // ignore non-Boolean constraints
@@ -104,7 +104,7 @@ public class KConfigReaderFormat extends AFeatureModelFormat {
 				node = (Node) method.invoke(node);
 				// append constraint to the built .model file
 				sb.append(fixNonBooleanConstraints(
-						new KConfigNodeWriter(node).nodeToString().replace(" ", ""))).append("\n");
+						new ModelNodeWriter(node).nodeToString().replace(" ", ""))).append("\n");
 			}
 			return sb.toString();
 		} catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
@@ -139,13 +139,13 @@ public class KConfigReaderFormat extends AFeatureModelFormat {
 	}
 
 	@Override
-	public KConfigReaderFormat getInstance() {
+	public ModelFormat getInstance() {
 		return this;
 	}
 
 	@Override
 	public String getId() {
-		return KConfigReaderFormat.class.getCanonicalName();
+		return ModelFormat.class.getCanonicalName();
 	}
 
 	@Override
@@ -160,7 +160,7 @@ public class KConfigReaderFormat extends AFeatureModelFormat {
 
 	@Override
 	public String getName() {
-		return "KConfigReader .model";
+		return ".model";
 	}
 
 }

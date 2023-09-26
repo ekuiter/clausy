@@ -51,7 +51,7 @@ pub(crate) fn parse_model<'a>(model: &'a str, formula: &mut Formula<'a>) -> Id {
         if let Rule::comment_var = pair.as_rule() {
             let mut pairs = pair.into_inner();
             let var: VarId = pairs.next().unwrap().as_str().parse().unwrap();
-            let name = pairs.next().unwrap().as_str();
+            let name = pairs.next().unwrap().as_str().trim();
             assert!(
                 !variable_names.contains_key(&var),
                 "named same variable twice"
