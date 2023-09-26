@@ -4,16 +4,27 @@ use std::{fmt, slice};
 
 use crate::{core::formula::{Expr::*, ExprInFormula, Formula, Id, Var, VarId}, util::exec};
 
+/// A formula represented as clauses.
+/// 
+/// That is, this data structure enforces a conjunctive normal form.
 pub(crate) struct CNF<'a> {
+    /// The clauses of this CNF.
+    /// 
+    /// A clause is a [Vec] of literals, each given as an absolute-value index into [CNF::vars].
+    /// Negative values indicate negated variable occurrences.
     clauses: Vec<Vec<VarId>>,
+
+    /// The variables of this CNF.
+    /// 
+    /// This list is indexed into by the absolute values stored in [CNF::clauses].
     vars: Vec<Var<'a>>,
 }
 
+/// Algorithms for representing a [Formula] as a [CNF].
 impl<'a> CNF<'a> {
     /// Returns the sub-expressions of a formula as clauses.
     ///
-    /// We require that the formula is in conjunctive normal form (see [Formula::to_cnf_dist]).
-    /// Clauses are represented as [Vec]s of literals, which are (possibly negative) variable identifiers.
+    /// We require that the formula already is in conjunctive normal form (see [Formula::to_cnf_dist]).
     fn get_clauses(formula: &Formula) -> Vec<Vec<VarId>> {
         let mut clauses = Vec::<Vec<VarId>>::new();
 
@@ -63,6 +74,9 @@ impl<'a> CNF<'a> {
         clauses
     }
 
+    /// Panics if this CNF is invalid.
+    ///
+    /// A CNF is valid if it has at least one variable and one clause.
     fn assert_valid(&self) {
         assert!(
             self.vars.len() > 0 && self.clauses.len() > 0,
@@ -70,6 +84,7 @@ impl<'a> CNF<'a> {
         );
     }
 
+    /// Counts the number of satisfying assignments of this CNF.
     fn count(&self) -> String {
         exec::d4(&self.to_string())
     }

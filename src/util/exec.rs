@@ -20,6 +20,10 @@ fn path(file: &str) -> String {
     panic!("could not locate file {}", file);
 }
 
+/// Counts the number of satisfying assignments of some CNF in DIMACS format.
+/// 
+/// Runs the efficient external model counter d4, which performs well on most small to medium size inputs.
+/// Returns the number as a string, as it will typically overflow otherwise.
 pub(crate) fn d4(dimacs: &str) -> String {
     let mut tmp = NamedTempFile::new().unwrap();
     write!(tmp, "{}", dimacs).unwrap();
