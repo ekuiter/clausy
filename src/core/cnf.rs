@@ -4,7 +4,7 @@ use std::{fmt, slice};
 
 use crate::{core::formula::{Expr::*, ExprInFormula, Formula, Id, Var, VarId}, util::exec};
 
-/// A formula represented as clauses.
+/// A [Formula] in its clause representation.
 /// 
 /// That is, this data structure enforces a conjunctive normal form.
 pub(crate) struct CNF<'a> {

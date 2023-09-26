@@ -1,14 +1,14 @@
-pub(crate) mod core;
-pub(crate) mod util;
-pub(crate) mod parser;
-mod tests;
-
 use std::{env, ffi::OsStr, fs, io::Read, path::Path};
 
 use crate::core::{
     cnf::CNF,
     formula::{Expr::*, Formula},
 };
+
+mod core;
+mod util;
+mod parser;
+mod tests;
 
 pub fn main(args: &[String]) {
     let mut model;

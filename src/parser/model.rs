@@ -1,13 +1,16 @@
-//! Parser for feature-model formulas.
+//! Parser for KConfigReader .model files.
 
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
 
 use crate::core::formula::{Expr::*, Formula, Id};
 
+use super::FormulaParser;
+
+/// Parses feature-model formula files in the .model format.
 #[derive(Parser)]
 #[grammar = "parser/model.pest"]
-struct ModelParser;
+struct ModelFormulaParser;
 
 fn parse_children<'a>(pair: Pair<'a, Rule>, formula: &mut Formula<'a>) -> Vec<Id> {
     pair.into_inner()
@@ -34,34 +37,27 @@ fn parse_pair<'a>(pair: Pair<'a, Rule>, formula: &mut Formula<'a>) -> Id {
     }
 }
 
-pub(crate) fn parse_model<'a>(model: &'a str, formula: &mut Formula<'a>) -> Id {
-    let mut child_ids = Vec::<Id>::new();
+impl FormulaParser for ModelFormulaParser {
+    fn parse_into<'a>(&self, model: &'a str, formula: &mut Formula<'a>) -> Id {
+        let mut child_ids = Vec::<Id>::new();
 
-    for line in model.lines() {
-        let pair = ModelParser::parse(Rule::line, line)
-            .expect("failed to parse model file")
-            .next()
-            .unwrap();
+        for line in model.lines() {
+            let pair = ModelFormulaParser::parse(Rule::line, line)
+                .expect("failed to parse model file")
+                .next()
+                .unwrap();
 
-        match pair.as_rule() {
-            Rule::EOI => (),
-            _ => child_ids.push(parse_pair(pair, formula)),
+            match pair.as_rule() {
+                Rule::EOI => (),
+                _ => child_ids.push(parse_pair(pair, formula)),
+            }
         }
-    }
 
-     // todo: maybe move this unary simplification straight into .expr?
-    if child_ids.len() == 1 {
-        child_ids[0]
-    } else {
-        formula.expr(And(child_ids))
-    }
-}
-
-impl<'a> From<&'a str> for Formula<'a> {
-    fn from(model: &'a str) -> Self {
-        let mut formula = Formula::new();
-        let root_id = parse_model(model, &mut formula);
-        formula.set_root_expr(root_id);
-        formula
+        // todo: maybe move this unary simplification straight into .expr?
+        if child_ids.len() == 1 {
+            child_ids[0]
+        } else {
+            formula.expr(And(child_ids))
+        }
     }
 }

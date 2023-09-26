@@ -89,16 +89,29 @@
 <a href="#89" id="89">89</a>
 <a href="#90" id="90">90</a>
 <a href="#91" id="91">91</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, vec};
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+</pre></div><pre class="rust"><code><span class="doccomment">//! Parser for DIMACS .sat files.
+
+</span><span class="kw">use </span>std::{collections::HashMap, vec};
 
 <span class="kw">use </span>pest::{iterators::Pair, Parser};
 <span class="kw">use </span>pest_derive::Parser;
 
 <span class="kw">use </span><span class="kw">crate</span>::core::formula::{Expr::<span class="kw-2">*</span>, Formula, Id, VarId};
 
-<span class="attr">#[derive(Parser)]
+<span class="kw">use </span><span class="kw">super</span>::FormulaParser;
+
+<span class="doccomment">/// Parses feature-model formula files in the .sat format.
+</span><span class="attr">#[derive(Parser)]
 #[grammar = <span class="string">&quot;parser/sat.pest&quot;</span>]
-</span><span class="kw">struct </span>SatParser;
+</span><span class="kw">struct </span>SatFormulaParser;
 
 <span class="kw">fn </span>parse_children&lt;<span class="lifetime">&#39;a</span>&gt;(pair: Pair&lt;<span class="lifetime">&#39;a</span>, Rule&gt;, vars: <span class="kw-2">&amp;</span>[Id], formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; Vec&lt;Id&gt; {
     pair.into_inner()
@@ -109,7 +122,14 @@
 <span class="kw">fn </span>parse_pair&lt;<span class="lifetime">&#39;a</span>&gt;(pair: Pair&lt;<span class="lifetime">&#39;a</span>, Rule&gt;, vars: <span class="kw-2">&amp;</span>[Id], formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; Id {
     <span class="kw">match </span>pair.as_rule() {
         Rule::var =&gt; {
-            <span class="kw">let </span>var: VarId = pair.clone().into_inner().peek().unwrap().as_str().parse().unwrap();
+            <span class="kw">let </span>var: VarId = pair
+                .clone()
+                .into_inner()
+                .peek()
+                .unwrap()
+                .as_str()
+                .parse()
+                .unwrap();
             <span class="kw">let </span>var: usize = var.try_into().unwrap();
             <span class="kw">if </span>pair.as_str().starts_with(<span class="string">&quot;-&quot;</span>) {
                 formula.expr(Not(vars[var]))
@@ -133,51 +153,47 @@
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_model&lt;<span class="lifetime">&#39;a</span>&gt;(model: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; Id {
-    <span class="kw">let </span><span class="kw-2">mut </span>pairs = SatParser::parse(Rule::file, model).expect(<span class="string">&quot;failed to parse sat file&quot;</span>);
+<span class="kw">impl </span>FormulaParser <span class="kw">for </span>SatFormulaParser {
+    <span class="kw">fn </span>parse_into&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, model: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; Id {
+        <span class="kw">let </span><span class="kw-2">mut </span>pairs =
+            SatFormulaParser::parse(Rule::file, model).expect(<span class="string">&quot;failed to parse sat file&quot;</span>);
 
-    <span class="kw">let </span><span class="kw-2">mut </span>variable_names = HashMap::&lt;VarId, <span class="kw-2">&amp;</span>str&gt;::new();
-    <span class="kw">while let </span>Rule::comment = pairs.peek().unwrap().as_rule() {
-        <span class="kw">let </span>pair = pairs.next().unwrap().into_inner().next().unwrap();
-        <span class="kw">if let </span>Rule::comment_var = pair.as_rule() {
-            <span class="kw">let </span><span class="kw-2">mut </span>pairs = pair.into_inner();
-            <span class="kw">let </span>var: VarId = pairs.next().unwrap().as_str().parse().unwrap();
-            <span class="kw">let </span>name = pairs.next().unwrap().as_str().trim();
-            <span class="macro">assert!</span>(
-                !variable_names.contains_key(<span class="kw-2">&amp;</span>var),
-                <span class="string">&quot;named same variable twice&quot;
-            </span>);
-            variable_names.insert(var, name);
+        <span class="kw">let </span><span class="kw-2">mut </span>variable_names = HashMap::&lt;VarId, <span class="kw-2">&amp;</span>str&gt;::new();
+        <span class="kw">while let </span>Rule::comment = pairs.peek().unwrap().as_rule() {
+            <span class="kw">let </span>pair = pairs.next().unwrap().into_inner().next().unwrap();
+            <span class="kw">if let </span>Rule::comment_var = pair.as_rule() {
+                <span class="kw">let </span><span class="kw-2">mut </span>pairs = pair.into_inner();
+                <span class="kw">let </span>var: VarId = pairs.next().unwrap().as_str().parse().unwrap();
+                <span class="kw">let </span>name = pairs.next().unwrap().as_str().trim();
+                <span class="macro">assert!</span>(
+                    !variable_names.contains_key(<span class="kw-2">&amp;</span>var),
+                    <span class="string">&quot;named same variable twice&quot;
+                </span>);
+                variable_names.insert(var, name);
+            }
         }
-    }
 
-    <span class="kw">let </span>n: VarId = pairs
-        .next()
-        .unwrap()
-        .into_inner()
-        .next()
-        .unwrap()
-        .as_str()
-        .parse()
-        .unwrap();
-    <span class="kw">let </span><span class="kw-2">mut </span>vars: Vec&lt;Id&gt; = <span class="macro">vec!</span>[<span class="number">0</span>];
-    <span class="kw">for </span>i <span class="kw">in </span><span class="number">1</span>..=n {
-        <span class="kw">if </span>variable_names.contains_key(<span class="kw-2">&amp;</span>i) {
-            vars.push(formula.var(variable_names.get(<span class="kw-2">&amp;</span>i).unwrap()));
-            variable_names.remove(<span class="kw-2">&amp;</span>i);
-        } <span class="kw">else </span>{
-            vars.push(formula.add_var_aux());
+        <span class="kw">let </span>n: VarId = pairs
+            .next()
+            .unwrap()
+            .into_inner()
+            .next()
+            .unwrap()
+            .as_str()
+            .parse()
+            .unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>vars: Vec&lt;Id&gt; = <span class="macro">vec!</span>[<span class="number">0</span>];
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">1</span>..=n {
+            <span class="kw">if </span>variable_names.contains_key(<span class="kw-2">&amp;</span>i) {
+                vars.push(formula.var(variable_names.get(<span class="kw-2">&amp;</span>i).unwrap()));
+                variable_names.remove(<span class="kw-2">&amp;</span>i);
+            } <span class="kw">else </span>{
+                vars.push(formula.add_var_aux());
+            }
         }
+        <span class="macro">assert!</span>(variable_names.is_empty(), <span class="string">&quot;named invalid variable&quot;</span>);
+
+        parse_pair(pairs.next().unwrap(), <span class="kw-2">&amp;</span>vars, formula)
     }
-    <span class="macro">assert!</span>(variable_names.is_empty(), <span class="string">&quot;named invalid variable&quot;</span>);
-
-    parse_pair(pairs.next().unwrap(), <span class="kw-2">&amp;</span>vars, formula)
-
-    <span class="comment">//  // todo: maybe move this unary simplification straight into .expr?
-    // if child_ids.len() == 1 {
-    //     child_ids[0]
-    // } else {
-    //     formula.expr(And(child_ids))
-    // }
-</span>}
+}
 </code></pre></div></section></main></body></html>

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["_PEST_GRAMMAR_SatParser"],"enum":["Rule"],"fn":["parse_children","parse_model","parse_pair"],"struct":["SatParser"]};
