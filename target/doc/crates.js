@@ -1,1 +1,1 @@
-window.ALL_CRATES = ["clausy"];
+window.ALL_CRATES = ["bitflags","cfg_if","clausy","fastrand","linux_raw_sys","memchr","once_cell","pest","pest_derive","pest_generator","pest_meta","proc_macro2","quote","rustix","syn","tempfile","thiserror","thiserror_impl","ucd_trie","unicode_ident"];

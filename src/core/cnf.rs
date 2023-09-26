@@ -7,21 +7,21 @@ use crate::{core::formula::{Expr::*, ExprInFormula, Formula, Id, Var, VarId}, ut
 /// A [Formula] in its clause representation.
 /// 
 /// That is, this data structure enforces a conjunctive normal form.
-pub(crate) struct CNF<'a> {
+pub(crate) struct Cnf<'a> {
     /// The clauses of this CNF.
     /// 
-    /// A clause is a [Vec] of literals, each given as an absolute-value index into [CNF::vars].
+    /// A clause is a [Vec] of literals, each given as an absolute-value index into [Cnf::vars].
     /// Negative values indicate negated variable occurrences.
     clauses: Vec<Vec<VarId>>,
 
     /// The variables of this CNF.
     /// 
-    /// This list is indexed into by the absolute values stored in [CNF::clauses].
+    /// This list is indexed into by the absolute values stored in [Cnf::clauses].
     vars: Vec<Var<'a>>,
 }
 
-/// Algorithms for representing a [Formula] as a [CNF].
-impl<'a> CNF<'a> {
+/// Algorithms for representing a [Formula] as a [Cnf].
+impl<'a> Cnf<'a> {
     /// Returns the sub-expressions of a formula as clauses.
     ///
     /// We require that the formula already is in conjunctive normal form (see [Formula::to_cnf_dist]).
@@ -98,7 +98,7 @@ impl<'a> CNF<'a> {
     }
 }
 
-impl<'a> From<Formula<'a>> for CNF<'a> {
+impl<'a> From<Formula<'a>> for Cnf<'a> {
     fn from(formula: Formula<'a>) -> Self {
         Self {
             clauses: Self::get_clauses(&formula),
@@ -107,7 +107,7 @@ impl<'a> From<Formula<'a>> for CNF<'a> {
     }
 }
 
-impl<'a> fmt::Display for CNF<'a> {
+impl<'a> fmt::Display for Cnf<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.assert_valid();
         for (i, var) in self.vars.iter().enumerate() {

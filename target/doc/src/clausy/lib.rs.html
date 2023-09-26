@@ -53,10 +53,10 @@
 <a href="#53" id="53">53</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{env, ffi::OsStr, fs, io::Read, path::Path};
 
-<span class="kw">use </span><span class="kw">crate</span>::core::{
-    cnf::CNF,
+<span class="kw">use crate</span>::{core::{
+    cnf::Cnf,
     formula::{Expr::<span class="kw-2">*</span>, Formula},
-};
+}, parser::model::ModelFormulaParser};
 
 <span class="kw">mod </span>core;
 <span class="kw">mod </span>util;
@@ -65,7 +65,7 @@
 
 <span class="kw">pub fn </span>main(args: <span class="kw-2">&amp;</span>[String]) {
     <span class="kw">let </span><span class="kw-2">mut </span>model;
-    <span class="kw">if </span>args.len() == <span class="number">3 </span>{
+    <span class="kw">if </span>args.len() == <span class="number">2 </span>{
         <span class="comment">// 2 {
         </span>model = fs::read_to_string(<span class="kw-2">&amp;</span>args[<span class="number">1</span>]).expect(<span class="string">&quot;could not read feature model&quot;</span>);
         <span class="comment">// todo: move to parser.rs
@@ -86,20 +86,20 @@
     <span class="comment">// todo: implement command parser:
     // e.g., &quot;a.uvl; b.uvl; nnf; cnf tseitin root; root a.uvl -b.uvl; count&quot; would count the number of removed products
 
-    </span><span class="kw">let </span><span class="kw-2">mut </span>formula = Formula::from(<span class="kw-2">&amp;</span>model[..]).assert_valid(); <span class="comment">// todo: parsing takes long for linux
-    </span><span class="kw">let </span>model2 = fs::read_to_string(<span class="kw-2">&amp;</span>args[<span class="number">2</span>]).expect(<span class="string">&quot;could not read feature model&quot;</span>);
-    <span class="kw">let </span>id = parser::sat::parse_model(<span class="kw-2">&amp;</span>model2, <span class="kw-2">&amp;mut </span>formula);
-    <span class="comment">//let expr = And(vec![formula.get_root_expr(), formula.expr(Not(id))]);
+    </span><span class="kw">let </span><span class="kw-2">mut </span>formula = Formula::from((<span class="kw-2">&amp;mut </span>model, ModelFormulaParser)).assert_valid(); <span class="comment">// todo: parsing takes long for linux
+    //let model2 = fs::read_to_string(&amp;args[2]).expect(&quot;could not read feature model&quot;);
+    //let id = parser::sat::parse_model(&amp;model2, &amp;mut formula);
+    //let expr = And(vec![formula.get_root_expr(), formula.expr(Not(id))]);
     //let id = formula.expr(expr);
-    </span>formula.set_root_expr(id);
+    //formula.set_root_expr(id);
 
-    <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, formula);
+    </span><span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, formula);
     formula = formula.to_nnf().assert_valid();
     <span class="comment">// //formula = formula.to_cnf_dist().assert_valid();
     // formula = formula.to_cnf_tseitin().assert_valid();
     // formula = formula.to_nnf().assert_valid();
     // // println!(&quot;{}&quot;, formula);
-    // let cnf = CNF::from(formula);
+    // let cnf = Cnf::from(formula);
     // println!(&quot;{}&quot;, cnf);
     // dbg!(cnf.count());
     // cnf.assert_count(&amp;model);

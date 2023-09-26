@@ -111,7 +111,7 @@
 <span class="doccomment">/// Parses feature-model formula files in the .sat format.
 </span><span class="attr">#[derive(Parser)]
 #[grammar = <span class="string">&quot;parser/sat.pest&quot;</span>]
-</span><span class="kw">struct </span>SatFormulaParser;
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>SatFormulaParser;
 
 <span class="kw">fn </span>parse_children&lt;<span class="lifetime">&#39;a</span>&gt;(pair: Pair&lt;<span class="lifetime">&#39;a</span>, Rule&gt;, vars: <span class="kw-2">&amp;</span>[Id], formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; Vec&lt;Id&gt; {
     pair.into_inner()
@@ -154,7 +154,7 @@
 }
 
 <span class="kw">impl </span>FormulaParser <span class="kw">for </span>SatFormulaParser {
-    <span class="kw">fn </span>parse_into&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, model: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; Id {
+    <span class="kw">fn </span>parse_into&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, model: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>String, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; Id {
         <span class="kw">let </span><span class="kw-2">mut </span>pairs =
             SatFormulaParser::parse(Rule::file, model).expect(<span class="string">&quot;failed to parse sat file&quot;</span>);
 

@@ -12,7 +12,7 @@ use super::FormulaParser;
 /// Parses feature-model formula files in the .sat format.
 #[derive(Parser)]
 #[grammar = "parser/sat.pest"]
-struct SatFormulaParser;
+pub(crate) struct SatFormulaParser;
 
 fn parse_children<'a>(pair: Pair<'a, Rule>, vars: &[Id], formula: &mut Formula<'a>) -> Vec<Id> {
     pair.into_inner()
@@ -55,7 +55,7 @@ fn parse_pair<'a>(pair: Pair<'a, Rule>, vars: &[Id], formula: &mut Formula<'a>) 
 }
 
 impl FormulaParser for SatFormulaParser {
-    fn parse_into<'a>(&self, model: &'a str, formula: &mut Formula<'a>) -> Id {
+    fn parse_into<'a>(&self, model: &'a mut String, formula: &mut Formula<'a>) -> Id {
         let mut pairs =
             SatFormulaParser::parse(Rule::file, model).expect("failed to parse sat file");
 

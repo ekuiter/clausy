@@ -732,7 +732,7 @@
 <span class="doccomment">/// Identifier type for variables.
 ///
 /// Serves as an index into [Formula::vars].
-/// We also use this type to represent literals in [crate::cnf::CNF], therefore we use a signed type.
+/// We also use this type to represent literals in [crate::cnf::Cnf], therefore we use a signed type.
 /// Also, we do not expect too many variables, so a 32-bit integer should suffice.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>VarId = i32;
 
@@ -858,7 +858,7 @@
     ///
     /// The created formula is initially invalid (see [Formula::assert_valid]).
     /// The auxiliary variable with number 0 has no meaningful sign and can therefore not be used.
-    /// This simplifies the representation of literals in [crate::cnf::CNF].
+    /// This simplifies the representation of literals in [crate::cnf::Cnf].
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             exprs: <span class="macro">vec!</span>[Var(<span class="number">0</span>)],

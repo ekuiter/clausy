@@ -31,6 +31,7 @@
 <a href="#31" id="31">31</a>
 <a href="#32" id="32">32</a>
 <a href="#33" id="33">33</a>
+<a href="#34" id="34">34</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parsers for feature-model formula files.
 
 </span><span class="kw">use </span><span class="kw">crate</span>::core::formula::{Formula, Id};
@@ -47,19 +48,20 @@
     /// This function does not modify the sub-expressions of the given formula.
     /// That is, after parsing, the formula will hold the given feature-model formula in [Formula::exprs], but not refer to it.
     /// Thus, [Formula::set_root_expr] must be called explicitly with the returned [Id] to make use of the parsed formula.
-    </span><span class="kw">fn </span>parse_into&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; Id;
+    </span><span class="kw">fn </span>parse_into&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>String, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; Id;
 
     <span class="doccomment">/// Parses a feature-model formula file into a new [Formula].
-    </span><span class="kw">fn </span>parse_new(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str) -&gt; Formula {
+    </span><span class="kw">fn </span>parse_new&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>String) -&gt; Formula&lt;<span class="lifetime">&#39;a</span>&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>formula = Formula::new();
-        formula.set_root_expr(<span class="self">self</span>.parse_into(file, <span class="kw-2">&amp;mut </span>formula));
+        <span class="kw">let </span>root_id = <span class="self">self</span>.parse_into(file, <span class="kw-2">&amp;mut </span>formula);
+        formula.set_root_expr(root_id);
         formula
     }
 }
 
 <span class="doccomment">/// Creates a feature-model formula from a feature-model formula file and parser.
-</span><span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, T&gt; From&lt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str, T)&gt; <span class="kw">for </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt; <span class="kw">where </span>T: FormulaParser {
-    <span class="kw">fn </span>from(file_and_parser: (<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str, T)) -&gt; <span class="self">Self </span>{
+</span><span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, T&gt; From&lt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>String, T)&gt; <span class="kw">for </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt; <span class="kw">where </span>T: FormulaParser {
+    <span class="kw">fn </span>from(file_and_parser: (<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>String, T)) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>(file, parser) = file_and_parser;
         parser.parse_new(file)
     }

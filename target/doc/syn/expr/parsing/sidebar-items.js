@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Precedence"],"fn":["ambiguous_expr","atom_expr","check_cast","expr_group","expr_paren","multi_index","parse_expr","path_or_macro_or_struct","peek_precedence","trailer_expr","unary_expr"],"macro":["impl_by_parsing_expr"],"mod":["kw"]};

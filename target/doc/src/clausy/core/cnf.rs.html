@@ -146,21 +146,21 @@
 <span class="doccomment">/// A [Formula] in its clause representation.
 /// 
 /// That is, this data structure enforces a conjunctive normal form.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>CNF&lt;<span class="lifetime">&#39;a</span>&gt; {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Cnf&lt;<span class="lifetime">&#39;a</span>&gt; {
     <span class="doccomment">/// The clauses of this CNF.
     /// 
-    /// A clause is a [Vec] of literals, each given as an absolute-value index into [CNF::vars].
+    /// A clause is a [Vec] of literals, each given as an absolute-value index into [Cnf::vars].
     /// Negative values indicate negated variable occurrences.
     </span>clauses: Vec&lt;Vec&lt;VarId&gt;&gt;,
 
     <span class="doccomment">/// The variables of this CNF.
     /// 
-    /// This list is indexed into by the absolute values stored in [CNF::clauses].
+    /// This list is indexed into by the absolute values stored in [Cnf::clauses].
     </span>vars: Vec&lt;Var&lt;<span class="lifetime">&#39;a</span>&gt;&gt;,
 }
 
-<span class="doccomment">/// Algorithms for representing a [Formula] as a [CNF].
-</span><span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; CNF&lt;<span class="lifetime">&#39;a</span>&gt; {
+<span class="doccomment">/// Algorithms for representing a [Formula] as a [Cnf].
+</span><span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; Cnf&lt;<span class="lifetime">&#39;a</span>&gt; {
     <span class="doccomment">/// Returns the sub-expressions of a formula as clauses.
     ///
     /// We require that the formula already is in conjunctive normal form (see [Formula::to_cnf_dist]).
@@ -237,7 +237,7 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; From&lt;Formula&lt;<span class="lifetime">&#39;a</span>&gt;&gt; <span class="kw">for </span>CNF&lt;<span class="lifetime">&#39;a</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; From&lt;Formula&lt;<span class="lifetime">&#39;a</span>&gt;&gt; <span class="kw">for </span>Cnf&lt;<span class="lifetime">&#39;a</span>&gt; {
     <span class="kw">fn </span>from(formula: Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             clauses: <span class="self">Self</span>::get_clauses(<span class="kw-2">&amp;</span>formula),
@@ -246,7 +246,7 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; fmt::Display <span class="kw">for </span>CNF&lt;<span class="lifetime">&#39;a</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; fmt::Display <span class="kw">for </span>Cnf&lt;<span class="lifetime">&#39;a</span>&gt; {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
         <span class="self">self</span>.assert_valid();
         <span class="kw">for </span>(i, var) <span class="kw">in </span><span class="self">self</span>.vars.iter().enumerate() {

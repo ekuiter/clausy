@@ -32,7 +32,7 @@ pub(crate) type Id = usize;
 /// Identifier type for variables.
 ///
 /// Serves as an index into [Formula::vars].
-/// We also use this type to represent literals in [crate::cnf::CNF], therefore we use a signed type.
+/// We also use this type to represent literals in [crate::cnf::Cnf], therefore we use a signed type.
 /// Also, we do not expect too many variables, so a 32-bit integer should suffice.
 pub(crate) type VarId = i32;
 
@@ -158,7 +158,7 @@ impl<'a> Formula<'a> {
     ///
     /// The created formula is initially invalid (see [Formula::assert_valid]).
     /// The auxiliary variable with number 0 has no meaningful sign and can therefore not be used.
-    /// This simplifies the representation of literals in [crate::cnf::CNF].
+    /// This simplifies the representation of literals in [crate::cnf::Cnf].
     pub(crate) fn new() -> Self {
         Self {
             exprs: vec![Var(0)],

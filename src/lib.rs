@@ -1,9 +1,9 @@
 use std::{env, ffi::OsStr, fs, io::Read, path::Path};
 
-use crate::core::{
-    cnf::CNF,
+use crate::{core::{
+    cnf::Cnf,
     formula::{Expr::*, Formula},
-};
+}, parser::model::ModelFormulaParser};
 
 mod core;
 mod util;
@@ -12,7 +12,7 @@ mod tests;
 
 pub fn main(args: &[String]) {
     let mut model;
-    if args.len() == 3 {
+    if args.len() == 2 {
         // 2 {
         model = fs::read_to_string(&args[1]).expect("could not read feature model");
         // todo: move to parser.rs
@@ -33,12 +33,12 @@ pub fn main(args: &[String]) {
     // todo: implement command parser:
     // e.g., "a.uvl; b.uvl; nnf; cnf tseitin root; root a.uvl -b.uvl; count" would count the number of removed products
 
-    let mut formula = Formula::from(&model[..]).assert_valid(); // todo: parsing takes long for linux
-    let model2 = fs::read_to_string(&args[2]).expect("could not read feature model");
-    let id = parser::sat::parse_model(&model2, &mut formula);
+    let mut formula = Formula::from((&mut model, ModelFormulaParser)).assert_valid(); // todo: parsing takes long for linux
+    //let model2 = fs::read_to_string(&args[2]).expect("could not read feature model");
+    //let id = parser::sat::parse_model(&model2, &mut formula);
     //let expr = And(vec![formula.get_root_expr(), formula.expr(Not(id))]);
     //let id = formula.expr(expr);
-    formula.set_root_expr(id);
+    //formula.set_root_expr(id);
 
     println!("{}", formula);
     formula = formula.to_nnf().assert_valid();
@@ -46,7 +46,7 @@ pub fn main(args: &[String]) {
     // formula = formula.to_cnf_tseitin().assert_valid();
     // formula = formula.to_nnf().assert_valid();
     // // println!("{}", formula);
-    // let cnf = CNF::from(formula);
+    // let cnf = Cnf::from(formula);
     // println!("{}", cnf);
     // dbg!(cnf.count());
     // cnf.assert_count(&model);

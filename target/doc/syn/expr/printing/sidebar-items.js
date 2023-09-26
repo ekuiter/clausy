@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["outer_attrs_to_tokens"]};

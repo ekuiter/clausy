@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["AUX_VAR_PREFIX","PRINT_ID"],"enum":["Expr","Var"],"struct":["ExprInFormula","Formula"],"type":["Id","VarId"]};
