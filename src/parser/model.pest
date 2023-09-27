@@ -1,4 +1,5 @@
-char = { !("(" | ")" | WHITESPACE) ~ ANY }
+
+char = { !("(" | ")") ~ ANY }
 name = @{ char+ }
 
 var = { "def" ~ "(" ~ name ~ ")" }

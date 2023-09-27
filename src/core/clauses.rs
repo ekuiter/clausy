@@ -72,7 +72,7 @@ impl<'a> Clauses<'a> {
     ///
     /// A clause representation is valid if it has at least one variable and one clause.
     #[cfg(debug_assertions)]
-    fn assert_valid(&self) {
+    pub fn assert_valid(&self) {
         debug_assert!(self.vars.len() > 0 && self.clauses.len() > 0);
     }
 
@@ -101,7 +101,6 @@ impl<'a> From<&Formula<'a>> for Clauses<'a> {
 
 impl<'a> fmt::Display for Clauses<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.assert_valid();
         for (i, var) in self.vars.iter().enumerate() {
             if i == 0 {
                 continue;

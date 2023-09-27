@@ -76,13 +76,13 @@
 <a href="#76" id="76">76</a>
 <a href="#77" id="77">77</a>
 <a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use crate</span>::{
-    core::{
-        clauses::Clauses,
-        formula::{Expr::<span class="kw-2">*</span>, Formula, Id},
-    },
+    core::formula::{Expr::<span class="kw-2">*</span>, Formula, Id},
     parser::{parser, FormulaParsee},
     util::{read_file, readable_file},
 };
@@ -119,9 +119,9 @@
                     <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, formula);
                 };
             }
-            <span class="string">&quot;to_nnf&quot; </span>=&gt; formula = formula.to_nnf().assert_valid(),
-            <span class="string">&quot;to_cnf_dist&quot; </span>=&gt; formula = formula.to_cnf_dist().assert_valid(),
-            <span class="string">&quot;to_cnf_tseitin&quot; </span>=&gt; formula = formula.to_cnf_tseitin().assert_valid(),
+            <span class="string">&quot;to_nnf&quot; </span>=&gt; formula = formula.to_nnf(),
+            <span class="string">&quot;to_cnf_dist&quot; </span>=&gt; formula = formula.to_cnf_dist(),
+            <span class="string">&quot;to_cnf_tseitin&quot; </span>=&gt; formula = formula.to_cnf_tseitin(),
             <span class="string">&quot;to_clauses&quot; </span>=&gt; clauses = <span class="prelude-val">Some</span>(formula.to_clauses()),
             <span class="string">&quot;satisfy&quot; </span>=&gt; <span class="macro">todo!</span>(),
             <span class="string">&quot;tautology&quot; </span>=&gt; <span class="macro">todo!</span>(),
@@ -151,7 +151,13 @@
                 formula.set_root_expr(<span class="kw-2">*</span>parsed_ids.last().unwrap());
             }
         }
-        formula = formula.assert_valid();
+        <span class="attr">#[cfg(debug_assertions)]
+        </span>{
+            formula = formula.assert_valid();
+            <span class="kw">if </span>clauses.is_some() {
+                clauses.unwrap().assert_valid();
+            }
+        }
     }
 }
 </code></pre></div></section></main></body></html>

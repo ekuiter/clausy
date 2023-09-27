@@ -1,10 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    core::{
-        clauses::Clauses,
-        formula::{Expr::*, Formula, Id},
-    },
+    core::formula::{Expr::*, Formula, Id},
     parser::{parser, FormulaParsee},
     util::{read_file, readable_file},
 };
@@ -41,9 +38,9 @@ pub fn main(commands: &[String]) {
                     println!("{}", formula);
                 };
             }
-            "to_nnf" => formula = formula.to_nnf().assert_valid(),
-            "to_cnf_dist" => formula = formula.to_cnf_dist().assert_valid(),
-            "to_cnf_tseitin" => formula = formula.to_cnf_tseitin().assert_valid(),
+            "to_nnf" => formula = formula.to_nnf(),
+            "to_cnf_dist" => formula = formula.to_cnf_dist(),
+            "to_cnf_tseitin" => formula = formula.to_cnf_tseitin(),
             "to_clauses" => clauses = Some(formula.to_clauses()),
             "satisfy" => todo!(),
             "tautology" => todo!(),
@@ -73,6 +70,12 @@ pub fn main(commands: &[String]) {
                 formula.set_root_expr(*parsed_ids.last().unwrap());
             }
         }
-        formula = formula.assert_valid();
+        #[cfg(debug_assertions)]
+        {
+            formula = formula.assert_valid();
+            if clauses.is_some() {
+                clauses.unwrap().assert_valid();
+            }
+        }
     }
 }

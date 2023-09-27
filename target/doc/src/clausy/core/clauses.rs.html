@@ -124,7 +124,6 @@
 <a href="#124" id="124">124</a>
 <a href="#125" id="125">125</a>
 <a href="#126" id="126">126</a>
-<a href="#127" id="127">127</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Clause representation of a feature-model formula.
 
 </span><span class="kw">use </span>std::{fmt, slice};
@@ -199,7 +198,7 @@
     ///
     /// A clause representation is valid if it has at least one variable and one clause.
     </span><span class="attr">#[cfg(debug_assertions)]
-    </span><span class="kw">fn </span>assert_valid(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+    </span><span class="kw">pub fn </span>assert_valid(<span class="kw-2">&amp;</span><span class="self">self</span>) {
         <span class="macro">debug_assert!</span>(<span class="self">self</span>.vars.len() &gt; <span class="number">0 </span>&amp;&amp; <span class="self">self</span>.clauses.len() &gt; <span class="number">0</span>);
     }
 
@@ -228,7 +227,6 @@
 
 <span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; fmt::Display <span class="kw">for </span>Clauses&lt;<span class="lifetime">&#39;a</span>&gt; {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
-        <span class="self">self</span>.assert_valid();
         <span class="kw">for </span>(i, var) <span class="kw">in </span><span class="self">self</span>.vars.iter().enumerate() {
             <span class="kw">if </span>i == <span class="number">0 </span>{
                 <span class="kw">continue</span>;
