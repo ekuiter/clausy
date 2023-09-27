@@ -1,7 +1,7 @@
 var sourcesIndex = JSON.parse('{\
 "bitflags":["",[],["external.rs","internal.rs","iter.rs","lib.rs","parser.rs","public.rs","traits.rs"]],\
 "cfg_if":["",[],["lib.rs"]],\
-"clausy":["",[["core",[],["clauses.rs","formula.rs","mod.rs"]],["parser",[],["io.rs","mod.rs","model.rs","sat.rs"]],["util",[],["exec.rs","mod.rs"]]],["lib.rs","tests.rs"]],\
+"clausy":["",[["core",[],["clauses.rs","formula.rs","mod.rs"]],["parser",[],["io.rs","mod.rs","model.rs","sat.rs","sat_inline.rs"]],["util",[],["exec.rs","mod.rs"]]],["lib.rs","tests.rs"]],\
 "fastrand":["",[],["global_rng.rs","lib.rs"]],\
 "linux_raw_sys":["",[["x86_64",[],["errno.rs","general.rs","ioctl.rs"]]],["elf.rs","lib.rs"]],\
 "memchr":["",[["arch",[["all",[["packedpair",[],["default_rank.rs","mod.rs"]]],["memchr.rs","mod.rs","rabinkarp.rs","shiftor.rs","twoway.rs"]],["generic",[],["memchr.rs","mod.rs","packedpair.rs"]],["x86_64",[["avx2",[],["memchr.rs","mod.rs","packedpair.rs"]],["sse2",[],["memchr.rs","mod.rs","packedpair.rs"]]],["memchr.rs","mod.rs"]]],["mod.rs"]],["memmem",[],["mod.rs","searcher.rs"]]],["cow.rs","ext.rs","lib.rs","macros.rs","memchr.rs","vector.rs"]],\

@@ -644,7 +644,7 @@ impl<'a> Formula<'a> {
         (var, clauses)
     }
 
-    // todo currently assumes NNF for simplicity, but not a good idea generally - also, does not guarantee NNF itself
+    // todo currently assumes NNF for simplicity, but not a good idea generally - also, does not guarantee NNF itself, must be called again
     pub(crate) fn to_cnf_tseitin(mut self) -> Self {
         // todo is this idempotent?
         let mut new_clauses = Vec::<Id>::new();

@@ -37,10 +37,10 @@ fn parse_pair<'a>(pair: Pair<'a, Rule>, formula: &mut Formula<'a>) -> Id {
     }
 }
 
-fn parse_into<'a>(model: &'a str, formula: &mut Formula<'a>) -> Id {
+fn parse_into<'a>(file: &'a str, formula: &mut Formula<'a>) -> Id {
     let mut child_ids = Vec::<Id>::new();
 
-    for line in model.lines() {
+    for line in file.lines() {
         let pair = ModelFormulaParser::parse(Rule::line, line)
             .unwrap()
             .next()
@@ -60,8 +60,8 @@ fn parse_into<'a>(model: &'a str, formula: &mut Formula<'a>) -> Id {
 }
 
 impl FormulaParser for ModelFormulaParser {
-    fn parse_into<'a>(&self, model: &'a String, formula: &mut Formula<'a>) -> Id {
-        parse_into(model, formula)
+    fn parse_into<'a>(&self, file: &'a String, formula: &mut Formula<'a>) -> Id {
+        parse_into(file, formula)
     }
 }
 

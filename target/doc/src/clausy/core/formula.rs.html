@@ -1354,7 +1354,7 @@
         (var, clauses)
     }
 
-    <span class="comment">// todo currently assumes NNF for simplicity, but not a good idea generally - also, does not guarantee NNF itself
+    <span class="comment">// todo currently assumes NNF for simplicity, but not a good idea generally - also, does not guarantee NNF itself, must be called again
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_cnf_tseitin(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
         <span class="comment">// todo is this idempotent?
         </span><span class="kw">let </span><span class="kw-2">mut </span>new_clauses = Vec::&lt;Id&gt;::new();

@@ -68,6 +68,7 @@
 <a href="#68" id="68">68</a>
 <a href="#69" id="69">69</a>
 <a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parsers for feature-model formula files.
 
 </span><span class="kw">use </span><span class="kw">crate</span>::core::formula::{Formula, Id};
@@ -77,6 +78,7 @@
 <span class="kw">mod </span>io;
 <span class="kw">mod </span>model;
 <span class="kw">mod </span>sat;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>sat_inline;
 
 <span class="doccomment">/// Parses a feature-model formula file into a [Formula] instance.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">trait </span>FormulaParser {

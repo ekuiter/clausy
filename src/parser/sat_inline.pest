@@ -1,0 +1,10 @@
+WHITESPACE = _{ " " | "\t" }
+number = @{ ASCII_DIGIT+ }
+
+var = ${ "-"? ~ number }
+not = { "-" ~ "(" ~ expr ~ ")" }
+and = { "*" ~ "(" ~ expr* ~ ")" }
+or = { "+" ~ "(" ~ expr* ~ ")" }
+expr = _{ var | not | and | or | "(" ~ expr ~ ")" }
+
+file = _{ SOI ~ expr ~ EOI }

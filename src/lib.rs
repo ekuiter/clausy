@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
+use parser::sat_inline::SatInlineFormulaParser;
+
 use crate::{
     core::formula::{Expr::*, Formula, Id},
     parser::{parser, FormulaParsee},
-    util::{read_file, file_exists},
+    util::{file_exists, read_file},
 };
 
 mod core;
@@ -40,8 +42,7 @@ pub fn main(mut commands: Vec<String>) {
     }
 
     for command in &commands {
-        let mut args = command.split(' ');
-        match args.next().unwrap() {
+        match command.as_str() {
             "print" => {
                 if clauses.is_some() {
                     print!("{}", clauses.as_ref().unwrap());
@@ -58,27 +59,18 @@ pub fn main(mut commands: Vec<String>) {
             "count" => println!("{}", clauses.as_ref().unwrap().count()),
             "enumerate" => todo!(),
             "compare" => todo!(),
-            "set_root" => {
-                let args: Vec<Id> = args
-                    .map(|arg| {
-                        let arg: i32 = arg.parse().unwrap();
-                        let idx: usize = arg.unsigned_abs().try_into().unwrap();
-                        let id: Id = parsed_ids[idx - 1];
-                        if arg > 0 {
-                            id
-                        } else {
-                            formula.expr(Not(id))
-                        }
-                    })
-                    .collect();
-                let root_id = formula.expr(And(args));
-                formula.set_root_expr(root_id);
-            }
             _ => {
-                debug_assert!(file_exists(command));
-                let (file, extension) = parsed_files.get(command).unwrap();
-                parsed_ids.push(formula.parse(&file, parser(extension.clone())));
-                formula.set_root_expr(*parsed_ids.last().unwrap());
+                if file_exists(command) {
+                    let (file, extension) = parsed_files.get(command).unwrap();
+                    parsed_ids.push(formula.parse(&file, parser(extension.clone())));
+                    formula.set_root_expr(*parsed_ids.last().unwrap());
+                } else if SatInlineFormulaParser::can_parse(command) {
+                    let root_id = SatInlineFormulaParser::new(parsed_ids.clone())
+                        .parse_into(&command, &mut formula);
+                    formula.set_root_expr(root_id);
+                } else {
+                    unreachable!();
+                }
             }
         }
         #[cfg(debug_assertions)]

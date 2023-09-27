@@ -7,6 +7,7 @@ use self::{io::IoFormulaParser, model::ModelFormulaParser, sat::SatFormulaParser
 mod io;
 mod model;
 mod sat;
+pub(crate) mod sat_inline;
 
 /// Parses a feature-model formula file into a [Formula] instance.
 pub(crate) trait FormulaParser {

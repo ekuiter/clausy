@@ -112,10 +112,10 @@
     }
 }
 
-<span class="kw">fn </span>parse_into&lt;<span class="lifetime">&#39;a</span>&gt;(model: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; Id {
+<span class="kw">fn </span>parse_into&lt;<span class="lifetime">&#39;a</span>&gt;(file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; Id {
     <span class="kw">let </span><span class="kw-2">mut </span>child_ids = Vec::&lt;Id&gt;::new();
 
-    <span class="kw">for </span>line <span class="kw">in </span>model.lines() {
+    <span class="kw">for </span>line <span class="kw">in </span>file.lines() {
         <span class="kw">let </span>pair = ModelFormulaParser::parse(Rule::line, line)
             .unwrap()
             .next()
@@ -135,8 +135,8 @@
 }
 
 <span class="kw">impl </span>FormulaParser <span class="kw">for </span>ModelFormulaParser {
-    <span class="kw">fn </span>parse_into&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, model: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>String, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; Id {
-        parse_into(model, formula)
+    <span class="kw">fn </span>parse_into&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>String, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; Id {
+        parse_into(file, formula)
     }
 }
 

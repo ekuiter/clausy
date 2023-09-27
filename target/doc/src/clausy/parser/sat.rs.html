@@ -150,8 +150,8 @@
 }
 
 <span class="kw">impl </span>FormulaParser <span class="kw">for </span>SatFormulaParser {
-    <span class="kw">fn </span>parse_into&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, model: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>String, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; Id {
-        <span class="kw">let </span><span class="kw-2">mut </span>pairs = SatFormulaParser::parse(Rule::file, model).unwrap();
+    <span class="kw">fn </span>parse_into&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>String, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; Id {
+        <span class="kw">let </span><span class="kw-2">mut </span>pairs = SatFormulaParser::parse(Rule::file, file).unwrap();
 
         <span class="kw">let </span><span class="kw-2">mut </span>variable_names = HashMap::&lt;VarId, <span class="kw-2">&amp;</span>str&gt;::new();
         <span class="kw">while let </span>Rule::comment = pairs.peek().unwrap().as_rule() {

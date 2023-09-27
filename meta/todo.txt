@@ -15,6 +15,7 @@ general:
 - serde for save/load mechanism?
 - criterion.rs for benchmarking
 - clap crate for CLI option parsing
+- currently, .model files do not include unconstrained features and there is no mechanism to declare them
 
 formula:
 - check if all relevant simplifications are implemented correctly: idempotency, splicing/merging (and more?), eliminating implies/bi-implies (which may be exponential itself!)
