@@ -19,7 +19,7 @@ bin/clausy meta/test.sat
 bin/clausy meta/test.sat to_nnf to_cnf_dist to_clauses print
 
 # read from standard input and count solutions
-cat a.uvl | bin/clausy -.uvl to_nnf to_cnf_dist to_clauses count
+cat model.uvl | bin/clausy -.uvl to_nnf to_cnf_dist to_clauses count
 ```
 
 ## Tests & Documentation

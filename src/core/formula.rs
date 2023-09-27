@@ -383,6 +383,7 @@ impl<'a> Formula<'a> {
         }
     }
 
+    // todo
     fn is_non_aux_and(&self, id: Id) -> bool {
         if let And(_) = self.exprs[id] {
             id != self.aux_root_id
@@ -403,6 +404,7 @@ impl<'a> Formula<'a> {
         }
     }
 
+    // todo
     fn dedup(mut vec: Vec<Id>) -> Vec<Id> {
         // todo (inefficient) deduplication for idempotency
         vec.sort();
