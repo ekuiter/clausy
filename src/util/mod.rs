@@ -4,25 +4,25 @@ use std::{fs, io::Read, path::Path};
 
 pub(crate) mod exec;
 
-pub(crate) fn readable_file(file_name: &str) -> bool {
-    Path::new(file_name).exists() || file_name == "-"
+/// Returns whether a file exists at a given path.
+///
+/// Also allows the special value - for referring to standard input.
+pub(crate) fn file_exists(file_name: &str) -> bool {
+    Path::new(file_name).exists() || file_name.starts_with("-")
 }
 
 /// Reads the contents and extension of a file.
 pub(crate) fn read_file(file_name: &str) -> (String, Option<String>) {
     let mut file;
-    let extension;
-    if file_name != "-" {
-        file = fs::read_to_string(file_name).unwrap();
-        // todo: move to parser.rs
-        extension = Path::new(file_name)
-            .extension()
-            .map_or(None, |e| e.to_str())
-            .map(|e| e.to_string());
-    } else {
+    if file_name.starts_with("-") {
         file = String::new();
-        extension = None;
         std::io::stdin().read_to_string(&mut file).unwrap();
+    } else {
+        file = fs::read_to_string(file_name).unwrap();
     };
+    let extension = Path::new(file_name)
+        .extension()
+        .map_or(None, |e| e.to_str())
+        .map(|e| e.to_string());
     (file, extension)
 }

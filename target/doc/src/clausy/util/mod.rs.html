@@ -32,26 +32,26 @@
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>exec;
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>readable_file(file_name: <span class="kw-2">&amp;</span>str) -&gt; bool {
-    Path::new(file_name).exists() || file_name == <span class="string">&quot;-&quot;
-</span>}
+<span class="doccomment">/// Returns whether a file exists at a given path.
+///
+/// Also allows the special value - for referring to standard input.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>file_exists(file_name: <span class="kw-2">&amp;</span>str) -&gt; bool {
+    Path::new(file_name).exists() || file_name.starts_with(<span class="string">&quot;-&quot;</span>)
+}
 
 <span class="doccomment">/// Reads the contents and extension of a file.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>read_file(file_name: <span class="kw-2">&amp;</span>str) -&gt; (String, <span class="prelude-ty">Option</span>&lt;String&gt;) {
     <span class="kw">let </span><span class="kw-2">mut </span>file;
-    <span class="kw">let </span>extension;
-    <span class="kw">if </span>file_name != <span class="string">&quot;-&quot; </span>{
-        file = fs::read_to_string(file_name).unwrap();
-        <span class="comment">// todo: move to parser.rs
-        </span>extension = Path::new(file_name)
-            .extension()
-            .map_or(<span class="prelude-val">None</span>, |e| e.to_str())
-            .map(|e| e.to_string());
-    } <span class="kw">else </span>{
+    <span class="kw">if </span>file_name.starts_with(<span class="string">&quot;-&quot;</span>) {
         file = String::new();
-        extension = <span class="prelude-val">None</span>;
         std::io::stdin().read_to_string(<span class="kw-2">&amp;mut </span>file).unwrap();
+    } <span class="kw">else </span>{
+        file = fs::read_to_string(file_name).unwrap();
     };
+    <span class="kw">let </span>extension = Path::new(file_name)
+        .extension()
+        .map_or(<span class="prelude-val">None</span>, |e| e.to_str())
+        .map(|e| e.to_string());
     (file, extension)
 }
 </code></pre></div></section></main></body></html>

@@ -391,9 +391,9 @@ impl<'a> Formula<'a> {
         }
     }
 
-    // (maybe combine with unary simplification?)
+    // todo (maybe combine with unary simplification?)
     fn splice_or(&self, clause_id: Id, new_clause: &mut Vec<Id>) {
-        // splice child or's
+        // todo splice child or's
         if let Or(literal_ids) = &self.exprs[clause_id] {
             for literal_id in literal_ids {
                 new_clause.push(*literal_id);
@@ -404,7 +404,7 @@ impl<'a> Formula<'a> {
     }
 
     fn dedup(mut vec: Vec<Id>) -> Vec<Id> {
-        // (inefficient) deduplication for idempotency
+        // todo (inefficient) deduplication for idempotency
         vec.sort();
         vec.dedup();
         vec
@@ -489,7 +489,7 @@ impl<'a> Formula<'a> {
     /// After the traversal, we re-establish structural sharing (see [Formula::make_shared]).
     pub(crate) fn to_nnf(mut self) -> Self {
         self.preorder_rev(|formula, id| {
-            // probably need another copy here as for to_cnf_dist to make splicing/unary handling easier
+            // todo probably need another copy here as for to_cnf_dist to make splicing/unary handling easier
             let mut child_ids: Vec<Id> = Self::get_child_exprs(&formula.exprs[id]).to_vec();
             for child_id in child_ids.iter_mut() {
                 match &formula.exprs[*child_id] {
@@ -498,7 +498,7 @@ impl<'a> Formula<'a> {
                         match &formula.exprs[*grandchild_id] {
                             Var(_) => (),
                             Not(greatgrandchild_id) => {
-                                *child_id = *greatgrandchild_id; // what if this is an and and we are, too? could splice (maybe also remove unary)
+                                *child_id = *greatgrandchild_id; // todo what if this is an and and we are, too? could splice (maybe also remove unary)
                             }
                             And(greatgrandchild_ids) => {
                                 let new_expr =
@@ -529,21 +529,21 @@ impl<'a> Formula<'a> {
     /// `TODO`
     pub(crate) fn to_cnf_dist(mut self) -> Self {
         // todo: refactor code
-        // also, is this idempotent?
-        // currently, this seems correct, but much less efficient than FeatureIDE, possibly optimize
+        // todo also, is this idempotent?
+        // todo currently, this seems correct, but much less efficient than FeatureIDE, possibly optimize
         self.postorder_rev(|formula, id| {
-            // need the children two times on the stack here, could maybe be disabled, but then merging is more complicated
+            // todo need the children two times on the stack here, could maybe be disabled, but then merging is more complicated
             let child_ids = Self::get_child_exprs(&formula.exprs[id]).to_vec();
             let mut new_child_ids = Vec::<Id>::new();
 
             for child_id in child_ids {
-                // extract this as a helper function for hybrid tseitin
+                // todo extract this as a helper function for hybrid tseitin
                 match &formula.exprs[child_id] {
                     Var(_) | Not(_) => new_child_ids.push(child_id),
                     And(grandchild_ids) => {
                         if formula.is_non_aux_and(id) || grandchild_ids.len() == 1 {
                             new_child_ids.extend(grandchild_ids.clone());
-                            // new_child_ids.push(self.expr(And(cnf))); // unoptimized version
+                            // todo new_child_ids.push(self.expr(And(cnf))); // todo unoptimized version
                         } else {
                             new_child_ids.push(child_id);
                         }
@@ -553,14 +553,14 @@ impl<'a> Formula<'a> {
                         for (i, grandchild_id) in grandchild_ids.iter().enumerate() {
                             // there might be a bug here: Or(...) should be moved to the first arm as | Or(_)
                             let clause_ids = match &formula.exprs[*grandchild_id] {
-                                // could multiply all len's to calculate a threshold for hybrid tseitin
+                                // todo could multiply all len's to calculate a threshold for hybrid tseitin
                                 Var(_) | Not(_) | Or(_) => slice::from_ref(grandchild_id),
                                 And(ids) => ids,
                             };
 
                             if i == 0 {
                                 clauses.extend(
-                                    // possibly this can be done with a neutral element instead
+                                    // todo possibly this can be done with a neutral element instead
                                     clause_ids
                                         .iter()
                                         .map(|clause_id| {
@@ -584,8 +584,8 @@ impl<'a> Formula<'a> {
                         }
                         let mut new_cnf_ids = Vec::<Id>::new();
                         for mut clause in clauses {
-                            clause = Self::dedup(clause); // idempotency
-                                                          // unary or
+                            clause = Self::dedup(clause); // todo idempotency
+                                                          // todo unary or
                             if clause.len() > 1 {
                                 new_cnf_ids.push(formula.expr(Or(clause)));
                             } else {
@@ -593,9 +593,9 @@ impl<'a> Formula<'a> {
                             }
                         }
                         if formula.is_non_aux_and(id) || new_cnf_ids.len() == 1 {
-                            // splice into parent and
+                            // todo splice into parent and
                             new_child_ids.extend(new_cnf_ids);
-                            // new_child_ids.push(self.expr(And(cnf))); // unoptimized version
+                            // todo new_child_ids.push(self.expr(And(cnf))); // todo unoptimized version
                         } else {
                             new_child_ids.push(formula.expr(And(new_cnf_ids)));
                         }
@@ -619,10 +619,10 @@ impl<'a> Formula<'a> {
             clauses.push(self.expr(Or(vec![not_var, *id])));
         }
         let mut clause = vec![var];
-        // might create double negation here, avoid this (presumably already in expr(Not(...))? although this would affect parsing, maybe extra method)
+        // todo might create double negation here, avoid this (presumably already in expr(Not(...))? although this would affect parsing, maybe extra method)
         clause.extend(self.negate_exprs(ids.to_vec()));
         clauses.push(self.expr(Or(clause)));
-        // add these to the formula, ideally also splicing correctly
+        // todo add these to the formula, ideally also splicing correctly
         (var, clauses)
     }
 
@@ -642,9 +642,9 @@ impl<'a> Formula<'a> {
         (var, clauses)
     }
 
-    // currently assumes NNF for simplicity, but not a good idea generally - also, does not guarantee NNF itself
+    // todo currently assumes NNF for simplicity, but not a good idea generally - also, does not guarantee NNF itself
     pub(crate) fn to_cnf_tseitin(mut self) -> Self {
-        // is this idempotent?
+        // todo is this idempotent?
         let mut new_clauses = Vec::<Id>::new();
 
         self.postorder_rev(|formula, id| {
@@ -655,8 +655,8 @@ impl<'a> Formula<'a> {
                 match &formula.exprs[child_id] {
                     Var(_) | Not(_) => new_child_ids.push(child_id),
                     And(grandchild_ids) => {
-                        // what about unary And?
-                        // ...
+                        // todo what about unary And?
+                        // todo ...
                         let (var, clauses) = formula.def_and(&grandchild_ids.clone());
                         new_clauses.extend(clauses);
                         new_child_ids.push(var);
@@ -669,7 +669,7 @@ impl<'a> Formula<'a> {
                 }
             }
 
-            formula.set_child_exprs(id, new_child_ids); // dedup?
+            formula.set_child_exprs(id, new_child_ids); // todo dedup?
         });
 
         new_clauses.push(self.get_root_expr());

@@ -124,6 +124,8 @@
 <a href="#124" id="124">124</a>
 <a href="#125" id="125">125</a>
 <a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Clause representation of a feature-model formula.
 
 </span><span class="kw">use </span>std::{fmt, slice};
@@ -207,11 +209,13 @@
         exec::d4(<span class="kw-2">&amp;</span><span class="self">self</span>.to_string())
     }
 
-    <span class="kw">fn </span>count_featureide(file: <span class="kw-2">&amp;</span>str, extension: String) -&gt; String {
+    <span class="comment">// todo
+    </span><span class="kw">fn </span>count_featureide(file: <span class="kw-2">&amp;</span>str, extension: String) -&gt; String {
         exec::d4(<span class="kw-2">&amp;</span>exec::io(file, <span class="kw-2">&amp;</span>extension, <span class="string">&quot;dimacs&quot;</span>))
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_count(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str, extension: String) {
+    <span class="comment">// todo
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_count(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str, extension: String) {
         <span class="macro">debug_assert_eq!</span>(<span class="self">self</span>.count(), <span class="self">Self</span>::count_featureide(file, extension));
     }
 }
@@ -234,8 +238,8 @@
             <span class="kw">if let </span>Var::Named(name) = var {
                 <span class="macro">debug_assert!</span>(!name.is_empty());
             }
-            <span class="macro">write!</span>(f, <span class="string">&quot;c {i} {var}\n&quot;</span>)<span class="question-mark">?</span>; <span class="comment">// todo: to save space, do not print aux variables? or pass an option for that (with configurable prefix?)
-        </span>}
+            <span class="macro">write!</span>(f, <span class="string">&quot;c {i} {var}\n&quot;</span>)<span class="question-mark">?</span>;
+        }
         <span class="macro">write!</span>(f, <span class="string">&quot;p cnf {} {}\n&quot;</span>, <span class="self">self</span>.vars.len() - <span class="number">1</span>, <span class="self">self</span>.clauses.len())<span class="question-mark">?</span>;
         <span class="kw">for </span>clause <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.clauses {
             <span class="macro">debug_assert_ne!</span>(clause.len(), <span class="number">0</span>);

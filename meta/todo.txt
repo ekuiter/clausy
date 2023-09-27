@@ -9,8 +9,7 @@ optional features (disable with #cfg, so binary can be optimized):
 
 general:
 - multithreaded tree traversal / transformations where possible? or too much overhead / impossible to implement safely? would require abandoning several approaches (e.g., next_id). alternatively: implement multithreading by parallel transformation of separate formulas (e.g., constraints or entire models) and merging them afterwards.
-- documentation
-- reasonable CLI defaults
+- grep 'todo' in codebase
 - is this a knowledge compilation technique? because so much depends on efficient structural sharing - given two neg-CNFs, it is not necessarily efficient to compare them, because they do not usually share structure. i.e., tseitin(phi-a & -phi-b) is probably much better than tseitin(phi-a) & neg-tseitin(phi-b), I suppose. So, this may be less of a knowledge compilation artifact. a formula instance could however be serialized and then contain for example all revisions of a system or all architectures(?) of linux. in that case, we would store a pointer to each relevant formula, tseitin-transform them all, and afterwards we can build arbitrary formulas (e.g., any comparison a & -b) on the roots of those formulas in O(1), and the resulting formulas will only contain relevant constraints (because a & -b does not encode constraints only c refers to). Each step in this pipeline is tractable no matter the size/complexity, intractable is only the NP-complete solving at the end. we could have a compiler then, and a querying tool - the latter can retrieve DIMACS files for any individual version, for comparing versions, for checking whether a given configuration is valid in any version, ... whatever (we can efficiently encode phi, -phi, phi-a (<)=> phi-b, a and b, a or b, a or b or c ... (a big disjunction - was it ever like this?), a and b and c (was it always like this?) without needing a BDD at all). So i describe how to lift Sat-based analyses on entire histories of (or otherwise similar, e.g., architecture in linux?) models. this is something that is very specific for feature models, that we have many similar, but not equal problems to solve, which are related (similar to variational sat, but we are less interested in solving many queries, but solving one query with many internal similarities). possibly even slicing may be possible: as we need phi[x\true] or phi[x\false], and these formulas could be constructed with a lot of reuse (no exponential explosion needed) and then tseitin-transformed (however, slicing many variables may get less nice - don't now if this will be more efficient than FeatureIDE). (is this a good idea? we found that slicing typically does not work so great on Tseitin variables, what happens if I slice a natural variable and create new Tseitin variables for it? is this even an interesting use case??) evolution+slicing could maybe be combined to extract the evolution of a particular subsystem (and, e.g., count it incrementally if counting it directly with PMC/slice+#SAT is impossible).
 
 formula:
@@ -23,6 +22,7 @@ formula:
 - randomize clause order? (scrambler?)
 - sort children of exprs, this way we take commutativity out of the picture (a&b is equal to b&a) -> more structural sharing means easier comparison of models
 - set removed/added variables to be dead so comparison becomes proper (do this in parse_into or somewhere else?)
+- to save space, do not print aux variables (print optionally)? or pass an option for that (with configurable prefix?) print into dimacs header which transformation was used / what this file can be used for / which original formula it encodes?
 
 https://cca.informatik.uni-freiburg.de/sat/ss23/04/
 https://cca.informatik.uni-freiburg.de/sat/ss23/05/
@@ -41,3 +41,6 @@ if new_hash != old_hash {
     }
     self.exprs_inv.entry(new_hash).or_default().push(id); // probably, we could only push here if no equal expr has already been pushed (does this interact weirdly when there are true hash collisions involved?)
 }
+
+
+maybe move this unary simplification (in model.rs:55) straight into .expr? but: this way, a formula would be auto-optimized when being parsed. -same foes for commutativity (sort) and idempotency (dedup). could also do this to remove double negations. splicing is possible here, too. how does this interact with set_child_exprs? maybe do not use an enum for Expr, so an Expr can change its own type? change .set_child_exprs to a general .set_expr, complementing .expr? this way, an in-place replacement of Or with And (dist) or Or/And with Var (tseitin) would become possible. Possibly, this would also make auxiliary root obsolete.

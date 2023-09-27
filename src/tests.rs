@@ -180,7 +180,6 @@ mod formula {
 
         #[test]
         fn shared_expr() {
-            // todo: run this on larger formulas as well
             let model = "((def(a)|!def(a))&(def(a)|!(def(a)|def(a))))";
             let f = Formula::from(model)
                 .assert_valid()

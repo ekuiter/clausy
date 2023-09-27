@@ -81,10 +81,12 @@ impl<'a> Clauses<'a> {
         exec::d4(&self.to_string())
     }
 
+    // todo
     fn count_featureide(file: &str, extension: String) -> String {
         exec::d4(&exec::io(file, &extension, "dimacs"))
     }
 
+    // todo
     pub(crate) fn assert_count(&self, file: &str, extension: String) {
         debug_assert_eq!(self.count(), Self::count_featureide(file, extension));
     }
@@ -108,7 +110,7 @@ impl<'a> fmt::Display for Clauses<'a> {
             if let Var::Named(name) = var {
                 debug_assert!(!name.is_empty());
             }
-            write!(f, "c {i} {var}\n")?; // todo: to save space, do not print aux variables? or pass an option for that (with configurable prefix?)
+            write!(f, "c {i} {var}\n")?;
         }
         write!(f, "p cnf {} {}\n", self.vars.len() - 1, self.clauses.len())?;
         for clause in &self.clauses {

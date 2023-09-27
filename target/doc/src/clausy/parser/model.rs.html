@@ -73,7 +73,6 @@
 <a href="#73" id="73">73</a>
 <a href="#74" id="74">74</a>
 <a href="#75" id="75">75</a>
-<a href="#76" id="76">76</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parser for KConfigReader .model files.
 
 </span><span class="kw">use </span>pest::{iterators::Pair, Parser};
@@ -128,8 +127,7 @@
         }
     }
 
-    <span class="comment">// todo: maybe move this unary simplification straight into .expr? but: this way, a formula would be auto-optimized when being parsed. -same foes for commutativity (sort) and idempotency (dedup). could also do this to remove double negations. splicing is possible here, too. how does this interact with set_child_exprs? maybe do not use an enum for Expr, so an Expr can change its own type? change .set_child_exprs to a general .set_expr, complementing .expr? this way, an in-place replacement of Or with And (dist) or Or/And with Var (tseitin) would become possible. Possibly, this would also make auxiliary root obsolete.
-    </span><span class="kw">if </span>child_ids.len() == <span class="number">1 </span>{
+    <span class="kw">if </span>child_ids.len() == <span class="number">1 </span>{
         child_ids[<span class="number">0</span>]
     } <span class="kw">else </span>{
         formula.expr(And(child_ids))

@@ -7,28 +7,29 @@
 To transform any [`.sat`](meta/satformat.pdf), [`.model`](https://github.com/ckaestne/kconfigreader), or [FeatureIDE](https://featureide.github.io/)-compatible file into [`.cnf`](meta/satformat.pdf) (aka [`.dimacs`](meta/satformat.pdf)), run:
 
 ```
-# install dependencies (Ubuntu assumed, other systems analogous)
-sudo apt update && sudo apt install default-jre curl
-curl https://sh.rustup.rs -sSf | sh
+# with Docker
+docker build -t clausy .
+cat meta/test.sat | docker run -i clausy
 
-# build
-io/gradlew -p io shadowJar
-cargo build --release && cp target/release/clausy bin/clausy
-curl https://github.com/ekuiter/torte/raw/main/docker/solver/model-counting-competition-2022/d4 -Lo bin/d4 && chmod +x bin/d4
+# without Docker
+./build.sh
+bin/clausy meta/test.sat
 
-# run
-bin/clausy meta/test.sat to_nnf to_cnf_dist to_cnf print
+# equivalent, but more verbose
+bin/clausy meta/test.sat to_nnf to_cnf_dist to_clauses print
 
-# test
+# read from standard input and count solutions
+cat a.uvl | bin/clausy -.uvl to_nnf to_cnf_dist to_clauses count
+```
+
+## Tests & Documentation
+
+Documentation for clausy is available [online](https://ekuiter.github.io/clausy/), see [`clausy > formula > Formula`](https://ekuiter.github.io/clausy/clausy/formula/struct.Formula.html) for details on algorithm usage.
+
+```
+# run tests
 cargo test
-```
 
-## Documentation
-
-Documentation for clausy is available [here](https://ekuiter.github.io/clausy/) or can be generated with rustdoc.
-Most relevant information can be found in [`clausy > formula > Formula`](https://ekuiter.github.io/clausy/clausy/formula/struct.Formula.html).
-
-```
 # view documentation
 cargo doc --no-deps --open
 

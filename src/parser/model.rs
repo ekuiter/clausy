@@ -52,7 +52,6 @@ fn parse_into<'a>(model: &'a str, formula: &mut Formula<'a>) -> Id {
         }
     }
 
-    // todo: maybe move this unary simplification straight into .expr? but: this way, a formula would be auto-optimized when being parsed. -same foes for commutativity (sort) and idempotency (dedup). could also do this to remove double negations. splicing is possible here, too. how does this interact with set_child_exprs? maybe do not use an enum for Expr, so an Expr can change its own type? change .set_child_exprs to a general .set_expr, complementing .expr? this way, an in-place replacement of Or with And (dist) or Or/And with Var (tseitin) would become possible. Possibly, this would also make auxiliary root obsolete.
     if child_ids.len() == 1 {
         child_ids[0]
     } else {
