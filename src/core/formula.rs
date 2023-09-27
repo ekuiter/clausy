@@ -15,7 +15,7 @@ use Expr::*;
 const PRINT_ID: bool = false;
 
 /// Prefix for auxiliary variables.
-/// 
+///
 /// Auxiliary variables are required by some algorithms on formulas and can be created with [Var::Aux].
 const AUX_VAR_PREFIX: &str = "_aux_";
 
@@ -60,7 +60,7 @@ pub(crate) enum Expr {
 }
 
 /// A variable in a formula.
-/// 
+///
 /// Variables can either be named or auxiliary.
 /// Named variables refer to a string, which represents their name.
 /// To avoid unnecessary copies, we use a reference that must outlive the [Formula] the variable is tied to (e.g., created by [mod@crate::parser]).
@@ -263,7 +263,8 @@ impl<'a> Formula<'a> {
     ///
     /// This is the preferred way to obtain a [Var] expression's identifier (see [Formula::expr]).
     pub(crate) fn var(&mut self, var: &'a str) -> Id {
-        self.get_var_named(var).unwrap_or_else(|| self.add_var_named(var))
+        self.get_var_named(var)
+            .unwrap_or_else(|| self.add_var_named(var))
     }
 
     /// Returns the root expression of this formula.
@@ -534,7 +535,8 @@ impl<'a> Formula<'a> {
             let child_ids = Self::get_child_exprs(&formula.exprs[id]).to_vec();
             let mut new_child_ids = Vec::<Id>::new();
 
-            for child_id in child_ids { // extract this as a helper function for hybrid tseitin
+            for child_id in child_ids {
+                // extract this as a helper function for hybrid tseitin
                 match &formula.exprs[child_id] {
                     Var(_) | Not(_) => new_child_ids.push(child_id),
                     And(grandchild_ids) => {
@@ -549,7 +551,8 @@ impl<'a> Formula<'a> {
                         let mut clauses = Vec::<Vec<Id>>::new();
                         for (i, grandchild_id) in grandchild_ids.iter().enumerate() {
                             // there might be a bug here: Or(...) should be moved to the first arm as | Or(_)
-                            let clause_ids = match &formula.exprs[*grandchild_id] { // could multiply all len's to calculate a threshold for hybrid tseitin
+                            let clause_ids = match &formula.exprs[*grandchild_id] {
+                                // could multiply all len's to calculate a threshold for hybrid tseitin
                                 Var(_) | Not(_) | Or(_) => slice::from_ref(grandchild_id),
                                 And(ids) => ids,
                             };
@@ -605,7 +608,7 @@ impl<'a> Formula<'a> {
     }
 
     /// Defines an [And] expression with a new auxiliary variable.
-    /// 
+    ///
     /// That is, we create a new auxiliary variable and clauses that let it imply all conjuncts and let it be implied by the conjunction.
     fn def_and(&mut self, ids: &[Id]) -> (Id, Vec<Id>) {
         let var = self.add_var_aux();
@@ -623,7 +626,7 @@ impl<'a> Formula<'a> {
     }
 
     /// Defines an [Or] expression with a new auxiliary variable.
-    /// 
+    ///
     /// That is, we create a new auxiliary variable and clauses that let it imply the disjunction and let it be implied by all disjuncts.
     fn def_or(&mut self, ids: &[Id]) -> (Id, Vec<Id>) {
         let var = self.add_var_aux();

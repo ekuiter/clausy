@@ -28,7 +28,7 @@
 <a href="#28" id="28">28</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Miscellaneous utilities.
 
-</span><span class="kw">use </span>std::{fs, path::Path, io::Read};
+</span><span class="kw">use </span>std::{fs, io::Read, path::Path};
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>exec;
 
@@ -53,4 +53,5 @@
         std::io::stdin().read_to_string(<span class="kw-2">&amp;mut </span>file).unwrap();
     };
     (file, extension)
-}</code></pre></div></section></main></body></html>
+}
+</code></pre></div></section></main></body></html>

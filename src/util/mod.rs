@@ -1,6 +1,6 @@
 //! Miscellaneous utilities.
 
-use std::{fs, path::Path, io::Read};
+use std::{fs, io::Read, path::Path};
 
 pub(crate) mod exec;
 

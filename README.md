@@ -4,11 +4,11 @@
 
 ## Getting Started
 
-Run the following to transform any feature-model format accepted by [FeatureIDE](https://featureide.github.io/) into CNF (printed in DIMACS format).
+To transform any [`.sat`](meta/satformat.pdf), [`.model`](https://github.com/ckaestne/kconfigreader), or [FeatureIDE](https://featureide.github.io/)-compatible file into [`.cnf`](meta/satformat.pdf) (aka [`.dimacs`](meta/satformat.pdf)), run:
 
 ```
-# install dependencies
-sudo apt update && sudo apt install default-jre
+# install dependencies (Ubuntu assumed, other systems analogous)
+sudo apt update && sudo apt install default-jre curl
 curl https://sh.rustup.rs -sSf | sh
 
 # build
@@ -17,7 +17,7 @@ cargo build --release && cp target/release/clausy bin/clausy
 curl https://github.com/ekuiter/torte/raw/main/docker/solver/model-counting-competition-2022/d4 -Lo bin/d4 && chmod +x bin/d4
 
 # run
-bin/clausy my-model.uvl
+bin/clausy meta/test.sat
 
 # test
 cargo test

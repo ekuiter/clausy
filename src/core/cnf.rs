@@ -2,20 +2,23 @@
 
 use std::{fmt, slice};
 
-use crate::{core::formula::{Expr::*, ExprInFormula, Formula, Id, Var, VarId}, util::exec};
+use crate::{
+    core::formula::{Expr::*, ExprInFormula, Formula, Id, Var, VarId},
+    util::exec,
+};
 
 /// A [Formula] in its clause representation.
-/// 
+///
 /// That is, this data structure enforces a conjunctive normal form.
 pub(crate) struct Cnf<'a> {
     /// The clauses of this CNF.
-    /// 
+    ///
     /// A clause is a [Vec] of literals, each given as an absolute-value index into [Cnf::vars].
     /// Negative values indicate negated variable occurrences.
     clauses: Vec<Vec<VarId>>,
 
     /// The variables of this CNF.
-    /// 
+    ///
     /// This list is indexed into by the absolute values stored in [Cnf::clauses].
     vars: Vec<Var<'a>>,
 }

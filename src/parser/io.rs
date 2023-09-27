@@ -1,15 +1,18 @@
 //! Parser for any file format accepted by FeatureIDE.
 
-use crate::{core::formula::{Formula, Id}, util};
+use crate::{
+    core::formula::{Formula, Id},
+    util,
+};
 
-use super::{FormulaParser, sat::SatFormulaParser};
+use super::{sat::SatFormulaParser, FormulaParser};
 
 /// Parses feature-model formula files in any file format accepted by FeatureIDE.
 pub(crate) struct IoFormulaParser {
     /// The extension of the parsed file.
-    /// 
+    ///
     /// Used by FeatureIDE to determine the file format.
-    extension: String
+    extension: String,
 }
 
 impl IoFormulaParser {

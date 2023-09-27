@@ -698,6 +698,9 @@
 <a href="#698" id="698">698</a>
 <a href="#699" id="699">699</a>
 <a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Data structures and algorithms for feature-model formulas.
 
 </span><span class="attr">#![allow(unused_imports, rustdoc::private_intra_doc_links)]
@@ -715,7 +718,7 @@
 </span><span class="kw">const </span>PRINT_ID: bool = <span class="bool-val">false</span>;
 
 <span class="doccomment">/// Prefix for auxiliary variables.
-/// 
+///
 /// Auxiliary variables are required by some algorithms on formulas and can be created with [Var::Aux].
 </span><span class="kw">const </span>AUX_VAR_PREFIX: <span class="kw-2">&amp;</span>str = <span class="string">&quot;_aux_&quot;</span>;
 
@@ -760,7 +763,7 @@
 }
 
 <span class="doccomment">/// A variable in a formula.
-/// 
+///
 /// Variables can either be named or auxiliary.
 /// Named variables refer to a string, which represents their name.
 /// To avoid unnecessary copies, we use a reference that must outlive the [Formula] the variable is tied to (e.g., created by [mod@crate::parser]).
@@ -963,7 +966,8 @@
     ///
     /// This is the preferred way to obtain a [Var] expression&#39;s identifier (see [Formula::expr]).
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str) -&gt; Id {
-        <span class="self">self</span>.get_var_named(var).unwrap_or_else(|| <span class="self">self</span>.add_var_named(var))
+        <span class="self">self</span>.get_var_named(var)
+            .unwrap_or_else(|| <span class="self">self</span>.add_var_named(var))
     }
 
     <span class="doccomment">/// Returns the root expression of this formula.
@@ -1234,7 +1238,8 @@
             </span><span class="kw">let </span>child_ids = <span class="self">Self</span>::get_child_exprs(<span class="kw-2">&amp;</span>formula.exprs[id]).to_vec();
             <span class="kw">let </span><span class="kw-2">mut </span>new_child_ids = Vec::&lt;Id&gt;::new();
 
-            <span class="kw">for </span>child_id <span class="kw">in </span>child_ids { <span class="comment">// extract this as a helper function for hybrid tseitin
+            <span class="kw">for </span>child_id <span class="kw">in </span>child_ids {
+                <span class="comment">// extract this as a helper function for hybrid tseitin
                 </span><span class="kw">match </span><span class="kw-2">&amp;</span>formula.exprs[child_id] {
                     Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) =&gt; new_child_ids.push(child_id),
                     And(grandchild_ids) =&gt; {
@@ -1249,7 +1254,8 @@
                         <span class="kw">let </span><span class="kw-2">mut </span>clauses = Vec::&lt;Vec&lt;Id&gt;&gt;::new();
                         <span class="kw">for </span>(i, grandchild_id) <span class="kw">in </span>grandchild_ids.iter().enumerate() {
                             <span class="comment">// there might be a bug here: Or(...) should be moved to the first arm as | Or(_)
-                            </span><span class="kw">let </span>clause_ids = <span class="kw">match </span><span class="kw-2">&amp;</span>formula.exprs[<span class="kw-2">*</span>grandchild_id] { <span class="comment">// could multiply all len&#39;s to calculate a threshold for hybrid tseitin
+                            </span><span class="kw">let </span>clause_ids = <span class="kw">match </span><span class="kw-2">&amp;</span>formula.exprs[<span class="kw-2">*</span>grandchild_id] {
+                                <span class="comment">// could multiply all len&#39;s to calculate a threshold for hybrid tseitin
                                 </span>Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) | Or(<span class="kw">_</span>) =&gt; slice::from_ref(grandchild_id),
                                 And(ids) =&gt; ids,
                             };
@@ -1305,7 +1311,7 @@
     </span>}
 
     <span class="doccomment">/// Defines an [And] expression with a new auxiliary variable.
-    /// 
+    ///
     /// That is, we create a new auxiliary variable and clauses that let it imply all conjuncts and let it be implied by the conjunction.
     </span><span class="kw">fn </span>def_and(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ids: <span class="kw-2">&amp;</span>[Id]) -&gt; (Id, Vec&lt;Id&gt;) {
         <span class="kw">let </span>var = <span class="self">self</span>.add_var_aux();
@@ -1323,7 +1329,7 @@
     }
 
     <span class="doccomment">/// Defines an [Or] expression with a new auxiliary variable.
-    /// 
+    ///
     /// That is, we create a new auxiliary variable and clauses that let it imply the disjunction and let it be implied by all disjuncts.
     </span><span class="kw">fn </span>def_or(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ids: <span class="kw-2">&amp;</span>[Id]) -&gt; (Id, Vec&lt;Id&gt;) {
         <span class="kw">let </span>var = <span class="self">self</span>.add_var_aux();

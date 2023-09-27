@@ -14,6 +14,7 @@ mod parser;
 mod tests;
 mod util;
 
+// doc todo
 pub fn main(commands: &[String]) {
     let mut formula = Formula::new();
     let mut cnf = None;
@@ -66,8 +67,8 @@ pub fn main(commands: &[String]) {
                 if readable_file(file_name) {
                     let (file, extension) = parsed_files.get(file_name).unwrap();
                     parsed_ids.push(formula.parse(&file, parser(extension.clone())));
-                    //formula.set_root_expr(*parsed_ids.last().unwrap());
-                    //formula = formula.assert_valid();
+                    formula.set_root_expr(*parsed_ids.last().unwrap());
+                    formula = formula.assert_valid();
                 } else {
                     panic!("command {} invalid", file_name);
                 }

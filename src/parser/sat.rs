@@ -56,8 +56,7 @@ fn parse_pair<'a>(pair: Pair<'a, Rule>, vars: &[Id], formula: &mut Formula<'a>) 
 
 impl FormulaParser for SatFormulaParser {
     fn parse_into<'a>(&self, model: &'a String, formula: &mut Formula<'a>) -> Id {
-        let mut pairs =
-            SatFormulaParser::parse(Rule::file, model).unwrap();
+        let mut pairs = SatFormulaParser::parse(Rule::file, model).unwrap();
 
         let mut variable_names = HashMap::<VarId, &str>::new();
         while let Rule::comment = pairs.peek().unwrap().as_rule() {

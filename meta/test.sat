@@ -1,0 +1,6 @@
+c Sample SAT format
+c
+p sat 4
+(*(+(1 3 -4)
+   +(4)
+   +(2 3)))

@@ -1,11 +1,16 @@
 //! Utilities for executing external programs.
 
-use std::{process::{Command, Stdio},io::{Write, Read}, env, path::Path};
+use std::{
+    env,
+    io::{Read, Write},
+    path::Path,
+    process::{Command, Stdio},
+};
 
 use tempfile::NamedTempFile;
 
 /// Returns the path of a bundled external program.
-/// 
+///
 /// Looks up the program (a) as a sibling of the currently running executable, (b) in the working directory,
 /// and (c) in the `bin` directory in the working directory, if that exists.
 fn path(file_name: &str) -> String {
@@ -13,21 +18,21 @@ fn path(file_name: &str) -> String {
     path.pop();
     path.push(file_name);
     if path.exists() {
-        return path.to_str().unwrap().to_owned()
+        return path.to_str().unwrap().to_owned();
     }
     let path = Path::new(file_name).to_path_buf();
     if path.exists() {
-        return format!("./{}", file_name)
+        return format!("./{}", file_name);
     }
     let path = Path::new(&format!("bin/{}", file_name)).to_path_buf();
     if path.exists() {
-        return path.to_str().unwrap().to_owned()
+        return path.to_str().unwrap().to_owned();
     }
     panic!("could not locate file {}", file_name);
 }
 
 /// Counts the number of satisfying assignments of some CNF in DIMACS format.
-/// 
+///
 /// Runs the efficient external model counter d4, which performs well on most small to medium size inputs.
 /// Returns the number as a string, as it will typically overflow otherwise.
 pub(crate) fn d4(dimacs: &str) -> String {
@@ -53,7 +58,7 @@ pub(crate) fn d4(dimacs: &str) -> String {
 }
 
 /// Converts a given feature-model file from one format into another.
-/// 
+///
 /// Runs the tool FeatureIDE using the Java runtime environment.
 pub(crate) fn io(input: &str, input_format: &str, output_format: &str) -> String {
     let process = Command::new("java")
