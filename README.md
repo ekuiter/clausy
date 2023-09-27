@@ -17,7 +17,7 @@ cargo build --release && cp target/release/clausy bin/clausy
 curl https://github.com/ekuiter/torte/raw/main/docker/solver/model-counting-competition-2022/d4 -Lo bin/d4 && chmod +x bin/d4
 
 # run
-bin/clausy meta/test.sat
+bin/clausy meta/test.sat to_nnf to_cnf_dist to_cnf print
 
 # test
 cargo test

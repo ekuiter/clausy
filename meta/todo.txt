@@ -6,7 +6,6 @@ optional features (disable with #cfg, so binary can be optimized):
 - Plaisted-Greenbaum -> depending on whether equi-countability is preserved/necessary (possibly as a polarity-based variant that does not require NNF)
 
 parser:
-  - indeed, we should use SAT as canonical input (as its s-expressions are much easier to parse) and convert UVL and friends into SAT, possibly keep .model parser (and add specific format parsers) and only fall back to featureide for unknown file extensions
 - could also implement AST generator parse_pair iteratively
 - possibly parse lines concurrently (interacts with structural sharing and variable map)
 - could avoid reading entire file into string (but needs storing variable names somewhere with appropriate lifetime)
@@ -14,6 +13,8 @@ parser:
 general:
 - multithreaded tree traversal / transformations where possible? or too much overhead / impossible to implement safely? would require abandoning several approaches (e.g., next_id). alternatively: implement multithreading by parallel transformation of separate formulas (e.g., constraints or entire models) and merging them afterwards.
 - document other modules than formula
+- reasonable CLI defaults
+- error handling
 
 formula:
 - check if all relevant simplifications are implemented correctly: idempotency, splicing/merging (and more?), eliminating implies/bi-implies (which may be exponential itself!)
@@ -40,5 +41,3 @@ if new_hash != old_hash {
     }
     self.exprs_inv.entry(new_hash).or_default().push(id); // probably, we could only push here if no equal expr has already been pushed (does this interact weirdly when there are true hash collisions involved?)
 }
-
-link to https://www.domagoj-babic.com/uploads/ResearchProjects/Spear/dimacs-cnf.pdf, use .cnf instead of .dimacs (also in torte?)

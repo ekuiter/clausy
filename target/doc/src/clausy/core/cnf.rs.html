@@ -234,8 +234,8 @@
         exec::d4(<span class="kw-2">&amp;</span><span class="self">self</span>.to_string())
     }
 
-    <span class="kw">fn </span>count_featureide(model: <span class="kw-2">&amp;</span>str) -&gt; String {
-        exec::d4(<span class="kw-2">&amp;</span>exec::io(model, <span class="string">&quot;model&quot;</span>, <span class="string">&quot;dimacs&quot;</span>))
+    <span class="kw">fn </span>count_featureide(file: <span class="kw-2">&amp;</span>str) -&gt; String {
+        exec::d4(<span class="kw-2">&amp;</span>exec::io(file, <span class="string">&quot;sat&quot;</span>, <span class="string">&quot;dimacs&quot;</span>))
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_count(<span class="kw-2">&amp;</span><span class="self">self</span>, model: <span class="kw-2">&amp;</span>str) {

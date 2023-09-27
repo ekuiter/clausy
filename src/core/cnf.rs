@@ -92,8 +92,8 @@ impl<'a> Cnf<'a> {
         exec::d4(&self.to_string())
     }
 
-    fn count_featureide(model: &str) -> String {
-        exec::d4(&exec::io(model, "model", "dimacs"))
+    fn count_featureide(file: &str) -> String {
+        exec::d4(&exec::io(file, "sat", "dimacs"))
     }
 
     pub(crate) fn assert_count(&self, model: &str) {
