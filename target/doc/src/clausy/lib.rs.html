@@ -155,7 +155,7 @@
         </span>{
             formula = formula.assert_valid();
             <span class="kw">if </span>clauses.is_some() {
-                clauses.unwrap().assert_valid();
+                clauses.as_ref().unwrap().assert_valid();
             }
         }
     }

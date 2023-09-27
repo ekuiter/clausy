@@ -74,7 +74,7 @@ pub fn main(commands: &[String]) {
         {
             formula = formula.assert_valid();
             if clauses.is_some() {
-                clauses.unwrap().assert_valid();
+                clauses.as_ref().unwrap().assert_valid();
             }
         }
     }
