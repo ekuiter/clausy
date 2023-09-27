@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/core/cnf.rs`."><title>cnf.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-9bb858ba049f1f21.css" id="mainThemeStyle"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="clausy" data-themes="" data-resource-suffix="" data-rustdoc-version="1.72.0 (5680fa18f 2023-08-23)" data-channel="1.72.0" data-search-js="search-f6292fe389d70017.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-8c76f75bfb6bd192.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ><script src="../../../static.files/storage-59fd9b8ccb335783.js"></script><script defer src="../../../static.files/source-script-106908c7a7964ba4.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-0795b7d26be81095.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../clausy/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/core/clauses.rs`."><title>clauses.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-9bb858ba049f1f21.css" id="mainThemeStyle"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="clausy" data-themes="" data-resource-suffix="" data-rustdoc-version="1.72.0 (5680fa18f 2023-08-23)" data-channel="1.72.0" data-search-js="search-f6292fe389d70017.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-8c76f75bfb6bd192.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ><script src="../../../static.files/storage-59fd9b8ccb335783.js"></script><script defer src="../../../static.files/source-script-106908c7a7964ba4.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-0795b7d26be81095.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../clausy/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -125,27 +125,12 @@
 <a href="#125" id="125">125</a>
 <a href="#126" id="126">126</a>
 <a href="#127" id="127">127</a>
-<a href="#128" id="128">128</a>
-<a href="#129" id="129">129</a>
-<a href="#130" id="130">130</a>
-<a href="#131" id="131">131</a>
-<a href="#132" id="132">132</a>
-<a href="#133" id="133">133</a>
-<a href="#134" id="134">134</a>
-<a href="#135" id="135">135</a>
-<a href="#136" id="136">136</a>
-<a href="#137" id="137">137</a>
-<a href="#138" id="138">138</a>
-<a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a>
-<a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Clause representation of a feature-model formula.
 
 </span><span class="kw">use </span>std::{fmt, slice};
 
 <span class="kw">use crate</span>::{
-    core::formula::{Expr::<span class="kw-2">*</span>, ExprInFormula, Formula, Id, Var, VarId},
+    core::formula::{Expr::<span class="kw-2">*</span>, Formula, Id, Var, VarId},
     util::exec,
 };
 
@@ -153,19 +138,19 @@
 ///
 /// That is, this data structure enforces a conjunctive normal form.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Clauses&lt;<span class="lifetime">&#39;a</span>&gt; {
-    <span class="doccomment">/// The clauses of this CNF.
+    <span class="doccomment">/// The clauses of this clause representation.
     ///
-    /// A clause is a [Vec] of literals, each given as an absolute-value index into [Cnf::vars].
+    /// A clause is a [Vec] of literals, each given as an absolute-value index into [Clauses::vars].
     /// Negative values indicate negated variable occurrences.
     </span>clauses: Vec&lt;Vec&lt;VarId&gt;&gt;,
 
-    <span class="doccomment">/// The variables of this CNF.
+    <span class="doccomment">/// The variables of this clause representation.
     ///
-    /// This list is indexed into by the absolute values stored in [Cnf::clauses].
+    /// This list is indexed into by the absolute values stored in [Clauses::clauses].
     </span>vars: Vec&lt;Var&lt;<span class="lifetime">&#39;a</span>&gt;&gt;,
 }
 
-<span class="doccomment">/// Algorithms for representing a [Formula] as a [Cnf].
+<span class="doccomment">/// Algorithms for representing a [Formula] as [Clauses].
 </span><span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; Clauses&lt;<span class="lifetime">&#39;a</span>&gt; {
     <span class="doccomment">/// Returns the sub-expressions of a formula as clauses.
     ///
@@ -179,16 +164,10 @@
                 <span class="kw">if let </span>Var(var_id) = formula.exprs[child_id] {
                     clause.push(-var_id);
                 } <span class="kw">else </span>{
-                    <span class="macro">panic!</span>(
-                        <span class="string">&quot;expected Var below Not, got {}&quot;</span>,
-                        ExprInFormula(formula, <span class="kw-2">&amp;</span>id)
-                    );
+                    <span class="macro">unreachable!</span>();
                 }
             }
-            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(
-                <span class="string">&quot;expected Var or Not literal, got {}&quot;</span>,
-                ExprInFormula(formula, <span class="kw-2">&amp;</span>id)
-            ),
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
         };
 
         <span class="kw">let </span><span class="kw-2">mut </span>add_clause = |child_ids: <span class="kw-2">&amp;</span>[Id]| {
@@ -207,10 +186,7 @@
                     <span class="kw">match </span><span class="kw-2">&amp;</span>formula.exprs[<span class="kw-2">*</span>child_id] {
                         Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) =&gt; add_clause(slice::from_ref(child_id)),
                         Or(child_ids) =&gt; add_clause(<span class="kw-2">&amp;</span>child_ids),
-                        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(
-                            <span class="string">&quot;expected Var, Not, or Or expression, got {}&quot;</span>,
-                            ExprInFormula(formula, child_id)
-                        ),
+                        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
                     }
                 }
             }
@@ -219,27 +195,25 @@
         clauses
     }
 
-    <span class="doccomment">/// Panics if this CNF is invalid.
+    <span class="doccomment">/// Panics if this clause representation is invalid.
     ///
-    /// A CNF is valid if it has at least one variable and one clause.
+    /// A clause representation is valid if it has at least one variable and one clause.
+    </span><span class="attr">#[cfg(debug_assertions)]
     </span><span class="kw">fn </span>assert_valid(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="macro">assert!</span>(
-            <span class="self">self</span>.vars.len() &gt; <span class="number">0 </span>&amp;&amp; <span class="self">self</span>.clauses.len() &gt; <span class="number">0</span>,
-            <span class="string">&quot;CNF is invalid&quot;
-        </span>);
+        <span class="macro">debug_assert!</span>(<span class="self">self</span>.vars.len() &gt; <span class="number">0 </span>&amp;&amp; <span class="self">self</span>.clauses.len() &gt; <span class="number">0</span>);
     }
 
-    <span class="doccomment">/// Counts the number of satisfying assignments of this CNF.
+    <span class="doccomment">/// Counts the number of satisfying assignments of this clause representation.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>count(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
         exec::d4(<span class="kw-2">&amp;</span><span class="self">self</span>.to_string())
     }
 
-    <span class="kw">fn </span>count_featureide(file: <span class="kw-2">&amp;</span>str) -&gt; String {
-        exec::d4(<span class="kw-2">&amp;</span>exec::io(file, <span class="string">&quot;sat&quot;</span>, <span class="string">&quot;dimacs&quot;</span>))
+    <span class="kw">fn </span>count_featureide(file: <span class="kw-2">&amp;</span>str, extension: String) -&gt; String {
+        exec::d4(<span class="kw-2">&amp;</span>exec::io(file, <span class="kw-2">&amp;</span>extension, <span class="string">&quot;dimacs&quot;</span>))
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_count(<span class="kw-2">&amp;</span><span class="self">self</span>, model: <span class="kw-2">&amp;</span>str) {
-        <span class="macro">assert_eq!</span>(<span class="self">self</span>.count(), <span class="self">Self</span>::count_featureide(model));
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_count(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str, extension: String) {
+        <span class="macro">debug_assert_eq!</span>(<span class="self">self</span>.count(), <span class="self">Self</span>::count_featureide(file, extension));
     }
 }
 
@@ -260,21 +234,17 @@
                 <span class="kw">continue</span>;
             }
             <span class="kw">if let </span>Var::Named(name) = var {
-                <span class="macro">assert!</span>(!name.is_empty(), <span class="string">&quot;variable {i} has empty name&quot;</span>);
+                <span class="macro">debug_assert!</span>(!name.is_empty());
             }
-            <span class="macro">write!</span>(f, <span class="string">&quot;c {i} {var}\n&quot;</span>)<span class="question-mark">?</span>; <span class="comment">// to save space, do not print aux variables? or pass an option for that (with configurable prefix?)
+            <span class="macro">write!</span>(f, <span class="string">&quot;c {i} {var}\n&quot;</span>)<span class="question-mark">?</span>; <span class="comment">// todo: to save space, do not print aux variables? or pass an option for that (with configurable prefix?)
         </span>}
         <span class="macro">write!</span>(f, <span class="string">&quot;p cnf {} {}\n&quot;</span>, <span class="self">self</span>.vars.len() - <span class="number">1</span>, <span class="self">self</span>.clauses.len())<span class="question-mark">?</span>;
         <span class="kw">for </span>clause <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.clauses {
-            <span class="macro">assert_ne!</span>(clause.len(), <span class="number">0</span>, <span class="string">&quot;empty clause is not allowed&quot;</span>);
+            <span class="macro">debug_assert_ne!</span>(clause.len(), <span class="number">0</span>);
             <span class="kw">for </span>literal <span class="kw">in </span>clause {
-                <span class="macro">assert_ne!</span>(<span class="kw-2">*</span>literal, <span class="number">0</span>, <span class="string">&quot;literal 0 is not allowed&quot;</span>);
+                <span class="macro">debug_assert_ne!</span>(<span class="kw-2">*</span>literal, <span class="number">0</span>);
                 <span class="kw">let </span>var: usize = literal.unsigned_abs().try_into().unwrap();
-                <span class="macro">assert!</span>(
-                    var &lt; <span class="self">self</span>.vars.len(),
-                    <span class="string">&quot;variable {} not found&quot;</span>,
-                    literal.abs()
-                );
+                <span class="macro">debug_assert!</span>(var &lt; <span class="self">self</span>.vars.len());
                 <span class="macro">write!</span>(f, <span class="string">&quot;{literal} &quot;</span>)<span class="question-mark">?</span>;
             }
             <span class="macro">write!</span>(f, <span class="string">&quot;0\n&quot;</span>)<span class="question-mark">?</span>;

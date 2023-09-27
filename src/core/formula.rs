@@ -9,6 +9,8 @@ use std::{
 };
 use Expr::*;
 
+use super::clauses::Clauses;
+
 /// Whether to print identifiers of expressions.
 ///
 /// Useful for debugging, but should generally be disabled because as expected by [crate::tests].
@@ -32,7 +34,7 @@ pub(crate) type Id = usize;
 /// Identifier type for variables.
 ///
 /// Serves as an index into [Formula::vars].
-/// We also use this type to represent literals in [crate::core::cnf::Cnf], therefore we use a signed type.
+/// We also use this type to represent literals in [crate::core::clauses::Clauses], therefore we use a signed type.
 /// Also, we do not expect too many variables, so a 32-bit integer should suffice.
 pub(crate) type VarId = i32;
 
@@ -158,7 +160,7 @@ impl<'a> Formula<'a> {
     ///
     /// The created formula is initially invalid (see [Formula::assert_valid]).
     /// The auxiliary variable with number 0 has no meaningful sign and can therefore not be used.
-    /// This simplifies the representation of literals in [crate::core::cnf::Cnf].
+    /// This simplifies the representation of literals in [crate::core::clauses::Clauses].
     pub(crate) fn new() -> Self {
         Self {
             exprs: vec![Var(0)],
@@ -174,11 +176,9 @@ impl<'a> Formula<'a> {
     ///
     /// A formula is valid if it has at least one variable (added with [Formula::var]) and a root expression (set with [Formula::set_root_expr]).
     /// In addition, we ensure that structural sharing is not violated.
+    #[cfg(debug_assertions)]
     pub(crate) fn assert_valid(mut self) -> Self {
-        assert!(
-            self.aux_root_id > 0 && self.exprs.len() > 1 && self.vars.len() > 1,
-            "formula is invalid"
-        );
+        debug_assert!(self.aux_root_id > 0 && self.exprs.len() > 1 && self.vars.len() > 1);
         self.assert_shared();
         self
     }
@@ -272,10 +272,10 @@ impl<'a> Formula<'a> {
     /// That is, we return the only child of the auxiliary root expression (see [Formula::aux_root_id]).
     pub(crate) fn get_root_expr(&self) -> Id {
         if let And(ids) = &self.exprs[self.aux_root_id] {
-            assert!(ids.len() == 1, "aux root has more than one child");
+            debug_assert!(ids.len() == 1);
             ids[0]
         } else {
-            panic!("formula is invalid")
+            unreachable!()
         }
     }
 
@@ -460,9 +460,10 @@ impl<'a> Formula<'a> {
     /// Panics if structural sharing is violated in this formula.
     ///
     /// That is, we assert that every sub-expression's identifier is indeed the canonical one.
+    #[cfg(debug_assertions)]
     fn assert_shared(&mut self) {
         self.preorder_rev(|formula, id| {
-            assert_eq!(formula.get_expr(&formula.exprs[id]).unwrap(), id)
+            debug_assert_eq!(formula.get_expr(&formula.exprs[id]).unwrap(), id)
         });
     }
 
@@ -675,6 +676,10 @@ impl<'a> Formula<'a> {
         let root_id = self.expr(And(new_clauses));
         self.set_root_expr(root_id);
         self
+    }
+
+    pub(crate) fn to_clauses(&self) -> Clauses<'a> {
+        Clauses::from(self)
     }
 }
 

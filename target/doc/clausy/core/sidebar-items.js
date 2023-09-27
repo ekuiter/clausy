@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["cnf","formula"]};
+window.SIDEBAR_ITEMS = {"mod":["clauses","formula"]};

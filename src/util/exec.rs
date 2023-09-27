@@ -28,7 +28,7 @@ fn path(file_name: &str) -> String {
     if path.exists() {
         return path.to_str().unwrap().to_owned();
     }
-    panic!("could not locate file {}", file_name);
+    unreachable!()
 }
 
 /// Counts the number of satisfying assignments of some CNF in DIMACS format.
@@ -74,6 +74,6 @@ pub(crate) fn io(input: &str, input_format: &str, output_format: &str) -> String
     process.stdin.unwrap().write_all(input.as_bytes()).unwrap();
     let mut output = String::new();
     process.stdout.unwrap().read_to_string(&mut output).unwrap();
-    assert!(!output.is_empty());
+    debug_assert!(!output.is_empty());
     output
 }

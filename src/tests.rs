@@ -2,7 +2,7 @@
 
 #![allow(unused_imports)]
 use crate::core::{
-    cnf::Cnf,
+    clauses::Clauses,
     formula::{Expr::*, Formula},
 };
 
@@ -13,13 +13,13 @@ mod formula {
         use super::*;
 
         #[test]
-        #[should_panic(expected = "formula is invalid")]
+        #[should_panic]
         fn empty() {
             Formula::new().assert_valid();
         }
 
         #[test]
-        #[should_panic(expected = "formula is invalid")]
+        #[should_panic]
         fn no_root() {
             let mut f = Formula::new();
             let a = f.var("a");
@@ -188,7 +188,7 @@ mod formula {
                 .assert_valid()
                 .to_cnf_dist()
                 .assert_valid();
-            Cnf::from(&f).assert_count(&model);
+            Clauses::from(&f).assert_count(&model, String::from("model"));
             let model = "(((!def(a)))&(((def(c)|!def(a)))|((def(a))&(def(c)|!(def(a)|def(b))))))";
             let f = Formula::from(model)
                 .assert_valid()
@@ -196,7 +196,7 @@ mod formula {
                 .assert_valid()
                 .to_cnf_dist()
                 .assert_valid();
-            Cnf::from(&f).assert_count(&model);
+            Clauses::from(&f).assert_count(&model, String::from("model"));
         }
 
         #[test]
@@ -211,7 +211,7 @@ mod formula {
             let s = f.to_string();
             let f = f.assert_valid().to_cnf_dist().assert_valid();
             assert_eq!(s, f.to_string());
-            Cnf::from(&f).assert_count(&model);
+            Clauses::from(&f).assert_count(&model, String::from("model"));
         }
 
         #[test]
@@ -223,7 +223,7 @@ mod formula {
                 .assert_valid()
                 .to_cnf_dist()
                 .assert_valid();
-            Cnf::from(&f).assert_count(&model);
+            Clauses::from(&f).assert_count(&model, String::from("model"));
         }
     }
 }
@@ -240,9 +240,9 @@ mod cnf {
             .assert_valid()
             .to_cnf_dist()
             .assert_valid();
-        let cnf = Cnf::from(&f);
+        let cnf = Clauses::from(&f);
         assert_eq!(cnf.to_string().lines().count(), 14);
-        cnf.assert_count(&model);
+        cnf.assert_count(&model, String::from("model"));
     }
 }
 

@@ -65,10 +65,7 @@ impl FormulaParser for SatFormulaParser {
                 let mut pairs = pair.into_inner();
                 let var: VarId = pairs.next().unwrap().as_str().parse().unwrap();
                 let name = pairs.next().unwrap().as_str().trim();
-                assert!(
-                    !variable_names.contains_key(&var),
-                    "named same variable twice"
-                );
+                debug_assert!(!variable_names.contains_key(&var));
                 variable_names.insert(var, name);
             }
         }
@@ -91,7 +88,7 @@ impl FormulaParser for SatFormulaParser {
                 vars.push(formula.add_var_aux());
             }
         }
-        assert!(variable_names.is_empty(), "named invalid variable");
+        debug_assert!(variable_names.is_empty());
 
         parse_pair(pairs.next().unwrap(), &vars, formula)
     }

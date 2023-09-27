@@ -268,7 +268,7 @@
 
 </span><span class="attr">#![allow(unused_imports)]
 </span><span class="kw">use </span><span class="kw">crate</span>::core::{
-    cnf::Cnf,
+    clauses::Clauses,
     formula::{Expr::<span class="kw-2">*</span>, Formula},
 };
 
@@ -279,13 +279,13 @@
         <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
         <span class="attr">#[test]
-        #[should_panic(expected = <span class="string">&quot;formula is invalid&quot;</span>)]
+        #[should_panic]
         </span><span class="kw">fn </span>empty() {
             Formula::new().assert_valid();
         }
 
         <span class="attr">#[test]
-        #[should_panic(expected = <span class="string">&quot;formula is invalid&quot;</span>)]
+        #[should_panic]
         </span><span class="kw">fn </span>no_root() {
             <span class="kw">let </span><span class="kw-2">mut </span>f = Formula::new();
             <span class="kw">let </span>a = f.var(<span class="string">&quot;a&quot;</span>);
@@ -454,7 +454,7 @@
                 .assert_valid()
                 .to_cnf_dist()
                 .assert_valid();
-            Cnf::from(<span class="kw-2">&amp;</span>f).assert_count(<span class="kw-2">&amp;</span>model);
+            Clauses::from(<span class="kw-2">&amp;</span>f).assert_count(<span class="kw-2">&amp;</span>model, String::from(<span class="string">&quot;model&quot;</span>));
             <span class="kw">let </span>model = <span class="string">&quot;(((!def(a)))&amp;(((def(c)|!def(a)))|((def(a))&amp;(def(c)|!(def(a)|def(b))))))&quot;</span>;
             <span class="kw">let </span>f = Formula::from(model)
                 .assert_valid()
@@ -462,7 +462,7 @@
                 .assert_valid()
                 .to_cnf_dist()
                 .assert_valid();
-            Cnf::from(<span class="kw-2">&amp;</span>f).assert_count(<span class="kw-2">&amp;</span>model);
+            Clauses::from(<span class="kw-2">&amp;</span>f).assert_count(<span class="kw-2">&amp;</span>model, String::from(<span class="string">&quot;model&quot;</span>));
         }
 
         <span class="attr">#[test]
@@ -477,7 +477,7 @@
             <span class="kw">let </span>s = f.to_string();
             <span class="kw">let </span>f = f.assert_valid().to_cnf_dist().assert_valid();
             <span class="macro">assert_eq!</span>(s, f.to_string());
-            Cnf::from(<span class="kw-2">&amp;</span>f).assert_count(<span class="kw-2">&amp;</span>model);
+            Clauses::from(<span class="kw-2">&amp;</span>f).assert_count(<span class="kw-2">&amp;</span>model, String::from(<span class="string">&quot;model&quot;</span>));
         }
 
         <span class="attr">#[test]
@@ -489,7 +489,7 @@
                 .assert_valid()
                 .to_cnf_dist()
                 .assert_valid();
-            Cnf::from(<span class="kw-2">&amp;</span>f).assert_count(<span class="kw-2">&amp;</span>model);
+            Clauses::from(<span class="kw-2">&amp;</span>f).assert_count(<span class="kw-2">&amp;</span>model, String::from(<span class="string">&quot;model&quot;</span>));
         }
     }
 }
@@ -506,9 +506,9 @@
             .assert_valid()
             .to_cnf_dist()
             .assert_valid();
-        <span class="kw">let </span>cnf = Cnf::from(<span class="kw-2">&amp;</span>f);
+        <span class="kw">let </span>cnf = Clauses::from(<span class="kw-2">&amp;</span>f);
         <span class="macro">assert_eq!</span>(cnf.to_string().lines().count(), <span class="number">14</span>);
-        cnf.assert_count(<span class="kw-2">&amp;</span>model);
+        cnf.assert_count(<span class="kw-2">&amp;</span>model, String::from(<span class="string">&quot;model&quot;</span>));
     }
 }
 

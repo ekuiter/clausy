@@ -93,9 +93,6 @@
 <a href="#93" id="93">93</a>
 <a href="#94" id="94">94</a>
 <a href="#95" id="95">95</a>
-<a href="#96" id="96">96</a>
-<a href="#97" id="97">97</a>
-<a href="#98" id="98">98</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parser for DIMACS .sat files.
 
 </span><span class="kw">use </span>std::{collections::HashMap, vec};
@@ -163,10 +160,7 @@
                 <span class="kw">let </span><span class="kw-2">mut </span>pairs = pair.into_inner();
                 <span class="kw">let </span>var: VarId = pairs.next().unwrap().as_str().parse().unwrap();
                 <span class="kw">let </span>name = pairs.next().unwrap().as_str().trim();
-                <span class="macro">assert!</span>(
-                    !variable_names.contains_key(<span class="kw-2">&amp;</span>var),
-                    <span class="string">&quot;named same variable twice&quot;
-                </span>);
+                <span class="macro">debug_assert!</span>(!variable_names.contains_key(<span class="kw-2">&amp;</span>var));
                 variable_names.insert(var, name);
             }
         }
@@ -189,7 +183,7 @@
                 vars.push(formula.add_var_aux());
             }
         }
-        <span class="macro">assert!</span>(variable_names.is_empty(), <span class="string">&quot;named invalid variable&quot;</span>);
+        <span class="macro">debug_assert!</span>(variable_names.is_empty());
 
         parse_pair(pairs.next().unwrap(), <span class="kw-2">&amp;</span>vars, formula)
     }

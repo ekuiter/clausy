@@ -107,7 +107,7 @@
     <span class="kw">if </span>path.exists() {
         <span class="kw">return </span>path.to_str().unwrap().to_owned();
     }
-    <span class="macro">panic!</span>(<span class="string">&quot;could not locate file {}&quot;</span>, file_name);
+    <span class="macro">unreachable!</span>()
 }
 
 <span class="doccomment">/// Counts the number of satisfying assignments of some CNF in DIMACS format.
@@ -153,7 +153,7 @@
     process.stdin.unwrap().write_all(input.as_bytes()).unwrap();
     <span class="kw">let </span><span class="kw-2">mut </span>output = String::new();
     process.stdout.unwrap().read_to_string(<span class="kw-2">&amp;mut </span>output).unwrap();
-    <span class="macro">assert!</span>(!output.is_empty());
+    <span class="macro">debug_assert!</span>(!output.is_empty());
     output
 }
 </code></pre></div></section></main></body></html>

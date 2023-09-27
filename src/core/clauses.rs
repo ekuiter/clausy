@@ -3,28 +3,28 @@
 use std::{fmt, slice};
 
 use crate::{
-    core::formula::{Expr::*, ExprInFormula, Formula, Id, Var, VarId},
+    core::formula::{Expr::*, Formula, Id, Var, VarId},
     util::exec,
 };
 
 /// A [Formula] in its clause representation.
 ///
 /// That is, this data structure enforces a conjunctive normal form.
-pub(crate) struct Cnf<'a> {
-    /// The clauses of this CNF.
+pub(crate) struct Clauses<'a> {
+    /// The clauses of this clause representation.
     ///
-    /// A clause is a [Vec] of literals, each given as an absolute-value index into [Cnf::vars].
+    /// A clause is a [Vec] of literals, each given as an absolute-value index into [Clauses::vars].
     /// Negative values indicate negated variable occurrences.
     clauses: Vec<Vec<VarId>>,
 
-    /// The variables of this CNF.
+    /// The variables of this clause representation.
     ///
-    /// This list is indexed into by the absolute values stored in [Cnf::clauses].
+    /// This list is indexed into by the absolute values stored in [Clauses::clauses].
     vars: Vec<Var<'a>>,
 }
 
-/// Algorithms for representing a [Formula] as a [Cnf].
-impl<'a> Cnf<'a> {
+/// Algorithms for representing a [Formula] as [Clauses].
+impl<'a> Clauses<'a> {
     /// Returns the sub-expressions of a formula as clauses.
     ///
     /// We require that the formula already is in conjunctive normal form (see [Formula::to_cnf_dist]).
@@ -37,16 +37,10 @@ impl<'a> Cnf<'a> {
                 if let Var(var_id) = formula.exprs[child_id] {
                     clause.push(-var_id);
                 } else {
-                    panic!(
-                        "expected Var below Not, got {}",
-                        ExprInFormula(formula, &id)
-                    );
+                    unreachable!();
                 }
             }
-            _ => panic!(
-                "expected Var or Not literal, got {}",
-                ExprInFormula(formula, &id)
-            ),
+            _ => unreachable!(),
         };
 
         let mut add_clause = |child_ids: &[Id]| {
@@ -65,10 +59,7 @@ impl<'a> Cnf<'a> {
                     match &formula.exprs[*child_id] {
                         Var(_) | Not(_) => add_clause(slice::from_ref(child_id)),
                         Or(child_ids) => add_clause(&child_ids),
-                        _ => panic!(
-                            "expected Var, Not, or Or expression, got {}",
-                            ExprInFormula(formula, child_id)
-                        ),
+                        _ => unreachable!(),
                     }
                 }
             }
@@ -77,31 +68,29 @@ impl<'a> Cnf<'a> {
         clauses
     }
 
-    /// Panics if this CNF is invalid.
+    /// Panics if this clause representation is invalid.
     ///
-    /// A CNF is valid if it has at least one variable and one clause.
+    /// A clause representation is valid if it has at least one variable and one clause.
+    #[cfg(debug_assertions)]
     fn assert_valid(&self) {
-        assert!(
-            self.vars.len() > 0 && self.clauses.len() > 0,
-            "CNF is invalid"
-        );
+        debug_assert!(self.vars.len() > 0 && self.clauses.len() > 0);
     }
 
-    /// Counts the number of satisfying assignments of this CNF.
+    /// Counts the number of satisfying assignments of this clause representation.
     pub(crate) fn count(&self) -> String {
         exec::d4(&self.to_string())
     }
 
-    fn count_featureide(file: &str) -> String {
-        exec::d4(&exec::io(file, "sat", "dimacs"))
+    fn count_featureide(file: &str, extension: String) -> String {
+        exec::d4(&exec::io(file, &extension, "dimacs"))
     }
 
-    pub(crate) fn assert_count(&self, model: &str) {
-        assert_eq!(self.count(), Self::count_featureide(model));
+    pub(crate) fn assert_count(&self, file: &str, extension: String) {
+        debug_assert_eq!(self.count(), Self::count_featureide(file, extension));
     }
 }
 
-impl<'a> From<&Formula<'a>> for Cnf<'a> {
+impl<'a> From<&Formula<'a>> for Clauses<'a> {
     fn from(formula: &Formula<'a>) -> Self {
         Self {
             clauses: Self::clauses(&formula),
@@ -110,7 +99,7 @@ impl<'a> From<&Formula<'a>> for Cnf<'a> {
     }
 }
 
-impl<'a> fmt::Display for Cnf<'a> {
+impl<'a> fmt::Display for Clauses<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.assert_valid();
         for (i, var) in self.vars.iter().enumerate() {
@@ -118,21 +107,17 @@ impl<'a> fmt::Display for Cnf<'a> {
                 continue;
             }
             if let Var::Named(name) = var {
-                assert!(!name.is_empty(), "variable {i} has empty name");
+                debug_assert!(!name.is_empty());
             }
-            write!(f, "c {i} {var}\n")?; // to save space, do not print aux variables? or pass an option for that (with configurable prefix?)
+            write!(f, "c {i} {var}\n")?; // todo: to save space, do not print aux variables? or pass an option for that (with configurable prefix?)
         }
         write!(f, "p cnf {} {}\n", self.vars.len() - 1, self.clauses.len())?;
         for clause in &self.clauses {
-            assert_ne!(clause.len(), 0, "empty clause is not allowed");
+            debug_assert_ne!(clause.len(), 0);
             for literal in clause {
-                assert_ne!(*literal, 0, "literal 0 is not allowed");
+                debug_assert_ne!(*literal, 0);
                 let var: usize = literal.unsigned_abs().try_into().unwrap();
-                assert!(
-                    var < self.vars.len(),
-                    "variable {} not found",
-                    literal.abs()
-                );
+                debug_assert!(var < self.vars.len());
                 write!(f, "{literal} ")?;
             }
             write!(f, "0\n")?;
