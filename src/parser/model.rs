@@ -52,6 +52,8 @@ fn parse_into<'a>(file: &'a str, formula: &mut Formula<'a>) -> Id {
         }
     }
 
+    // todo: set all variables exclusive to the file as dead in formula and vice versa
+
     if child_ids.len() == 1 {
         child_ids[0]
     } else {

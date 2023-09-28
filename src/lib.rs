@@ -71,6 +71,7 @@ pub fn main(mut commands: Vec<String>) {
                 } else {
                     unreachable!();
                 }
+                clauses = None;
             }
         }
         #[cfg(debug_assertions)]

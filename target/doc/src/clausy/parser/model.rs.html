@@ -73,6 +73,8 @@
 <a href="#73" id="73">73</a>
 <a href="#74" id="74">74</a>
 <a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parser for KConfigReader .model files.
 
 </span><span class="kw">use </span>pest::{iterators::Pair, Parser};
@@ -127,7 +129,9 @@
         }
     }
 
-    <span class="kw">if </span>child_ids.len() == <span class="number">1 </span>{
+    <span class="comment">// todo: set all variables exclusive to the file as dead in formula and vice versa
+
+    </span><span class="kw">if </span>child_ids.len() == <span class="number">1 </span>{
         child_ids[<span class="number">0</span>]
     } <span class="kw">else </span>{
         formula.expr(And(child_ids))
