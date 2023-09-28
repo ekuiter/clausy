@@ -27,7 +27,7 @@ cat model.uvl | bin/clausy -.uvl to_nnf to_cnf_dist to_clauses count
 
 ## Tests & Documentation
 
-Documentation for clausy is available [online](https://ekuiter.github.io/clausy/), see [`clausy > formula > Formula`](https://ekuiter.github.io/clausy/clausy/formula/struct.Formula.html) for details on algorithm usage.
+Documentation for clausy is available [online](https://ekuiter.github.io/clausy/), see [`clausy::core::formula::Formula`](https://ekuiter.github.io/clausy/clausy/core/formula/struct.Formula.html) for details on algorithm usage.
 
 ```
 # run tests
