@@ -17,6 +17,7 @@ general:
 - clap crate for CLI option parsing
 - currently, .model files do not include unconstrained features and there is no mechanism to declare them
 - currently, re-pivoting with "1 print 2 print" interacts with auxiliary variables (could maybe be 'fixed' by only emitting Aux vars into DIMACS if they are actually mentioned in at least one clause?) also, when i mark features as dead when merging formulas, these dead features will get printed into any dimacs. this is probably not intended. maybe the set of natural variables has to be calculated dynamically when printing DIMACS?
+- think carefully when set_child_exprs is correct and when expr is correct - e.g., for NNF transformation, simply using set_child_exprs is invalid, as in -(a|b)&-(c&-(a|b)), we need at the end both (a|b) and (-a&-&b).
 
 formula:
 - check if all relevant simplifications are implemented correctly: idempotency, splicing/merging (and more?), eliminating implies/bi-implies (which may be exponential itself!)
