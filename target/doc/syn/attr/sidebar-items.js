@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["AttrStyle","Meta"],"mod":["parsing","printing"],"struct":["Attribute","MetaList","MetaNameValue"],"trait":["FilterAttrs"]};

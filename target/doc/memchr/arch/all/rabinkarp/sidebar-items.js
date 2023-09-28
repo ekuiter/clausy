@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["is_equal_raw","is_fast"],"struct":["Finder","FinderRev","Hash"]};

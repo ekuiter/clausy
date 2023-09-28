@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["Data"],"mod":["parsing","printing"],"struct":["DataEnum","DataStruct","DataUnion","DeriveInput"]};

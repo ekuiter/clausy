@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["Prefilter"],"fn":["find","find_iter","rfind","rfind_iter"],"mod":["searcher"],"struct":["FindIter","FindRevIter","Finder","FinderBuilder","FinderRev"]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["Pair"],"fn":["do_extend","empty_punctuated_iter","empty_punctuated_iter_mut"],"mod":["printing"],"struct":["IntoIter","IntoPairs","Iter","IterMut","Pairs","PairsMut","PrivateIter","PrivateIterMut","Punctuated"],"trait":["IterMutTrait","IterTrait"]};

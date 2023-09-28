@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["count_raw","memchr2_raw","memchr3_raw","memchr_raw","memrchr2_raw","memrchr3_raw","memrchr_raw"],"macro":["unsafe_ifunc"]};
