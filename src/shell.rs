@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+use crate::core::formula::ExprInFormula;
 use crate::parser::sat_inline::SatInlineFormulaParser;
 
 use crate::{
@@ -46,6 +47,11 @@ pub fn main(mut commands: Vec<String>) {
                 } else {
                     println!("{}", formula);
                 };
+            }
+            "print_sub_exprs" => {
+                for id in formula.sub_exprs() {
+                    println!("{}", ExprInFormula(&formula, &id));
+                }
             }
             "to_nnf" => formula = formula.to_nnf(),
             "to_cnf_dist" => formula = formula.to_cnf_dist(),

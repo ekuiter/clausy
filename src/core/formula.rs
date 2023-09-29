@@ -200,7 +200,7 @@ impl<'a> Formula<'a> {
     fn add_expr(&mut self, expr: Expr) -> Id {
         let id = self.exprs.len();
         let hash = Self::hash_expr(&expr);
-        self.exprs.insert(id, expr);
+        self.exprs.push(expr);
         self.exprs_inv.entry(hash).or_default().push(id);
         id
     }
@@ -235,14 +235,14 @@ impl<'a> Formula<'a> {
     fn add_var(&mut self, var: Var<'a>) -> Id {
         let id = self.vars.len();
         let id_signed: i32 = id.try_into().unwrap();
-        self.vars.insert(id, var);
+        self.vars.push(var);
         self.vars_inv.insert(var.clone(), id_signed);
         self.expr(Var(id_signed))
     }
 
     /// Adds a new named variable to this formula, returning the identifier of its [Var] expression.
-    fn add_var_named(&mut self, var: &'a str) -> Id {
-        self.add_var(Var::Named(var))
+    fn add_var_named(&mut self, name: &'a str) -> Id {
+        self.add_var(Var::Named(name))
     }
 
     /// Adds a new auxiliary variable to this formula, returning the identifier of its [Var] expression.
@@ -255,8 +255,8 @@ impl<'a> Formula<'a> {
     ///
     /// Works analogously to [Formula::get_expr] (see [Formula::vars_inv]).
     /// As for [Formula::add_var], it is usually more convenient to return the [Var] expression's identifier.
-    fn get_var_named(&mut self, var: &str) -> Option<Id> {
-        Some(self.expr(Var(*self.vars_inv.get(&Var::Named(var))?)))
+    fn get_var_named(&mut self, name: &str) -> Option<Id> {
+        Some(self.expr(Var(*self.vars_inv.get(&Var::Named(name))?)))
     }
 
     /// Adds or looks up a named variable of this formula, returning its [Var] expression's identifier.
@@ -375,7 +375,7 @@ impl<'a> Formula<'a> {
         match &self.exprs[id] {
             Var(var_id) => {
                 let var_id: usize = (*var_id).try_into().unwrap();
-                write!(f, "{}{printed_id}", self.vars.get(var_id).unwrap())
+                write!(f, "{}{printed_id}", self.vars[var_id])
             }
             Not(id) => write_helper("Not", slice::from_ref(id)),
             And(ids) => write_helper("And", ids),
@@ -414,14 +414,14 @@ impl<'a> Formula<'a> {
 
     /// Visits all sub-expressions of this formula using a reverse preorder traversal.
     ///
-    /// To preserve structural sharing, we assume that the given visitor is idempotent and only performs mutation
-    /// with the designated methods, such as [Formula::var], [Formula::expr] and [Formula::set_child_exprs].
+    /// To preserve structural sharing, we assume that the given visitor is idempotent (in terms of formula mutation) and only
+    /// performs mutation with the designated methods, such as [Formula::var], [Formula::expr] and [Formula::set_child_exprs].
     /// The visitor is called at most once per unique sub-expression:
     /// It will not be called several times on the same sub-expression - this leverages structural sharing.
-    /// However, we can also not guarantee it to be called on all sub-expressions - as it might change the set of sub-expressions.
+    /// However, we can also not guarantee it to be called on all sub-expressions - as it might change the very set of sub-expressions.
     /// For improved performance, the traversal is reversed, so children are traversed right-to-left.
-    fn preorder_rev(&mut self, mut visitor: impl FnMut(&mut Self, Id) -> ()) {
-        let mut remaining_ids = vec![self.aux_root_id];
+    fn preorder_rev(&mut self, first_id: Id, mut visitor: impl FnMut(&mut Self, Id) -> ()) {
+        let mut remaining_ids = vec![first_id];
         let mut visited_ids = HashSet::<Id>::new();
         while !remaining_ids.is_empty() {
             let id = remaining_ids.pop().unwrap();
@@ -437,8 +437,8 @@ impl<'a> Formula<'a> {
     /// Visits all sub-expressions of this formula using a reverse postorder traversal.
     ///
     /// Conceptually, this is similar to [Formula::preorder_rev], but sub-expressions are visited bottom-up instead of top-down.
-    fn postorder_rev(&mut self, mut visitor: impl FnMut(&mut Self, Id) -> ()) {
-        let mut remaining_ids = vec![self.aux_root_id];
+    fn postorder_rev(&mut self, first_id: Id, mut visitor: impl FnMut(&mut Self, Id) -> ()) {
+        let mut remaining_ids = vec![first_id];
         let mut seen_ids = HashSet::<Id>::new();
         let mut visited_ids = HashSet::<Id>::new();
         while !remaining_ids.is_empty() {
@@ -464,7 +464,7 @@ impl<'a> Formula<'a> {
     /// That is, we assert that every sub-expression's identifier is indeed the canonical one.
     #[cfg(debug_assertions)]
     fn assert_shared(&mut self) {
-        self.preorder_rev(|formula, id| {
+        self.preorder_rev(self.aux_root_id, |formula, id| {
             debug_assert_eq!(formula.get_expr(&formula.exprs[id]).unwrap(), id)
         });
     }
@@ -474,14 +474,38 @@ impl<'a> Formula<'a> {
     /// As [Formula::preorder_rev] mutates expressions before their children, it may violate structural sharing.
     /// The easiest way to fix this is by calling this function, which establishes the invariant again with a postorder traversal.
     fn make_shared(&mut self) {
-        self.postorder_rev(|formula, id| {
+        self.postorder_rev(self.aux_root_id, |formula, id| {
             formula.set_child_exprs(id, Self::get_child_exprs(&formula.exprs[id]).to_vec());
         });
     }
 
-    /// Prints all sub-expression of this formula.
-    fn print_sub_exprs(&mut self) {
-        self.postorder_rev(|formula, id| println!("{}", ExprInFormula(formula, &id)));
+    /// Returns the identifiers of all sub-expressions of this formula.
+    /// 
+    /// Due to structural sharing, each identifier is guaranteed to appear only once.
+    pub(crate) fn sub_exprs(&mut self) -> Vec<Id> {
+        let mut sub_exprs = Vec::<Id>::new();
+        self.preorder_rev(self.aux_root_id, |formula, id| {
+            if id != formula.aux_root_id {
+                sub_exprs.push(id);
+            }
+        });
+        sub_exprs
+    }
+
+    /// Returns all named sub-variables of this formula.
+    /// 
+    /// Analogously to a sub-expression, a sub-variable is a variable in [Formula::vars] that appear below the auxiliary root expression.
+    fn named_vars(&mut self, first_id: Id) -> HashSet<Var<'a>> {
+        let mut named_vars = HashSet::<Var<'a>>::new();
+        self.preorder_rev(first_id, |formula, id| {
+            if let Var(var_id) = formula.exprs[id] {
+                let var_id: usize = var_id.try_into().unwrap();
+                if let Var::Named(_) = formula.vars[var_id] {
+                    named_vars.insert(formula.vars[var_id]);
+                }
+            }
+        });
+        named_vars // todo: when using this set, take care of order to guarantee determinism
     }
 
     /// Transforms this formula into negation normal form by applying De Morgan's laws and removing double negations.
@@ -490,7 +514,7 @@ impl<'a> Formula<'a> {
     /// Meanwhile, we push negations towards the leaves (i.e., [Var] expressions) and we remove double negations.
     /// After the traversal, we re-establish structural sharing (see [Formula::make_shared]).
     pub(crate) fn to_nnf(mut self) -> Self {
-        self.preorder_rev(|formula, id| {
+        self.preorder_rev(self.aux_root_id, |formula, id| {
             // todo probably need another copy here as for to_cnf_dist to make splicing/unary handling easier
             let mut child_ids: Vec<Id> = Self::get_child_exprs(&formula.exprs[id]).to_vec();
             for child_id in child_ids.iter_mut() {
@@ -533,7 +557,7 @@ impl<'a> Formula<'a> {
         // todo: refactor code
         // todo also, is this idempotent?
         // todo currently, this seems correct, but much less efficient than FeatureIDE, possibly optimize
-        self.postorder_rev(|formula, id| {
+        self.postorder_rev(self.aux_root_id, |formula, id| {
             // todo need the children two times on the stack here, could maybe be disabled, but then merging is more complicated
             let child_ids = Self::get_child_exprs(&formula.exprs[id]).to_vec();
             let mut new_child_ids = Vec::<Id>::new();
@@ -649,7 +673,7 @@ impl<'a> Formula<'a> {
         // todo is this idempotent?
         let mut new_clauses = Vec::<Id>::new();
 
-        self.postorder_rev(|formula, id| {
+        self.postorder_rev(self.aux_root_id, |formula, id| {
             let child_ids = Self::get_child_exprs(&formula.exprs[id]).to_vec();
             let mut new_child_ids = Vec::<Id>::new();
 
@@ -659,6 +683,10 @@ impl<'a> Formula<'a> {
                     And(grandchild_ids) => {
                         // todo what about unary And?
                         // todo ...
+                        // todo this assumes deduplicated child_ids, as otherwise, duplicate children will get _two_ aux vars
+                        // todo even worse, currently this does not ensure structural sharing at all, because the child is not mutated in place, right?
+                        // todo actually, this does ensure structural sharing, but still needlessly introduces aux vars. so maybe have another invariant:
+                        // todo "minimal aux vars" - minimal in the sense that no two aux vars are biimplied?
                         let (var, clauses) = formula.def_and(&grandchild_ids.clone());
                         new_clauses.extend(clauses);
                         new_child_ids.push(var);

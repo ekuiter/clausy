@@ -18,6 +18,14 @@ general:
 - currently, .model files do not include unconstrained features and there is no mechanism to declare them
 - currently, re-pivoting with "1 print 2 print" interacts with auxiliary variables (could maybe be 'fixed' by only emitting Aux vars into DIMACS if they are actually mentioned in at least one clause?) also, when i mark features as dead when merging formulas, these dead features will get printed into any dimacs. this is probably not intended. maybe the set of natural variables has to be calculated dynamically when printing DIMACS?
 - think carefully when set_child_exprs is correct and when expr is correct - e.g., for NNF transformation, simply using set_child_exprs is invalid, as in -(a|b)&-(c&-(a|b)), we need at the end both (a|b) and (-a&-&b).
+- think about whether/when "a.sat to_tseitin b.sat to_tseitin +(1 -2)" is valid (does it require a subsequent tseitin/dist transformation, which is tractable? or must the entire formula be tseitin-transformed afterwards as in "a.sat b.sat to_tseitin +(1 -2)", losing the 'knowledge compilation' aspect to some degree?)
+- to improve performance, we may even run the tseitin transformation _while parsing the formula/while constructing it_, although this might require rewriting some code
+- for comparing formulas, one assumption is that variables with equal names are considered to be the same (no difference), so renaming cannot be detected obviously. unnamed (aux) variables are not regarded in the comparison (not added as dead variables anywhere), so they better be strictly defined by natural variables (guaranteed by tseitin). best if the input formulas do not include any aux variables.
+- sell the tool via invariants/guarantees:
+  - no idempotency, no commutativity
+  - maximum structural sharing
+  - minimum aux variables
+  - deterministic
 
 formula:
 - check if all relevant simplifications are implemented correctly: idempotency, splicing/merging (and more?), eliminating implies/bi-implies (which may be exponential itself!)
