@@ -317,15 +317,52 @@ impl<'a> Formula<'a> {
     /// Still, we can push the identifier anyway, as only the first identifier will be considered.
     /// Because this function cleans up violations of children, it must be called after, not before children have been mutated.
     /// Thus, it does not preserve structural sharing on its own when used in [Formula::preorder_rev].
+    /// Finally, we never mutate leaves in the syntax tree (i.e., variables).
     fn set_child_exprs(&mut self, id: Id, mut ids: Vec<Id>) {
+        if let Var(_) = self.exprs[id] {
+            return;
+        }
         for id in ids.iter_mut() {
             *id = self.get_expr(&self.exprs[*id]).unwrap(); // todo: (when) does this actually do something?
         }
         match &mut self.exprs[id] {
-            Var(_) => (),
+            Var(_) => unreachable!(),
             Not(id) => *id = ids[0],
             And(child_ids) | Or(child_ids) => *child_ids = ids,
         };
+        self.exprs_inv
+            .entry(Self::hash_expr(&self.exprs[id]))
+            .or_default()
+            .push(id);
+    }
+
+    /// Returns an expression with the given children and of the same kind as another given expression.
+    /// 
+    /// Variables are returned as is.
+    fn expr_with_children(expr: &Expr, child_ids: Vec<Id>) -> Expr {
+        match expr {
+            Var(var_id) => Var(*var_id),
+            Not(_) => Not(child_ids[0]),
+            And(_) => And(child_ids),
+            Or(_) => Or(child_ids),
+        }
+    }
+
+    // todo
+    fn set_expr(&mut self, id: Id, mut expr: Expr) {
+        if let Var(_) = self.exprs[id] {
+            return;
+        }
+        match expr {
+            Var(_) => unreachable!(),
+            Not(ref mut id) => *id = self.get_expr(&self.exprs[*id]).unwrap(),
+            And(ref mut ids) | Or(ref mut ids) => {
+                for id in ids.iter_mut() {
+                    *id = self.get_expr(&self.exprs[*id]).unwrap(); // todo: (when) does this actually do something?
+                }
+            },
+        }
+        self.exprs[id] = expr;
         self.exprs_inv
             .entry(Self::hash_expr(&self.exprs[id]))
             .or_default()
@@ -699,7 +736,7 @@ impl<'a> Formula<'a> {
                 }
             }
 
-            formula.set_child_exprs(id, new_child_ids); // todo dedup?
+            formula.set_expr(id, Self::expr_with_children(&formula.exprs[id], new_child_ids)); // todo dedup?
         });
 
         new_clauses.push(self.get_root_expr());
