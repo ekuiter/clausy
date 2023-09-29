@@ -227,44 +227,49 @@ impl<'a> Formula<'a> {
         self.get_expr(&expr).unwrap_or_else(|| self.add_expr(expr))
     }
 
-    /// Adds a new variable to this formula, returning the identifier of its [Var] expression.
+    /// Adds a new variable to this formula, returning its identifier.
     ///
     /// Works analogously to [Formula::add_expr] (see [Formula::vars_inv]).
-    /// However, it does not return the variable's identifier, but its [Var] expression's identifier.
-    /// This is usually more convenient.
-    fn add_var(&mut self, var: Var<'a>) -> Id {
+    fn add_var(&mut self, var: Var<'a>) -> VarId {
         let id = self.vars.len();
         let id_signed: i32 = id.try_into().unwrap();
         self.vars.push(var);
         self.vars_inv.insert(var.clone(), id_signed);
-        self.expr(Var(id_signed))
+        id_signed
     }
 
-    /// Adds a new named variable to this formula, returning the identifier of its [Var] expression.
-    fn add_var_named(&mut self, name: &'a str) -> Id {
+    /// Adds a new named variable to this formula, returning its identifier.
+    fn add_var_named(&mut self, name: &'a str) -> VarId {
         self.add_var(Var::Named(name))
     }
 
-    /// Adds a new auxiliary variable to this formula, returning the identifier of its [Var] expression.
-    pub(crate) fn add_var_aux(&mut self) -> Id {
+    /// Adds a new auxiliary variable to this formula, returning its identifier.
+    pub(crate) fn add_var_aux(&mut self) -> VarId {
         self.aux_var_id += 1;
         self.add_var(Var::Aux(self.aux_var_id))
     }
 
-    /// Looks ups the identifier for the [Var] expression of a named variable in this formula.
+    /// Looks ups the identifier of a named variable in this formula.
     ///
     /// Works analogously to [Formula::get_expr] (see [Formula::vars_inv]).
-    /// As for [Formula::add_var], it is usually more convenient to return the [Var] expression's identifier.
-    fn get_var_named(&mut self, name: &str) -> Option<Id> {
-        Some(self.expr(Var(*self.vars_inv.get(&Var::Named(name))?)))
+    fn get_var_named(&mut self, name: &str) -> Option<VarId> {
+        Some(*self.vars_inv.get(&Var::Named(name))?)
     }
 
     /// Adds or looks up a named variable of this formula, returning its [Var] expression's identifier.
     ///
     /// This is the preferred way to obtain a [Var] expression's identifier (see [Formula::expr]).
-    pub(crate) fn var(&mut self, var: &'a str) -> Id {
-        self.get_var_named(var)
-            .unwrap_or_else(|| self.add_var_named(var))
+    pub(crate) fn var_expr(&mut self, var: &'a str) -> Id {
+        let var_id = self
+            .get_var_named(var)
+            .unwrap_or_else(|| self.add_var_named(var));
+        self.expr(Var(var_id))
+    }
+
+    /// Adds a new auxiliary variable to this formula, returning its [Var] expression's identifier.
+    pub(crate) fn add_var_aux_expr(&mut self) -> Id {
+        let var_id = self.add_var_aux();
+        self.expr(Var(var_id))
     }
 
     /// Returns the root expression of this formula.
@@ -337,7 +342,7 @@ impl<'a> Formula<'a> {
     }
 
     /// Returns an expression with the given children and of the same kind as another given expression.
-    /// 
+    ///
     /// Variables are returned as is.
     fn expr_with_children(expr: &Expr, child_ids: Vec<Id>) -> Expr {
         match expr {
@@ -354,13 +359,13 @@ impl<'a> Formula<'a> {
             return;
         }
         match expr {
-            Var(_) => unreachable!(),
+            Var(_) => (),
             Not(ref mut id) => *id = self.get_expr(&self.exprs[*id]).unwrap(),
             And(ref mut ids) | Or(ref mut ids) => {
                 for id in ids.iter_mut() {
                     *id = self.get_expr(&self.exprs[*id]).unwrap(); // todo: (when) does this actually do something?
                 }
-            },
+            }
         }
         self.exprs[id] = expr;
         self.exprs_inv
@@ -517,7 +522,7 @@ impl<'a> Formula<'a> {
     }
 
     /// Returns the identifiers of all sub-expressions of this formula.
-    /// 
+    ///
     /// Due to structural sharing, each identifier is guaranteed to appear only once.
     pub(crate) fn sub_exprs(&mut self) -> Vec<Id> {
         let mut sub_exprs = Vec::<Id>::new();
@@ -530,7 +535,7 @@ impl<'a> Formula<'a> {
     }
 
     /// Returns all named sub-variables of this formula.
-    /// 
+    ///
     /// Analogously to a sub-expression, a sub-variable is a variable in [Formula::vars] that appear below the auxiliary root expression.
     fn named_vars(&mut self, first_id: Id) -> HashSet<Var<'a>> {
         let mut named_vars = HashSet::<Var<'a>>::new();
@@ -674,35 +679,38 @@ impl<'a> Formula<'a> {
     /// Defines an [And] expression with a new auxiliary variable.
     ///
     /// That is, we create a new auxiliary variable and clauses that let it imply all conjuncts and let it be implied by the conjunction.
-    fn def_and(&mut self, ids: &[Id]) -> (Id, Vec<Id>) {
-        let var = self.add_var_aux();
-        let not_var = self.expr(Not(var));
+    /// As an optimization, we do not create a [Var] expression for the new variable, as we are replacing an existing expression.
+    fn def_and(&mut self, var_expr_id: Id, ids: &[Id]) -> (VarId, Vec<Id>) {
+        // todo: these are guaranteed to create new expressions, so we can call add_expr instead expr (same for def_or)
+        let var_id = self.add_var_aux();
+        let not_var_expr_id = self.expr(Not(var_expr_id));
         let mut clauses = Vec::<Id>::new();
         for id in ids {
-            clauses.push(self.expr(Or(vec![not_var, *id])));
+            clauses.push(self.expr(Or(vec![not_var_expr_id, *id])));
         }
-        let mut clause = vec![var];
+        let mut clause = vec![var_expr_id];
         // todo might create double negation here, avoid this (presumably already in expr(Not(...))? although this would affect parsing, maybe extra method)
         clause.extend(self.negate_exprs(ids.to_vec()));
         clauses.push(self.expr(Or(clause)));
         // todo add these to the formula, ideally also splicing correctly
-        (var, clauses)
+        (var_id, clauses)
     }
 
     /// Defines an [Or] expression with a new auxiliary variable.
     ///
     /// That is, we create a new auxiliary variable and clauses that let it imply the disjunction and let it be implied by all disjuncts.
-    fn def_or(&mut self, ids: &[Id]) -> (Id, Vec<Id>) {
-        let var = self.add_var_aux();
-        let not_var = self.expr(Not(var));
-        let mut clause = vec![not_var];
+    /// Works analogously to [Formula::def_and].
+    fn def_or(&mut self, var_expr_id: Id, ids: &[Id]) -> (VarId, Vec<Id>) {
+        let var_id = self.add_var_aux();
+        let not_var_expr_id = self.expr(Not(var_expr_id));
+        let mut clause = vec![not_var_expr_id];
         clause.extend(ids);
         let mut clauses = vec![self.expr(Or(clause))];
         for id in ids {
-            let new_expr = Or(vec![var, self.expr(Not(*id))]);
+            let new_expr = Or(vec![var_expr_id, self.expr(Not(*id))]);
             clauses.push(self.expr(new_expr));
         }
-        (var, clauses)
+        (var_id, clauses)
     }
 
     // todo currently assumes NNF for simplicity, but not a good idea generally - also, does not guarantee NNF itself, must be called again
@@ -711,32 +719,29 @@ impl<'a> Formula<'a> {
         let mut new_clauses = Vec::<Id>::new();
 
         self.postorder_rev(self.aux_root_id, |formula, id| {
-            let child_ids = Self::get_child_exprs(&formula.exprs[id]).to_vec();
-            let mut new_child_ids = Vec::<Id>::new();
-
-            for child_id in child_ids {
-                match &formula.exprs[child_id] {
-                    Var(_) | Not(_) => new_child_ids.push(child_id),
-                    And(grandchild_ids) => {
-                        // todo what about unary And?
-                        // todo ...
-                        // todo this assumes deduplicated child_ids, as otherwise, duplicate children will get _two_ aux vars
-                        // todo even worse, currently this does not ensure structural sharing at all, because the child is not mutated in place, right?
-                        // todo actually, this does ensure structural sharing, but still needlessly introduces aux vars. so maybe have another invariant:
-                        // todo "minimal aux vars" - minimal in the sense that no two aux vars are biimplied?
-                        let (var, clauses) = formula.def_and(&grandchild_ids.clone());
-                        new_clauses.extend(clauses);
-                        new_child_ids.push(var);
-                    }
-                    Or(grandchild_ids) => {
-                        let (var, clauses) = formula.def_or(&grandchild_ids.clone());
-                        new_clauses.extend(clauses);
-                        new_child_ids.push(var);
-                    }
-                }
+            if id == formula.aux_root_id { // todo: make this obsolete, if possible
+                return;
             }
 
-            formula.set_expr(id, Self::expr_with_children(&formula.exprs[id], new_child_ids)); // todo dedup?
+            match &formula.exprs[id] {
+                Var(_) | Not(_) => (),
+                And(child_ids) => {
+                    // todo what about unary And?
+                    // todo ...
+                    // todo this assumes deduplicated child_ids, as otherwise, duplicate children will get _two_ aux vars
+                    // todo even worse, currently this does not ensure structural sharing at all, because the child is not mutated in place, right?
+                    // todo actually, this does ensure structural sharing, but still needlessly introduces aux vars. so maybe have another invariant:
+                    // todo "minimal aux vars" - minimal in the sense that no two aux vars are biimplied?
+                    let (var_id, clauses) = formula.def_and(id, &child_ids.clone());
+                    new_clauses.extend(clauses);
+                    formula.set_expr(id, Var(var_id));
+                }
+                Or(grandchild_ids) => {
+                    let (var_id, clauses) = formula.def_or(id, &grandchild_ids.clone());
+                    new_clauses.extend(clauses);
+                    formula.set_expr(id, Var(var_id));
+                }
+            }
         });
 
         new_clauses.push(self.get_root_expr());
