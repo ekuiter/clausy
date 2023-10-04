@@ -50,18 +50,6 @@ https://cca.informatik.uni-freiburg.de/sat/ss23/05/
 profiling shows that we are way slower than z3, unfortunately (1.5s vs 5s for freetz-kclause and 3s vs 15s for freetz-kconfigreader) - hash function? vector with given capacity? use rc to release stuff and avoid memcpy?
 also, what optimizations does featureide have? can we get faster/smaller formulas?
 
-former optimizations, may be re-added if necessary:
-// important so if no children are changed, the order in exprs_inv does not change (could also be dropped)
-if new_hash != old_hash {
-    self.exprs_inv
-        .entry(old_hash)
-        .or_default()
-        .retain(|id2| *id2 != id); // probably, here only the first matching element has to be removed https://stackoverflow.com/questions/26243025. it may even be possible to not remove anything.
-    if self.exprs_inv.get(&old_hash).unwrap().is_empty() { // could also be dropped
-        self.exprs_inv.remove(&old_hash);
-    }
-    self.exprs_inv.entry(new_hash).or_default().push(id); // probably, we could only push here if no equal expr has already been pushed (does this interact weirdly when there are true hash collisions involved?)
-}
+profile #[inline(always)]
 
-
-maybe move this unary simplification (in model.rs:55) straight into .expr? but: this way, a formula would be auto-optimized when being parsed. -same foes for commutativity (sort) and idempotency (dedup). could also do this to remove double negations. splicing is possible here, too. how does this interact with set_child_exprs? maybe do not use an enum for Expr, so an Expr can change its own type? change .set_child_exprs to a general .set_expr, complementing .expr? this way, an in-place replacement of Or with And (dist) or Or/And with Var (tseitin) would become possible. Possibly, this would also make auxiliary root obsolete.
+maybe move the unary simplification (in model.rs:55) straight into .expr? but: this way, a formula would be auto-optimized when being parsed. -same foes for commutativity (sort) and idempotency (dedup). could also do this to remove double negations. splicing is possible here, too. how does this interact with set_child_exprs? maybe do not use an enum for Expr, so an Expr can change its own type? change .set_child_exprs to a general .set_expr, complementing .expr? this way, an in-place replacement of Or with And (dist) or Or/And with Var (tseitin) would become possible. Possibly, this would also make auxiliary root obsolete.

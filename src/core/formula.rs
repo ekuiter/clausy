@@ -275,17 +275,14 @@ impl<'a> Formula<'a> {
     }
 
     /// Returns the root expression of this formula.
-    ///
-    /// That is, we return the only child of the auxiliary root expression (see [Formula::aux_root_id]).
     pub(crate) fn get_root_expr(&self) -> Id {
         self.root_id
     }
 
     /// Sets the root expression of this formula.
     ///
-    /// That is, we update this formula's auxiliary root expression with the given expression (see [Formula::aux_root_id]).
     /// For a formula to be valid, the root expression has to be set at least once.
-    /// It may also be updated subsequently to focus on other expressions of the formula.
+    /// It may also be updated subsequently to focus on other expressions of the formula or build more complex expressions.
     pub(crate) fn set_root_expr(&mut self, root_id: Id) {
         self.root_id = root_id;
     }
@@ -293,7 +290,7 @@ impl<'a> Formula<'a> {
     /// Returns the identifiers of the children of an expression.
     ///
     /// We return nothing for [Var] expressions, which have no expression identifiers as children (only a variable identifier).
-    /// As [Var] expressions are leaves of a formula's syntax tree, this function is useful for traversing that tree.
+    /// As [Var] expressions are leaves of a formula's syntax tree, this function is useful when traversing that tree.
     fn get_child_exprs<'b>(expr: &'b Expr) -> &'b [Id] {
         match expr {
             Var(_) => &[],
@@ -302,15 +299,17 @@ impl<'a> Formula<'a> {
         }
     }
 
-    /// Sets the children of an expression in this formula.
-    ///
-    /// This function must take several precautions to preserve structural sharing, as it performs in-place mutations.
+    /// Mutates an expression in this formula.
+    /// 
+    /// This function replaces the expression for a given identifier with a new given expression.
+    /// It has no effect on leaves in the syntax tree (i.e., variables).
+    /// We must take several precautions to preserve structural sharing, as we perform an in-place mutation.
     /// While this function may temporarily violate structural sharing when called for a given expression,
-    /// it also makes up for said violation when called for any parent of said expression.
-    /// To do this, the function performs three steps:
+    /// it also makes up for (i.e., "fixes") said violation when called for every parent of said expression afterwards.
+    /// To do so, the function performs three steps:
     /// First, every new child expression is checked for potential duplicates with existing expressions,
     /// which we resolve using the canonical identifier obtained with [Formula::get_expr].
-    /// Second, we replace the old children with the new children.
+    /// Second, we replace the old expression with the new expression.
     /// Third, as we might have changed the hash of the expression, we must update its mapping in [Formula::exprs_inv].
     /// One of two cases applies, which can both be handled in the same way:
     /// Either the new expression has never been added before, so structural sharing was not violated.
@@ -318,42 +317,7 @@ impl<'a> Formula<'a> {
     /// In the second case, the expression already exists and already has a canonical identifier.
     /// Still, we can push the identifier anyway, as only the first identifier will be considered.
     /// Because this function cleans up violations of children, it must be called after, not before children have been mutated.
-    /// Thus, it does not preserve structural sharing on its own when used in [Formula::preorder_rev].
-    /// Finally, we never mutate leaves in the syntax tree (i.e., variables).
-    fn make_shared_visitor(&mut self, id: Id) {
-        if let Var(_) = self.exprs[id] {
-            return;
-        }
-        // clones children, could probably be improved by inlining get_expr
-        let mut ids = Self::get_child_exprs(&self.exprs[id]).to_vec();
-        for id in ids.iter_mut() {
-            *id = self.get_expr(&self.exprs[*id]).unwrap();
-        }
-        let old_hash = Self::hash_expr(&self.exprs[id]);
-        match &mut self.exprs[id] {
-            Var(_) => unreachable!(),
-            Not(id) => *id = ids[0],
-            And(child_ids) | Or(child_ids) => *child_ids = ids,
-        };
-        // self.exprs_inv
-        //     .entry(Self::hash_expr(&self.exprs[id]))
-        //     .or_default()
-        //     .push(id);
-        let new_hash = Self::hash_expr(&self.exprs[id]);
-        if new_hash != old_hash { // todo: extract into method?
-            self.exprs_inv
-                .entry(old_hash)
-                .or_default()
-                .retain(|id2| *id2 != id); // probably, here only the first matching element has to be removed https://stackoverflow.com/questions/26243025. it may even be possible to not remove anything.
-            if self.exprs_inv.get(&old_hash).unwrap().is_empty() {
-                // could also be dropped
-                self.exprs_inv.remove(&old_hash);
-            }
-            self.exprs_inv.entry(new_hash).or_default().push(id); // probably, we could only push here if no equal expr has already been pushed (does this interact weirdly when there are true hash collisions involved?)
-        }
-    }
-
-    // todo
+    /// Thus, it does not preserve structural sharing when used in [Formula::preorder_rev], only in [Formula::postorder_rev].
     fn set_expr(&mut self, id: Id, mut expr: Expr) {
         if let Var(_) = self.exprs[id] {
             return;
@@ -377,7 +341,7 @@ impl<'a> Formula<'a> {
             }
         }
         self.exprs[id] = expr;
-        // self.exprs_inv
+        // self.exprs_inv // old code, the code below is more efficient but messy and can be extracted to a helper function/macro
         //     .entry(Self::hash_expr(&self.exprs[id]))
         //     .or_default()
         //     .push(id);
@@ -395,11 +359,11 @@ impl<'a> Formula<'a> {
         }
     }
 
-    /// Resets the auxiliary root expression, if necessary.
+    /// Resets the root expression, if necessary.
     ///
-    /// If the auxiliary root expression is mutated with [Formula::set_child_exprs], structural sharing might be violated.
-    /// Because [Formula::set_child_exprs] can only address this issue for children,
-    /// we need not explicitly address the only expression that is not a child itself - the auxiliary root expression.
+    /// If the root expression is mutated with [Formula::set_expr], structural sharing might be violated.
+    /// Because [Formula::set_expr] can only address this issue for children,
+    /// we need not explicitly address the only expression that is not a child itself - the root expression.
     fn reset_root_expr(&mut self) {
         self.root_id = self.get_expr(&self.exprs[self.root_id]).unwrap();
     }
@@ -469,7 +433,7 @@ impl<'a> Formula<'a> {
     /// Visits all sub-expressions of this formula using a reverse preorder traversal.
     ///
     /// To preserve structural sharing, we assume that the given visitor is idempotent (in terms of formula mutation) and only
-    /// performs mutation with the designated methods, such as [Formula::var], [Formula::expr] and [Formula::set_child_exprs]. (todo: update, does not fit with set_expr and to_nnf anymore)
+    /// performs mutation with the designated methods, such as [Formula::var], [Formula::expr] and [Formula::set_expr].
     /// The visitor is called at most once per unique sub-expression:
     /// It will not be called several times on the same sub-expression - this leverages structural sharing.
     /// However, we can also not guarantee it to be called on all sub-expressions - as it might change the very set of sub-expressions.
@@ -591,6 +555,39 @@ impl<'a> Formula<'a> {
             }
         });
         named_vars // todo: when using this set, take care of order to guarantee determinism
+    }
+
+    fn make_shared_visitor(&mut self, id: Id) {
+        if let Var(_) = self.exprs[id] {
+            return;
+        }
+        // clones children, could probably be improved by inlining get_expr
+        let mut ids = Self::get_child_exprs(&self.exprs[id]).to_vec();
+        for id in ids.iter_mut() {
+            *id = self.get_expr(&self.exprs[*id]).unwrap();
+        }
+        let old_hash = Self::hash_expr(&self.exprs[id]);
+        match &mut self.exprs[id] {
+            Var(_) => unreachable!(),
+            Not(id) => *id = ids[0],
+            And(child_ids) | Or(child_ids) => *child_ids = ids,
+        };
+        // self.exprs_inv
+        //     .entry(Self::hash_expr(&self.exprs[id]))
+        //     .or_default()
+        //     .push(id);
+        let new_hash = Self::hash_expr(&self.exprs[id]);
+        if new_hash != old_hash { // todo: extract into method?
+            self.exprs_inv
+                .entry(old_hash)
+                .or_default()
+                .retain(|id2| *id2 != id); // probably, here only the first matching element has to be removed https://stackoverflow.com/questions/26243025. it may even be possible to not remove anything.
+            if self.exprs_inv.get(&old_hash).unwrap().is_empty() {
+                // could also be dropped
+                self.exprs_inv.remove(&old_hash);
+            }
+            self.exprs_inv.entry(new_hash).or_default().push(id); // probably, we could only push here if no equal expr has already been pushed (does this interact weirdly when there are true hash collisions involved?)
+        }
     }
 
     fn nnf_visitor(&mut self, id: Id) {
