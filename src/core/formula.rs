@@ -323,12 +323,14 @@ impl<'a> Formula<'a> {
     /// Because this function cleans up violations of children, it must be called after, not before children have been mutated.
     /// Thus, it does not preserve structural sharing on its own when used in [Formula::preorder_rev].
     /// Finally, we never mutate leaves in the syntax tree (i.e., variables).
-    fn set_child_exprs(&mut self, id: Id, mut ids: Vec<Id>) {
+    fn make_shared_expr(&mut self, id: Id) {
         if let Var(_) = self.exprs[id] {
             return;
         }
+        // clones children, could probably be improved by inlining get_expr
+        let mut ids = Self::get_child_exprs(&self.exprs[id]).to_vec();
         for id in ids.iter_mut() {
-            *id = self.get_expr(&self.exprs[*id]).unwrap(); // todo: (when) does this actually do something?
+            *id = self.get_expr(&self.exprs[*id]).unwrap();
         }
         match &mut self.exprs[id] {
             Var(_) => unreachable!(),
@@ -338,19 +340,7 @@ impl<'a> Formula<'a> {
         self.exprs_inv
             .entry(Self::hash_expr(&self.exprs[id]))
             .or_default()
-            .push(id);
-    }
-
-    /// Returns an expression with the given children and of the same kind as another given expression.
-    ///
-    /// Variables are returned as is.
-    fn expr_with_children(expr: &Expr, child_ids: Vec<Id>) -> Expr {
-        match expr {
-            Var(var_id) => Var(*var_id),
-            Not(_) => Not(child_ids[0]),
-            And(_) => And(child_ids),
-            Or(_) => Or(child_ids),
-        }
+            .push(id); // todo: extract into method?
     }
 
     // todo
@@ -358,6 +348,7 @@ impl<'a> Formula<'a> {
         if let Var(_) = self.exprs[id] {
             return;
         }
+        // todo: this avoids cycles, can this be done better?
         if Self::get_child_exprs(&expr)
             .iter()
             .next()
@@ -370,7 +361,7 @@ impl<'a> Formula<'a> {
             Not(ref mut id) => *id = self.get_expr(&self.exprs[*id]).unwrap(),
             And(ref mut ids) | Or(ref mut ids) => {
                 for id in ids.iter_mut() {
-                    *id = self.get_expr(&self.exprs[*id]).unwrap(); // todo: (when) does this actually do something?
+                    *id = self.get_expr(&self.exprs[*id]).unwrap();
                 }
             }
         }
@@ -464,7 +455,7 @@ impl<'a> Formula<'a> {
     /// Visits all sub-expressions of this formula using a reverse preorder traversal.
     ///
     /// To preserve structural sharing, we assume that the given visitor is idempotent (in terms of formula mutation) and only
-    /// performs mutation with the designated methods, such as [Formula::var], [Formula::expr] and [Formula::set_child_exprs].
+    /// performs mutation with the designated methods, such as [Formula::var], [Formula::expr] and [Formula::set_child_exprs]. (todo: update, does not fit with set_expr and to_nnf anymore)
     /// The visitor is called at most once per unique sub-expression:
     /// It will not be called several times on the same sub-expression - this leverages structural sharing.
     /// However, we can also not guarantee it to be called on all sub-expressions - as it might change the very set of sub-expressions.
@@ -486,6 +477,7 @@ impl<'a> Formula<'a> {
     /// Visits all sub-expressions of this formula using a reverse postorder traversal.
     ///
     /// Conceptually, this is similar to [Formula::preorder_rev], but sub-expressions are visited bottom-up instead of top-down.
+    /// todo: can guarantee structural sharing opposed to preorder_rev (but is the responsibility of the visitor, still)
     fn postorder_rev(&mut self, first_id: Id, mut visitor: impl FnMut(&mut Self, Id) -> ()) {
         let mut remaining_ids = vec![first_id];
         let mut seen_ids = HashSet::<Id>::new();
@@ -499,6 +491,40 @@ impl<'a> Formula<'a> {
             } else {
                 if !visited_ids.contains(&id) {
                     visitor(self, *id);
+                    visited_ids.insert(*id);
+                    seen_ids.remove(id);
+                }
+                remaining_ids.pop();
+            }
+        }
+        self.reset_aux_root_expr();
+    }
+
+    // todo
+    // pre visitor does not visit leaves, currently (interior nodes are visited twice, leaves once)
+    fn prepostorder_rev(
+        &mut self,
+        first_id: Id,
+        mut pre_visitor: impl FnMut(&mut Self, Id) -> (),
+        mut post_visitor: impl FnMut(&mut Self, Id) -> (),
+    ) {
+        let mut remaining_ids = vec![first_id];
+        let mut seen_ids: HashSet<usize> = HashSet::<Id>::new();
+        let mut visited_ids = HashSet::<Id>::new();
+
+        while !remaining_ids.is_empty() {
+            let id = remaining_ids.last().unwrap();
+
+            if !Self::get_child_exprs(&self.exprs[*id]).is_empty()
+                && !seen_ids.contains(id)
+                && !visited_ids.contains(id)
+            {
+                seen_ids.insert(*id);
+                pre_visitor(self, *id);
+                remaining_ids.extend(Self::get_child_exprs(&self.exprs[*id]));
+            } else {
+                if !visited_ids.contains(id) {
+                    post_visitor(self, *id);
                     visited_ids.insert(*id);
                     seen_ids.remove(id);
                 }
@@ -524,7 +550,7 @@ impl<'a> Formula<'a> {
     /// The easiest way to fix this is by calling this function, which establishes the invariant again with a postorder traversal.
     fn make_shared(&mut self) {
         self.postorder_rev(self.aux_root_id, |formula, id| {
-            formula.set_child_exprs(id, Self::get_child_exprs(&formula.exprs[id]).to_vec());
+            formula.make_shared_expr(id);
         });
     }
 
@@ -557,36 +583,38 @@ impl<'a> Formula<'a> {
         named_vars // todo: when using this set, take care of order to guarantee determinism
     }
 
+    fn nnf_visitor(&mut self, id: Id) {
+        // todo splicing/unary?
+        match &self.exprs[id] {
+            Var(_) | And(_) | Or(_) => (),
+            Not(child_id) => {
+                match &self.exprs[*child_id] {
+                    Var(_) => (),
+                    Not(grandchild_id) => {
+                        // todo what if this is an and and we are, too? could splice (maybe also remove unary)
+                        self.set_expr(id, self.exprs[*grandchild_id].clone());
+                    }
+                    And(grandchild_ids) => {
+                        let new_expr = Or(self.negate_exprs(grandchild_ids.clone()));
+                        self.set_expr(id, new_expr);
+                    }
+                    Or(grandchild_ids) => {
+                        // todo: what if we created an and, but are ourselves an and? could splice here!
+                        let new_expr = And(self.negate_exprs(grandchild_ids.clone()));
+                        self.set_expr(id, new_expr);
+                    }
+                }
+            }
+        }
+    }
+
     /// Transforms this formula into negation normal form by applying De Morgan's laws and removing double negations.
     ///
     /// We do this by traversing the formula top-down.
     /// Meanwhile, we push negations towards the leaves (i.e., [Var] expressions) and we remove double negations.
     /// After the traversal, we re-establish structural sharing (see [Formula::make_shared]).
     pub(crate) fn to_nnf(mut self) -> Self {
-        self.preorder_rev(self.aux_root_id, |formula, id| {
-            // todo splicing/unary?
-            match &formula.exprs[id] {
-                Var(_) | And(_) | Or(_) => (),
-                Not(child_id) => {
-                    match &formula.exprs[*child_id] {
-                        Var(_) => (),
-                        Not(grandchild_id) => {
-                            // todo what if this is an and and we are, too? could splice (maybe also remove unary)
-                            formula.set_expr(id, formula.exprs[*grandchild_id].clone());
-                        }
-                        And(grandchild_ids) => {
-                            let new_expr = Or(formula.negate_exprs(grandchild_ids.clone()));
-                            formula.set_expr(id, new_expr);
-                        }
-                        Or(grandchild_ids) => {
-                            // todo: what if we created an and, but are ourselves an and? could splice here!
-                            let new_expr = And(formula.negate_exprs(grandchild_ids.clone()));
-                            formula.set_expr(id, new_expr);
-                        }
-                    }
-                }
-            }
-        });
+        self.preorder_rev(self.aux_root_id, Self::nnf_visitor);
         self.make_shared();
         self
     }
@@ -733,29 +761,33 @@ impl<'a> Formula<'a> {
         // todo is this idempotent?
         let mut new_clauses = Vec::<Id>::new();
 
-        self.postorder_rev(self.aux_root_id, |formula, id| {
-            if id == formula.aux_root_id {
-                // todo: make this obsolete, if possible
-                return;
-            }
+        self.prepostorder_rev(
+            self.aux_root_id,
+            Self::nnf_visitor,
+            |formula, id| {
+                if id == formula.aux_root_id {
+                    // todo: make this obsolete, if possible
+                    return;
+                }
 
-            match &formula.exprs[id] {
-                Var(_) | Not(_) => (),
-                And(child_ids) => {
-                    // todo what about unary And?
-                    // todo ...
-                    // todo this assumes deduplicated child_ids, as otherwise, duplicate children will get _two_ aux vars
-                    let (var_id, clauses) = formula.def_and(id, &child_ids.clone());
-                    new_clauses.extend(clauses);
-                    formula.set_expr(id, Var(var_id));
+                match &formula.exprs[id] {
+                    Var(_) | Not(_) => (),
+                    And(child_ids) => {
+                        // todo what about unary And?
+                        // todo ...
+                        // todo this assumes deduplicated child_ids, as otherwise, duplicate children will get _two_ aux vars
+                        let (var_id, clauses) = formula.def_and(id, &child_ids.clone());
+                        new_clauses.extend(clauses);
+                        formula.set_expr(id, Var(var_id));
+                    }
+                    Or(grandchild_ids) => {
+                        let (var_id, clauses) = formula.def_or(id, &grandchild_ids.clone());
+                        new_clauses.extend(clauses);
+                        formula.set_expr(id, Var(var_id));
+                    }
                 }
-                Or(grandchild_ids) => {
-                    let (var_id, clauses) = formula.def_or(id, &grandchild_ids.clone());
-                    new_clauses.extend(clauses);
-                    formula.set_expr(id, Var(var_id));
-                }
-            }
-        });
+            },
+        );
 
         new_clauses.push(self.get_root_expr());
         let root_id = self.expr(And(new_clauses));
