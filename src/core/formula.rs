@@ -46,7 +46,7 @@ pub(crate) type VarId = i32;
 /// Note that we derive the default equality check and hashing algorithm here:
 /// This is sensible because the associated [Formula] guarantees that each of its sub-expressions is assigned exactly one identifier.
 /// Thus, a shallow equality check or hash on is equivalent to a deep one if they are sub-expressions of the same [Formula].
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub(crate) enum Expr {
     /// A propositional variable.
     Var(VarId),
@@ -358,6 +358,13 @@ impl<'a> Formula<'a> {
         if let Var(_) = self.exprs[id] {
             return;
         }
+        if Self::get_child_exprs(&expr)
+            .iter()
+            .next()
+            .map_or(false, |child| *child == id)
+        {
+            return;
+        }
         match expr {
             Var(_) => (),
             Not(ref mut id) => *id = self.get_expr(&self.exprs[*id]).unwrap(),
@@ -557,33 +564,28 @@ impl<'a> Formula<'a> {
     /// After the traversal, we re-establish structural sharing (see [Formula::make_shared]).
     pub(crate) fn to_nnf(mut self) -> Self {
         self.preorder_rev(self.aux_root_id, |formula, id| {
-            // todo probably need another copy here as for to_cnf_dist to make splicing/unary handling easier
-            let mut child_ids: Vec<Id> = Self::get_child_exprs(&formula.exprs[id]).to_vec();
-            for child_id in child_ids.iter_mut() {
-                match &formula.exprs[*child_id] {
-                    Var(_) | And(_) | Or(_) => (),
-                    Not(grandchild_id) => {
-                        match &formula.exprs[*grandchild_id] {
-                            Var(_) => (),
-                            Not(greatgrandchild_id) => {
-                                *child_id = *greatgrandchild_id; // todo what if this is an and and we are, too? could splice (maybe also remove unary)
-                            }
-                            And(greatgrandchild_ids) => {
-                                let new_expr =
-                                    Or(formula.negate_exprs(greatgrandchild_ids.clone()));
-                                *child_id = formula.expr(new_expr);
-                            }
-                            Or(greatgrandchild_ids) => {
-                                // todo: what if we created an and, but are ourselves an and? could splice here!
-                                let new_expr =
-                                    And(formula.negate_exprs(greatgrandchild_ids.clone()));
-                                *child_id = formula.expr(new_expr);
-                            }
+            // todo splicing/unary?
+            match &formula.exprs[id] {
+                Var(_) | And(_) | Or(_) => (),
+                Not(child_id) => {
+                    match &formula.exprs[*child_id] {
+                        Var(_) => (),
+                        Not(grandchild_id) => {
+                            // todo what if this is an and and we are, too? could splice (maybe also remove unary)
+                            formula.set_expr(id, formula.exprs[*grandchild_id].clone());
+                        }
+                        And(grandchild_ids) => {
+                            let new_expr = Or(formula.negate_exprs(grandchild_ids.clone()));
+                            formula.set_expr(id, new_expr);
+                        }
+                        Or(grandchild_ids) => {
+                            // todo: what if we created an and, but are ourselves an and? could splice here!
+                            let new_expr = And(formula.negate_exprs(grandchild_ids.clone()));
+                            formula.set_expr(id, new_expr);
                         }
                     }
                 }
             }
-            formula.set_child_exprs(id, child_ids);
         });
         self.make_shared();
         self
@@ -601,77 +603,90 @@ impl<'a> Formula<'a> {
         // todo currently, this seems correct, but much less efficient than FeatureIDE, possibly optimize
         self.postorder_rev(self.aux_root_id, |formula, id| {
             // todo need the children two times on the stack here, could maybe be disabled, but then merging is more complicated
-            let child_ids = Self::get_child_exprs(&formula.exprs[id]).to_vec();
-            let mut new_child_ids = Vec::<Id>::new();
+            // let child_ids = Self::get_child_exprs(&formula.exprs[id]).to_vec();
+            // let mut new_child_ids = Vec::<Id>::new();
 
-            for child_id in child_ids {
-                // todo extract this as a helper function for hybrid tseitin
-                match &formula.exprs[child_id] {
-                    Var(_) | Not(_) => new_child_ids.push(child_id),
-                    And(grandchild_ids) => {
-                        if formula.is_non_aux_and(id) || grandchild_ids.len() == 1 {
-                            new_child_ids.extend(grandchild_ids.clone());
-                            // todo new_child_ids.push(self.expr(And(cnf))); // todo unoptimized version
-                        } else {
-                            new_child_ids.push(child_id);
+            if id == formula.aux_root_id {
+                // todo: make this obsolete, if possible
+                return;
+            }
+
+            // todo extract this as a helper function for hybrid tseitin
+            match &formula.exprs[id] {
+                Var(_) | Not(_) => (),
+                And(child_ids) => {
+                    // if formula.is_non_aux_and(id) || grandchild_ids.len() == 1 {
+                    //     new_child_ids.extend(grandchild_ids.clone());
+                    //     // todo new_child_ids.push(self.expr(And(cnf))); // todo unoptimized version
+                    // }
+                    // todo: how to do splicing if we don't have the parent?
+                    let mut new_child_ids = vec![];
+                    for child_id in child_ids {
+                        match &formula.exprs[*child_id] {
+                            And(grandchild_ids) => {
+                                new_child_ids.extend(grandchild_ids);
+                            }
+                            _ => new_child_ids.push(*child_id),
                         }
                     }
-                    Or(grandchild_ids) => {
-                        let mut clauses = Vec::<Vec<Id>>::new();
-                        for (i, grandchild_id) in grandchild_ids.iter().enumerate() {
-                            // there might be a bug here: Or(...) should be moved to the first arm as | Or(_)
-                            let clause_ids = match &formula.exprs[*grandchild_id] {
-                                // todo could multiply all len's to calculate a threshold for hybrid tseitin
-                                Var(_) | Not(_) | Or(_) => slice::from_ref(grandchild_id),
-                                And(ids) => ids,
-                            };
+                    formula.set_expr(id, And(new_child_ids));
+                }
+                Or(child_ids) => {
+                    let mut clauses = Vec::<Vec<Id>>::new();
+                    for (i, child_id) in child_ids.iter().enumerate() {
+                        let clause_ids = match &formula.exprs[*child_id] {
+                            // todo could multiply all len's to calculate a threshold for hybrid tseitin
+                            Var(_) | Not(_) | Or(_) => slice::from_ref(child_id),
+                            And(ids) => ids,
+                        };
 
-                            if i == 0 {
-                                clauses.extend(
-                                    // todo possibly this can be done with a neutral element instead
-                                    clause_ids
-                                        .iter()
-                                        .map(|clause_id| {
-                                            let mut new_clause = Vec::<Id>::new();
-                                            formula.splice_or(*clause_id, &mut new_clause);
-                                            new_clause
-                                        })
-                                        .collect::<Vec<Vec<Id>>>(),
-                                );
-                            } else {
-                                let mut new_clauses = Vec::<Vec<Id>>::new();
-                                for clause in &clauses {
-                                    for clause_id in clause_ids {
-                                        let mut new_clause = clause.clone();
+                        if i == 0 {
+                            clauses.extend(
+                                // todo possibly this can be done with a neutral element instead
+                                clause_ids
+                                    .iter()
+                                    .map(|clause_id| {
+                                        let mut new_clause = Vec::<Id>::new();
                                         formula.splice_or(*clause_id, &mut new_clause);
-                                        new_clauses.push(new_clause);
-                                    }
-                                }
-                                clauses = new_clauses;
-                            }
-                        }
-                        let mut new_cnf_ids = Vec::<Id>::new();
-                        for mut clause in clauses {
-                            clause = Self::dedup(clause); // todo idempotency
-                                                          // todo unary or
-                            if clause.len() > 1 {
-                                new_cnf_ids.push(formula.expr(Or(clause)));
-                            } else {
-                                new_cnf_ids.push(clause[0]);
-                            }
-                        }
-                        if formula.is_non_aux_and(id) || new_cnf_ids.len() == 1 {
-                            // todo splice into parent and
-                            new_child_ids.extend(new_cnf_ids);
-                            // todo new_child_ids.push(self.expr(And(cnf))); // todo unoptimized version
+                                        new_clause
+                                    })
+                                    .collect::<Vec<Vec<Id>>>(),
+                            );
                         } else {
-                            new_child_ids.push(formula.expr(And(new_cnf_ids)));
+                            let mut new_clauses = Vec::<Vec<Id>>::new();
+                            for clause in &clauses {
+                                for clause_id in clause_ids {
+                                    let mut new_clause = clause.clone();
+                                    formula.splice_or(*clause_id, &mut new_clause);
+                                    new_clauses.push(new_clause);
+                                }
+                            }
+                            clauses = new_clauses;
                         }
                     }
+                    let mut new_cnf_ids = Vec::<Id>::new();
+                    for mut clause in clauses {
+                        clause = Self::dedup(clause); // todo idempotency
+                                                      // todo unary or
+                        if clause.len() > 1 {
+                            let value = formula.expr(Or(clause));
+                            new_cnf_ids.push(value);
+                        } else {
+                            new_cnf_ids.push(clause[0]);
+                        }
+                    }
+                    // if formula.is_non_aux_and(id) || new_cnf_ids.len() == 1 {
+                    //     // todo splice into parent and
+                    //     new_child_ids.extend(new_cnf_ids);
+                    //     // todo new_child_ids.push(self.expr(And(new_cnf_ids))); // todo unoptimized version
+                    // } else {
+                    //     new_child_ids.push(formula.expr(And(new_cnf_ids)));
+                    // }
+                    formula.set_expr(id, And(new_cnf_ids));
                 }
             }
 
-            formula.set_child_exprs(id, Self::dedup(new_child_ids));
+            //formula.set_child_exprs(id, Self::dedup(new_child_ids));
         });
         self
     }
@@ -681,7 +696,6 @@ impl<'a> Formula<'a> {
     /// That is, we create a new auxiliary variable and clauses that let it imply all conjuncts and let it be implied by the conjunction.
     /// As an optimization, we do not create a [Var] expression for the new variable, as we are replacing an existing expression.
     fn def_and(&mut self, var_expr_id: Id, ids: &[Id]) -> (VarId, Vec<Id>) {
-        // todo: these are guaranteed to create new expressions, so we can call add_expr instead expr (same for def_or)
         let var_id = self.add_var_aux();
         let not_var_expr_id = self.expr(Not(var_expr_id));
         let mut clauses = Vec::<Id>::new();
@@ -714,12 +728,14 @@ impl<'a> Formula<'a> {
     }
 
     // todo currently assumes NNF for simplicity, but not a good idea generally - also, does not guarantee NNF itself, must be called again
+    // todo this ensures "minimal aux vars" - minimal in the sense that no two aux vars have the same children
     pub(crate) fn to_cnf_tseitin(mut self) -> Self {
         // todo is this idempotent?
         let mut new_clauses = Vec::<Id>::new();
 
         self.postorder_rev(self.aux_root_id, |formula, id| {
-            if id == formula.aux_root_id { // todo: make this obsolete, if possible
+            if id == formula.aux_root_id {
+                // todo: make this obsolete, if possible
                 return;
             }
 
@@ -729,9 +745,6 @@ impl<'a> Formula<'a> {
                     // todo what about unary And?
                     // todo ...
                     // todo this assumes deduplicated child_ids, as otherwise, duplicate children will get _two_ aux vars
-                    // todo even worse, currently this does not ensure structural sharing at all, because the child is not mutated in place, right?
-                    // todo actually, this does ensure structural sharing, but still needlessly introduces aux vars. so maybe have another invariant:
-                    // todo "minimal aux vars" - minimal in the sense that no two aux vars are biimplied?
                     let (var_id, clauses) = formula.def_and(id, &child_ids.clone());
                     new_clauses.extend(clauses);
                     formula.set_expr(id, Var(var_id));
