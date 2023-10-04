@@ -13,13 +13,13 @@ use super::clauses::Clauses;
 
 /// Whether to print identifiers of expressions.
 ///
-/// Useful for debugging, but should generally be disabled because as expected by [crate::tests].
+/// Useful for debugging, but should generally be disabled, as this is expected by [crate::tests].
 const PRINT_ID: bool = false;
 
 /// Prefix for auxiliary variables.
 ///
 /// Auxiliary variables are required by some algorithms on formulas and can be created with [Var::Aux].
-const AUX_VAR_PREFIX: &str = "_aux_";
+const VAR_AUX_PREFIX: &str = "_aux_";
 
 /// Identifier type for expressions.
 ///
@@ -46,6 +46,7 @@ pub(crate) type VarId = i32;
 /// Note that we derive the default equality check and hashing algorithm here:
 /// This is sensible because the associated [Formula] guarantees that each of its sub-expressions is assigned exactly one identifier.
 /// Thus, a shallow equality check or hash on is equivalent to a deep one if they are sub-expressions of the same [Formula].
+/// While we derive [Clone], its use may violate structural sharing and must be fixed afterwards (e.g., with [Formula::make_shared_visitor]).
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub(crate) enum Expr {
     /// A propositional variable.
@@ -85,8 +86,8 @@ pub(crate) enum Var<'a> {
 /// This invariant allows for concise representation and facilitates some algorithms (e.g., [Formula::to_cnf_tseitin]).
 /// However, it also comes with the downside that each sub-expression has potentially many parents.
 /// Thus, owners of sub-expressions are not easily trackable (see [Formula::exprs] on garbage collection).
-/// Consequently, all algorithms must be implemented in a way that only mutates the children of an expression, not their parent(s).
-/// By structural sharing, we effectively treat the syntax tree as a directed acyclic graph.
+/// Consequently, we cannot access any parents when mutating sub-expressions, only children.
+/// By the structural-sharing invariant, we effectively treat the syntax tree as a directed acyclic graph.
 /// We represent this graph as an adjacency list stored in [Formula::exprs].
 #[derive(Debug)]
 pub(crate) struct Formula<'a> {
@@ -94,8 +95,8 @@ pub(crate) struct Formula<'a> {
     ///
     /// Serves as a fast lookup for an expression, given its identifier.
     /// Expressions are stored in the order of their creation, so new expressions are appended with [Vec::push].
-    /// Also, while some algorithms may update expressions in-place, no expression is ever removed.
-    /// We refer to all expressions that appear below the auxiliary root expression as sub-expressions.
+    /// Also, while algorithms may update expressions in-place, no expression is ever removed.
+    /// We refer to all expressions that appear below the root expression as sub-expressions (including the root expression).
     /// By not ever removing any expressions, we keep all non-sub-expressions indefinitely.
     /// This potentially requires a lot of memory, but avoids explicit reference counting or garbage collection.
     pub(crate) exprs: Vec<Expr>,
@@ -107,11 +108,11 @@ pub(crate) struct Formula<'a> {
     /// By structural sharing, the identifier for a sub-expression should be unique, but we still need a [Vec] for two reasons:
     /// First, there might be hash collisions, which we address by checking true equality when reading [Formula::exprs_inv].
     /// Second, while sub-expressions have a unique identifier, there might be distinct, orphaned expressions that are equal to a given sub-expression.
-    /// For example, such a situation arises when [Formula::set_child_exprs] modifies its expression's children
+    /// For example, such a situation arises when [Formula::set_expr] modifies a sub-expression
     /// and the resulting expression is equal (but not identical) to an existing sub-expression.
-    /// As an expression cannot easily change its own identifier (similar to how a variable cannot change its own type),
-    /// [Formula::set_child_exprs] considers the first identifier in [Formula::exprs_inv] to be the canonical one (modulo hash collisions).
-    /// Whenever [Formula::set_child_exprs] encounters the concerned expression, it then adapts its identifier to the canonical one.
+    /// As an expression cannot easily update its own identifier in the whole syntax tree,
+    /// [Formula::set_expr] considers the first identifier in [Formula::exprs_inv] to be the canonical one (modulo hash collisions).
+    /// Whenever [Formula::set_expr] encounters the concerned expression later, it then adapts its identifier to the canonical one.
     /// By this design, [Formula::exprs_inv] indeed maps any sub-expression (precisely: its hash) to its unique identifier
     /// (precisely: the first identifier whose expression is equal to the given sub-expression).
     /// Any algorithms that mutate this formula should take this into account to preserve structural sharing as an invariant.
@@ -129,23 +130,23 @@ pub(crate) struct Formula<'a> {
     /// Maps variables to their identifiers.
     ///
     /// Conceptually, this is analogous to [Formula::exprs_inv].
-    /// However, the inverse lookup of variables is more simple:
+    /// However, the inverse lookup of variables is less complex:
     /// First, this formula does not own the variable names, which avoids the hash collisions discussed for [Formula::exprs_inv].
     /// Second, variables and their identifiers are never mutated after creation, so no additional [Vec] is needed.
     vars_inv: HashMap<Var<'a>, VarId>,
 
-    /// Specifies the auxiliary root expression of this formula.
+    /// Specifies the root expression of this formula.
     ///
     /// Serves as an index into [Formula::exprs].
-    /// The corresponding expression is the auxiliary root of this formula's syntax tree and thus the starting point for most algorithms.
+    /// The corresponding expression is the root of this formula's syntax tree and thus the starting point for most algorithms.
     /// We consider all expressions below this expression (including itself) to be sub-expressions.
     /// There might be other (non-sub-)expressions that are currently not relevant to this formula.
-    /// Note that [Formula::get_root_expr] and [Formula::set_root_expr] do not store the user-supplied root expression here,
-    /// but an auxiliary [And] expression that has the root expression as its single child.
-    /// This allows algorithms to freely mutate the root expression if necessary (see [Formula] on mutating children).
-    aux_root_id: Id,
+    root_id: Id,
 
-    aux_var_id: u32,
+    /// Specifies the identifier of the most recently added auxiliary variable.
+    /// 
+    /// Ensures that new auxiliary variables (created with [Var::Aux]) are uniquely identified in the context of this formula.
+    var_aux_id: u32,
 }
 
 /// An expression that is explicitly paired with the formula it is tied to.
@@ -160,25 +161,26 @@ impl<'a> Formula<'a> {
     ///
     /// The created formula is initially invalid (see [Formula::assert_valid]).
     /// The auxiliary variable with number 0 has no meaningful sign and can therefore not be used.
-    /// This simplifies the representation of literals in [crate::core::clauses::Clauses].
+    /// This simplifies the representation of literals in [crate::core::clauses::Clauses], which can be negative.
     pub(crate) fn new() -> Self {
         Self {
             exprs: vec![Var(0)],
             exprs_inv: HashMap::new(),
             vars: vec![Var::Aux(0)],
             vars_inv: HashMap::new(),
-            aux_root_id: 0,
-            aux_var_id: 0,
+            root_id: 0,
+            var_aux_id: 0,
         }
     }
 
     /// Panics if this formula is invalid.
     ///
     /// A formula is valid if it has at least one variable (added with [Formula::var]) and a root expression (set with [Formula::set_root_expr]).
-    /// In addition, we ensure that structural sharing is not violated.
+    /// In addition, structural sharing must not be violated.
+    /// All assertions are optional and therefore not included in `cargo build --release`.
     #[cfg(debug_assertions)]
     pub(crate) fn assert_valid(mut self) -> Self {
-        debug_assert!(self.aux_root_id > 0 && self.exprs.len() > 1 && self.vars.len() > 1);
+        debug_assert!(self.root_id > 0 && self.exprs.len() > 1 && self.vars.len() > 1);
         self.assert_shared();
         self
     }
@@ -245,8 +247,8 @@ impl<'a> Formula<'a> {
 
     /// Adds a new auxiliary variable to this formula, returning its identifier.
     pub(crate) fn add_var_aux(&mut self) -> VarId {
-        self.aux_var_id += 1;
-        self.add_var(Var::Aux(self.aux_var_id))
+        self.var_aux_id += 1;
+        self.add_var(Var::Aux(self.var_aux_id))
     }
 
     /// Looks ups the identifier of a named variable in this formula.
@@ -276,12 +278,7 @@ impl<'a> Formula<'a> {
     ///
     /// That is, we return the only child of the auxiliary root expression (see [Formula::aux_root_id]).
     pub(crate) fn get_root_expr(&self) -> Id {
-        if let And(ids) = &self.exprs[self.aux_root_id] {
-            debug_assert!(ids.len() == 1);
-            ids[0]
-        } else {
-            unreachable!()
-        }
+        self.root_id
     }
 
     /// Sets the root expression of this formula.
@@ -290,7 +287,7 @@ impl<'a> Formula<'a> {
     /// For a formula to be valid, the root expression has to be set at least once.
     /// It may also be updated subsequently to focus on other expressions of the formula.
     pub(crate) fn set_root_expr(&mut self, root_id: Id) {
-        self.aux_root_id = self.expr(And(vec![root_id]));
+        self.root_id = root_id;
     }
 
     /// Returns the identifiers of the children of an expression.
@@ -323,7 +320,7 @@ impl<'a> Formula<'a> {
     /// Because this function cleans up violations of children, it must be called after, not before children have been mutated.
     /// Thus, it does not preserve structural sharing on its own when used in [Formula::preorder_rev].
     /// Finally, we never mutate leaves in the syntax tree (i.e., variables).
-    fn make_shared_expr(&mut self, id: Id) {
+    fn make_shared_visitor(&mut self, id: Id) {
         if let Var(_) = self.exprs[id] {
             return;
         }
@@ -332,15 +329,28 @@ impl<'a> Formula<'a> {
         for id in ids.iter_mut() {
             *id = self.get_expr(&self.exprs[*id]).unwrap();
         }
+        let old_hash = Self::hash_expr(&self.exprs[id]);
         match &mut self.exprs[id] {
             Var(_) => unreachable!(),
             Not(id) => *id = ids[0],
             And(child_ids) | Or(child_ids) => *child_ids = ids,
         };
-        self.exprs_inv
-            .entry(Self::hash_expr(&self.exprs[id]))
-            .or_default()
-            .push(id); // todo: extract into method?
+        // self.exprs_inv
+        //     .entry(Self::hash_expr(&self.exprs[id]))
+        //     .or_default()
+        //     .push(id);
+        let new_hash = Self::hash_expr(&self.exprs[id]);
+        if new_hash != old_hash { // todo: extract into method?
+            self.exprs_inv
+                .entry(old_hash)
+                .or_default()
+                .retain(|id2| *id2 != id); // probably, here only the first matching element has to be removed https://stackoverflow.com/questions/26243025. it may even be possible to not remove anything.
+            if self.exprs_inv.get(&old_hash).unwrap().is_empty() {
+                // could also be dropped
+                self.exprs_inv.remove(&old_hash);
+            }
+            self.exprs_inv.entry(new_hash).or_default().push(id); // probably, we could only push here if no equal expr has already been pushed (does this interact weirdly when there are true hash collisions involved?)
+        }
     }
 
     // todo
@@ -356,6 +366,7 @@ impl<'a> Formula<'a> {
         {
             return;
         }
+        let old_hash = Self::hash_expr(&self.exprs[id]);
         match expr {
             Var(_) => (),
             Not(ref mut id) => *id = self.get_expr(&self.exprs[*id]).unwrap(),
@@ -366,10 +377,22 @@ impl<'a> Formula<'a> {
             }
         }
         self.exprs[id] = expr;
-        self.exprs_inv
-            .entry(Self::hash_expr(&self.exprs[id]))
-            .or_default()
-            .push(id);
+        // self.exprs_inv
+        //     .entry(Self::hash_expr(&self.exprs[id]))
+        //     .or_default()
+        //     .push(id);
+        let new_hash = Self::hash_expr(&self.exprs[id]);
+        if new_hash != old_hash {
+            self.exprs_inv
+                .entry(old_hash)
+                .or_default()
+                .retain(|id2| *id2 != id); // probably, here only the first matching element has to be removed https://stackoverflow.com/questions/26243025. it may even be possible to not remove anything.
+            if self.exprs_inv.get(&old_hash).unwrap().is_empty() {
+                // could also be dropped
+                self.exprs_inv.remove(&old_hash);
+            }
+            self.exprs_inv.entry(new_hash).or_default().push(id); // probably, we could only push here if no equal expr has already been pushed (does this interact weirdly when there are true hash collisions involved?)
+        }
     }
 
     /// Resets the auxiliary root expression, if necessary.
@@ -377,8 +400,8 @@ impl<'a> Formula<'a> {
     /// If the auxiliary root expression is mutated with [Formula::set_child_exprs], structural sharing might be violated.
     /// Because [Formula::set_child_exprs] can only address this issue for children,
     /// we need not explicitly address the only expression that is not a child itself - the auxiliary root expression.
-    fn reset_aux_root_expr(&mut self) {
-        self.aux_root_id = self.get_expr(&self.exprs[self.aux_root_id]).unwrap();
+    fn reset_root_expr(&mut self) {
+        self.root_id = self.get_expr(&self.exprs[self.root_id]).unwrap();
     }
 
     /// Returns expressions that negate the given expressions.
@@ -423,15 +446,6 @@ impl<'a> Formula<'a> {
         }
     }
 
-    // todo
-    fn is_non_aux_and(&self, id: Id) -> bool {
-        if let And(_) = self.exprs[id] {
-            id != self.aux_root_id
-        } else {
-            false
-        }
-    }
-
     // todo (maybe combine with unary simplification?)
     fn splice_or(&self, clause_id: Id, new_clause: &mut Vec<Id>) {
         // todo splice child or's
@@ -471,7 +485,7 @@ impl<'a> Formula<'a> {
                 visited_ids.insert(id);
             }
         }
-        self.reset_aux_root_expr();
+        self.reset_root_expr();
     }
 
     /// Visits all sub-expressions of this formula using a reverse postorder traversal.
@@ -497,7 +511,7 @@ impl<'a> Formula<'a> {
                 remaining_ids.pop();
             }
         }
-        self.reset_aux_root_expr();
+        self.reset_root_expr();
     }
 
     // todo
@@ -531,7 +545,7 @@ impl<'a> Formula<'a> {
                 remaining_ids.pop();
             }
         }
-        self.reset_aux_root_expr();
+        self.reset_root_expr();
     }
 
     /// Panics if structural sharing is violated in this formula.
@@ -539,7 +553,7 @@ impl<'a> Formula<'a> {
     /// That is, we assert that every sub-expression's identifier is indeed the canonical one.
     #[cfg(debug_assertions)]
     fn assert_shared(&mut self) {
-        self.preorder_rev(self.aux_root_id, |formula, id| {
+        self.preorder_rev(self.root_id, |formula, id| {
             debug_assert_eq!(formula.get_expr(&formula.exprs[id]).unwrap(), id)
         });
     }
@@ -548,21 +562,17 @@ impl<'a> Formula<'a> {
     ///
     /// As [Formula::preorder_rev] mutates expressions before their children, it may violate structural sharing.
     /// The easiest way to fix this is by calling this function, which establishes the invariant again with a postorder traversal.
-    fn make_shared(&mut self) {
-        self.postorder_rev(self.aux_root_id, |formula, id| {
-            formula.make_shared_expr(id);
-        });
-    }
+    // fn make_shared(&mut self) {
+    //     self.postorder_rev(self.root_id, Self::make_shared_visitor);
+    // }
 
     /// Returns the identifiers of all sub-expressions of this formula.
     ///
     /// Due to structural sharing, each identifier is guaranteed to appear only once.
     pub(crate) fn sub_exprs(&mut self) -> Vec<Id> {
         let mut sub_exprs = Vec::<Id>::new();
-        self.preorder_rev(self.aux_root_id, |formula, id| {
-            if id != formula.aux_root_id {
-                sub_exprs.push(id);
-            }
+        self.preorder_rev(self.root_id, |_, id| {
+            sub_exprs.push(id);
         });
         sub_exprs
     }
@@ -614,8 +624,7 @@ impl<'a> Formula<'a> {
     /// Meanwhile, we push negations towards the leaves (i.e., [Var] expressions) and we remove double negations.
     /// After the traversal, we re-establish structural sharing (see [Formula::make_shared]).
     pub(crate) fn to_nnf(mut self) -> Self {
-        self.preorder_rev(self.aux_root_id, Self::nnf_visitor);
-        self.make_shared();
+        self.prepostorder_rev(self.root_id, Self::nnf_visitor, Self::make_shared_visitor);
         self
     }
 
@@ -629,15 +638,10 @@ impl<'a> Formula<'a> {
         // todo: refactor code
         // todo also, is this idempotent?
         // todo currently, this seems correct, but much less efficient than FeatureIDE, possibly optimize
-        self.postorder_rev(self.aux_root_id, |formula, id| {
+        self.postorder_rev(self.root_id, |formula, id| {
             // todo need the children two times on the stack here, could maybe be disabled, but then merging is more complicated
             // let child_ids = Self::get_child_exprs(&formula.exprs[id]).to_vec();
             // let mut new_child_ids = Vec::<Id>::new();
-
-            if id == formula.aux_root_id {
-                // todo: make this obsolete, if possible
-                return;
-            }
 
             // todo extract this as a helper function for hybrid tseitin
             match &formula.exprs[id] {
@@ -755,39 +759,30 @@ impl<'a> Formula<'a> {
         (var_id, clauses)
     }
 
-    // todo currently assumes NNF for simplicity, but not a good idea generally - also, does not guarantee NNF itself, must be called again
+    // todo currently assumes NNF for simplicity, but not a good idea generally - also, does not guarantee NNF itself, to_nnf must be called again (which is quite expensive, actually!!)
     // todo this ensures "minimal aux vars" - minimal in the sense that no two aux vars have the same children
     pub(crate) fn to_cnf_tseitin(mut self) -> Self {
         // todo is this idempotent?
         let mut new_clauses = Vec::<Id>::new();
 
-        self.prepostorder_rev(
-            self.aux_root_id,
-            Self::nnf_visitor,
-            |formula, id| {
-                if id == formula.aux_root_id {
-                    // todo: make this obsolete, if possible
-                    return;
+        self.prepostorder_rev(self.root_id, Self::nnf_visitor, |formula, id| {
+            match &formula.exprs[id] {
+                Var(_) | Not(_) => (),
+                And(child_ids) => {
+                    // todo what about unary And?
+                    // todo ...
+                    // todo this assumes deduplicated child_ids, as otherwise, duplicate children will get _two_ aux vars
+                    let (var_id, clauses) = formula.def_and(id, &child_ids.clone());
+                    new_clauses.extend(clauses);
+                    formula.set_expr(id, Var(var_id));
                 }
-
-                match &formula.exprs[id] {
-                    Var(_) | Not(_) => (),
-                    And(child_ids) => {
-                        // todo what about unary And?
-                        // todo ...
-                        // todo this assumes deduplicated child_ids, as otherwise, duplicate children will get _two_ aux vars
-                        let (var_id, clauses) = formula.def_and(id, &child_ids.clone());
-                        new_clauses.extend(clauses);
-                        formula.set_expr(id, Var(var_id));
-                    }
-                    Or(grandchild_ids) => {
-                        let (var_id, clauses) = formula.def_or(id, &grandchild_ids.clone());
-                        new_clauses.extend(clauses);
-                        formula.set_expr(id, Var(var_id));
-                    }
+                Or(grandchild_ids) => {
+                    let (var_id, clauses) = formula.def_or(id, &grandchild_ids.clone());
+                    new_clauses.extend(clauses);
+                    formula.set_expr(id, Var(var_id));
                 }
-            },
-        );
+            }
+        });
 
         new_clauses.push(self.get_root_expr());
         let root_id = self.expr(And(new_clauses));
@@ -805,7 +800,7 @@ impl<'a> fmt::Display for Var<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Var::Named(name) => write!(f, "{name}"),
-            Var::Aux(id) => write!(f, "{}{id}", AUX_VAR_PREFIX),
+            Var::Aux(id) => write!(f, "{}{id}", VAR_AUX_PREFIX),
         }
     }
 }
