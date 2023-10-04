@@ -48,6 +48,7 @@ https://cca.informatik.uni-freiburg.de/sat/ss23/04/
 https://cca.informatik.uni-freiburg.de/sat/ss23/05/
 
 profiling shows that we are way slower than z3, unfortunately (1.5s vs 5s for freetz-kclause and 3s vs 15s for freetz-kconfigreader) - hash function? vector with given capacity? use rc to release stuff and avoid memcpy?
+also, what optimizations does featureide have? can we get faster/smaller formulas?
 
 former optimizations, may be re-added if necessary:
 // important so if no children are changed, the order in exprs_inv does not change (could also be dropped)
