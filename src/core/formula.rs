@@ -144,7 +144,7 @@ pub(crate) struct Formula<'a> {
     root_id: Id,
 
     /// Specifies the identifier of the most recently added auxiliary variable.
-    /// 
+    ///
     /// Ensures that new auxiliary variables (created with [Var::Aux]) are uniquely identified in the context of this formula.
     var_aux_id: u32,
 }
@@ -212,13 +212,12 @@ impl<'a> Formula<'a> {
     /// The canonical identifier for a given expression is the first one that is associated with its hash
     /// and whose expression is also equal to the given expression (see [Formula::exprs_inv]).
     fn get_expr(&self, expr: &Expr) -> Option<Id> {
-        let ids = self.exprs_inv.get(&Self::hash_expr(expr))?;
-        for id in ids {
-            if self.exprs[*id] == *expr {
-                return Some(*id);
-            }
-        }
-        None
+        self.exprs_inv
+            .get(&Self::hash_expr(expr))?
+            .iter()
+            .filter(|id| self.exprs[**id] == *expr)
+            .map(|id| *id)
+            .next()
     }
 
     /// Adds or looks up an expression of this formula, returning its identifier.
@@ -299,8 +298,21 @@ impl<'a> Formula<'a> {
         }
     }
 
+    /// Invalidates an expression after it was mutated.
+    ///
+    /// Does so by updating its mapping in [Formula::exprs_inv].
+    /// One of two cases applies, which can both be handled in the same way:
+    /// Either the new expression has never been added before, so structural sharing was not violated.
+    /// Thus, we can just append the expression's identifier as the new canonical identifier for the expression.
+    /// In the second case, the expression already exists and already has a canonical identifier.
+    /// Still, we can append the identifier anyway, as only the first identifier will be considered.
+    /// In terms of correctness, appending the identifier suffices, although we may optimize by cleaning up [Formula::exprs_inv].
+    fn inval_expr(&mut self, id: Id) {
+        self.exprs_inv.entry(Self::hash_expr(&self.exprs[id])).or_default().push(id);
+    }
+
     /// Mutates an expression in this formula.
-    /// 
+    ///
     /// This function replaces the expression for a given identifier with a new given expression.
     /// It has no effect on leaves in the syntax tree (i.e., variables).
     /// We must take several precautions to preserve structural sharing, as we perform an in-place mutation.
@@ -310,19 +322,15 @@ impl<'a> Formula<'a> {
     /// First, every new child expression is checked for potential duplicates with existing expressions,
     /// which we resolve using the canonical identifier obtained with [Formula::get_expr].
     /// Second, we replace the old expression with the new expression.
-    /// Third, as we might have changed the hash of the expression, we must update its mapping in [Formula::exprs_inv].
-    /// One of two cases applies, which can both be handled in the same way:
-    /// Either the new expression has never been added before, so structural sharing was not violated.
-    /// Thus, we can just push the expression's identifier as the new canonical identifier for the expression.
-    /// In the second case, the expression already exists and already has a canonical identifier.
-    /// Still, we can push the identifier anyway, as only the first identifier will be considered.
+    /// Third, as we might have changed the hash of the expression, we must invalidate it with [Formula::inval_expr].
     /// Because this function cleans up violations of children, it must be called after, not before children have been mutated.
     /// Thus, it does not preserve structural sharing when used in [Formula::preorder_rev], only in [Formula::postorder_rev].
+    /// Note that we ignore any attempt to set an expression as its own (only) child (e.g., setting x to And(x)).
+    /// Not only is this pointless, it would also introduce cycles.
     fn set_expr(&mut self, id: Id, mut expr: Expr) {
         if let Var(_) = self.exprs[id] {
             return;
         }
-        // todo: this avoids cycles, can this be done better?
         if Self::get_child_exprs(&expr)
             .iter()
             .next()
@@ -330,7 +338,6 @@ impl<'a> Formula<'a> {
         {
             return;
         }
-        let old_hash = Self::hash_expr(&self.exprs[id]);
         match expr {
             Var(_) => (),
             Not(ref mut id) => *id = self.get_expr(&self.exprs[*id]).unwrap(),
@@ -341,22 +348,7 @@ impl<'a> Formula<'a> {
             }
         }
         self.exprs[id] = expr;
-        // self.exprs_inv // old code, the code below is more efficient but messy and can be extracted to a helper function/macro
-        //     .entry(Self::hash_expr(&self.exprs[id]))
-        //     .or_default()
-        //     .push(id);
-        let new_hash = Self::hash_expr(&self.exprs[id]);
-        if new_hash != old_hash {
-            self.exprs_inv
-                .entry(old_hash)
-                .or_default()
-                .retain(|id2| *id2 != id); // probably, here only the first matching element has to be removed https://stackoverflow.com/questions/26243025. it may even be possible to not remove anything.
-            if self.exprs_inv.get(&old_hash).unwrap().is_empty() {
-                // could also be dropped
-                self.exprs_inv.remove(&old_hash);
-            }
-            self.exprs_inv.entry(new_hash).or_default().push(id); // probably, we could only push here if no equal expr has already been pushed (does this interact weirdly when there are true hash collisions involved?)
-        }
+        self.inval_expr(id);
     }
 
     /// Resets the root expression, if necessary.
@@ -414,9 +406,7 @@ impl<'a> Formula<'a> {
     fn splice_or(&self, clause_id: Id, new_clause: &mut Vec<Id>) {
         // todo splice child or's
         if let Or(literal_ids) = &self.exprs[clause_id] {
-            for literal_id in literal_ids {
-                new_clause.push(*literal_id);
-            }
+            new_clause.extend(literal_ids);
         } else {
             new_clause.push(clause_id);
         }
@@ -489,7 +479,6 @@ impl<'a> Formula<'a> {
         let mut remaining_ids = vec![first_id];
         let mut seen_ids: HashSet<usize> = HashSet::<Id>::new();
         let mut visited_ids = HashSet::<Id>::new();
-
         while !remaining_ids.is_empty() {
             let id = remaining_ids.last().unwrap();
 
@@ -561,33 +550,16 @@ impl<'a> Formula<'a> {
         if let Var(_) = self.exprs[id] {
             return;
         }
-        // clones children, could probably be improved by inlining get_expr
         let mut ids = Self::get_child_exprs(&self.exprs[id]).to_vec();
         for id in ids.iter_mut() {
             *id = self.get_expr(&self.exprs[*id]).unwrap();
         }
-        let old_hash = Self::hash_expr(&self.exprs[id]);
         match &mut self.exprs[id] {
             Var(_) => unreachable!(),
             Not(id) => *id = ids[0],
             And(child_ids) | Or(child_ids) => *child_ids = ids,
         };
-        // self.exprs_inv
-        //     .entry(Self::hash_expr(&self.exprs[id]))
-        //     .or_default()
-        //     .push(id);
-        let new_hash = Self::hash_expr(&self.exprs[id]);
-        if new_hash != old_hash { // todo: extract into method?
-            self.exprs_inv
-                .entry(old_hash)
-                .or_default()
-                .retain(|id2| *id2 != id); // probably, here only the first matching element has to be removed https://stackoverflow.com/questions/26243025. it may even be possible to not remove anything.
-            if self.exprs_inv.get(&old_hash).unwrap().is_empty() {
-                // could also be dropped
-                self.exprs_inv.remove(&old_hash);
-            }
-            self.exprs_inv.entry(new_hash).or_default().push(id); // probably, we could only push here if no equal expr has already been pushed (does this interact weirdly when there are true hash collisions involved?)
-        }
+        self.inval_expr(id);
     }
 
     fn nnf_visitor(&mut self, id: Id) {
@@ -636,10 +608,6 @@ impl<'a> Formula<'a> {
         // todo also, is this idempotent?
         // todo currently, this seems correct, but much less efficient than FeatureIDE, possibly optimize
         self.postorder_rev(self.root_id, |formula, id| {
-            // todo need the children two times on the stack here, could maybe be disabled, but then merging is more complicated
-            // let child_ids = Self::get_child_exprs(&formula.exprs[id]).to_vec();
-            // let mut new_child_ids = Vec::<Id>::new();
-
             // todo extract this as a helper function for hybrid tseitin
             match &formula.exprs[id] {
                 Var(_) | Not(_) => (),
@@ -728,9 +696,10 @@ impl<'a> Formula<'a> {
         let var_id = self.add_var_aux();
         let not_var_expr_id = self.expr(Not(var_expr_id));
         let mut clauses = Vec::<Id>::new();
-        for id in ids {
-            clauses.push(self.expr(Or(vec![not_var_expr_id, *id])));
-        }
+        clauses.extend(
+            ids.iter()
+                .map(|id| self.expr(Or(vec![not_var_expr_id, *id]))),
+        );
         let mut clause = vec![var_expr_id];
         // todo might create double negation here, avoid this (presumably already in expr(Not(...))? although this would affect parsing, maybe extra method)
         clause.extend(self.negate_exprs(ids.to_vec()));
@@ -749,10 +718,10 @@ impl<'a> Formula<'a> {
         let mut clause = vec![not_var_expr_id];
         clause.extend(ids);
         let mut clauses = vec![self.expr(Or(clause))];
-        for id in ids {
+        clauses.extend(ids.iter().map(|id| {
             let new_expr = Or(vec![var_expr_id, self.expr(Not(*id))]);
-            clauses.push(self.expr(new_expr));
-        }
+            self.expr(new_expr)
+        }));
         (var_id, clauses)
     }
 

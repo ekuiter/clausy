@@ -53,3 +53,16 @@ also, what optimizations does featureide have? can we get faster/smaller formula
 profile #[inline(always)]
 
 maybe move the unary simplification (in model.rs:55) straight into .expr? but: this way, a formula would be auto-optimized when being parsed. -same foes for commutativity (sort) and idempotency (dedup). could also do this to remove double negations. splicing is possible here, too. how does this interact with set_child_exprs? maybe do not use an enum for Expr, so an Expr can change its own type? change .set_child_exprs to a general .set_expr, complementing .expr? this way, an in-place replacement of Or with And (dist) or Or/And with Var (tseitin) would become possible. Possibly, this would also make auxiliary root obsolete.
+
+// todo: evaluate this
+        // let new_hash = Self::hash_expr(&self.exprs[id]);
+        // if new_hash != old_hash {
+        //     self.exprs_inv
+        //         .entry(old_hash)
+        //         .or_default()
+        //         .retain(|inner_id| *inner_id != id);
+        //     if self.exprs_inv.get(&old_hash).unwrap().is_empty() {
+        //         self.exprs_inv.remove(&old_hash);
+        //     }
+        //     self.exprs_inv.entry(new_hash).or_default().push(id);
+        // }
