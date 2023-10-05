@@ -3,7 +3,6 @@ biggest assumption in the tool: more structural sharing is always better
 optional features (disable with #cfg, so binary can be optimized):
 - invariant: no formula is in memory twice, so parse with structural sharing or without, reuse (or don't reuse) cached formulas (e.g., then traversal does not need to track visited nodes) - does this actually have any impact? probably it will for negation-CNF
 - run NNF before other transformations, or don't run it before (interacts with Plaisted-Greenbaum and structural sharing, as to_nnf creates new sub-expressions)
-- auto-simplify terms (e.g., idempotency) while creating NNF/CNF or only do it afterwards?
 - let go of unused formulas with Rc or Arc (RefCell needed for internal mutability?) (if we use Rc, we must take care to always store references to "relevant" formulas like different revisions of feature models)
 - Plaisted-Greenbaum -> depending on whether equi-countability is preserved/necessary (possibly as a polarity-based variant that does not require NNF)
 
@@ -22,14 +21,15 @@ general:
 - to improve performance, we may even run the tseitin transformation _while parsing the formula/while constructing it_, although this might require rewriting some code
 - for comparing formulas, one assumption is that variables with equal names are considered to be the same (no difference), so renaming cannot be detected obviously. unnamed (aux) variables are not regarded in the comparison (not added as dead variables anywhere), so they better be strictly defined by natural variables (guaranteed by tseitin). best if the input formulas do not include any aux variables.
 - sell the tool via invariants/guarantees:
+  - associativity (n-ary operators)
   - no idempotency, no commutativity
   - maximum structural sharing
   - minimum aux variables
   - deterministic
 
 formula:
-- check if all relevant simplifications are implemented correctly: idempotency, splicing/merging (and more?), eliminating implies/bi-implies (which may be exponential itself!)
-- faster HashMap? https://nnethercote.github.io/perf-book/hashing.html https://nnethercote.github.io/2021/12/08/a-brutally-effective-hash-function-in-rust.html as keys are unique, maybe use nohash_hasher?
+- check if all relevant simplifications are implemented correctly: splicing/merging (and more?), eliminating implies/bi-implies (which may be exponential itself!)
+- faster hash function? https://nnethercote.github.io/perf-book/hashing.html https://nnethercote.github.io/2021/12/08/a-brutally-effective-hash-function-in-rust.html as keys are unique, maybe use nohash_hasher?
 - for vectors, could use with_capacity to avoid re-allocations (profiling required)
 - traversal: the set visited_ids can get large for large formulas for both traversals. maybe it can be compacted in some way. (bit matrix? pre-sized vec<bool> with false as default, that is possible extended when new expressions are created?)
 - as an optimization, could combine pre- and postorder traversal to a single DFS that creates NNF on first and distributive CNF on last visit. also, this could be used to avoid calling make_shared after every preorder traversal.
@@ -39,7 +39,7 @@ formula:
 - set removed/added variables to be dead so comparison becomes proper (do this in parse_into or somewhere else?)
 - to save space, do not print aux variables (print optionally)? or pass an option for that (with configurable prefix?) print into dimacs header which transformation was used / what this file can be used for / which original formula it encodes?
 
-during parsing, before calling .expr/.var, resize the .exprs and .vars vector capacities to the estimated size and maybe also add not() exprs always by default, so their lookup is faster. (possibly use pest tags to do that.)
+during parsing, before calling .expr/.var, resize the .exprs and .vars vector capacities to the estimated size, so their lookup is faster. (possibly use pest tags to do that.)
 
 tseitin is countpreserving, but so is 'add a new dead variable' or 'add a new core variable' which is why incremental counting/fast reasoning even works.
 ignoring abstract features in the comparison might be harder, as slicing them can affect the model count? not sure how to do fast reasoning while ignoring abstract features. maybe rename them to be aux vars? because abstract features are basically tseitin vars (but less/more constrained potentially). ...right?
@@ -47,22 +47,36 @@ ignoring abstract features in the comparison might be harder, as slicing them ca
 https://cca.informatik.uni-freiburg.de/sat/ss23/04/
 https://cca.informatik.uni-freiburg.de/sat/ss23/05/
 
-profiling shows that we are way slower than z3, unfortunately (1.5s vs 5s for freetz-kclause and 3s vs 15s for freetz-kconfigreader) - hash function? vector with given capacity? use rc to release stuff and avoid memcpy?
-also, what optimizations does featureide have? can we get faster/smaller formulas?
+what optimizations do featureide and z3 have? can we get faster/smaller formulas?
 
 profile #[inline(always)]
 
-maybe move the unary simplification (in model.rs:55) straight into .expr? but: this way, a formula would be auto-optimized when being parsed. -same foes for commutativity (sort) and idempotency (dedup). could also do this to remove double negations. splicing is possible here, too. how does this interact with set_child_exprs? maybe do not use an enum for Expr, so an Expr can change its own type? change .set_child_exprs to a general .set_expr, complementing .expr? this way, an in-place replacement of Or with And (dist) or Or/And with Var (tseitin) would become possible. Possibly, this would also make auxiliary root obsolete.
-
 // todo: evaluate this
-        // let new_hash = Self::hash_expr(&self.exprs[id]);
-        // if new_hash != old_hash {
-        //     self.exprs_inv
-        //         .entry(old_hash)
-        //         .or_default()
-        //         .retain(|inner_id| *inner_id != id);
-        //     if self.exprs_inv.get(&old_hash).unwrap().is_empty() {
-        //         self.exprs_inv.remove(&old_hash);
-        //     }
-        //     self.exprs_inv.entry(new_hash).or_default().push(id);
-        // }
+// let new_hash = Self::hash_expr(&self.exprs[id]);
+// if new_hash != old_hash {
+//     self.exprs_inv
+//         .entry(old_hash)
+//         .or_default()
+//         .retain(|inner_id| *inner_id != id);
+//     if self.exprs_inv.get(&old_hash).unwrap().is_empty() {
+//         self.exprs_inv.remove(&old_hash);
+//     }
+//     self.exprs_inv.entry(new_hash).or_default().push(id);
+// }
+
+(for comparison with other formulas)
+/// Returns all named sub-variables of this formula.
+///
+/// Analogously to a sub-expression, a sub-variable is a variable in [Formula::vars] that appear below the auxiliary root expression.
+// fn named_vars(&mut self, first_id: Id) -> HashSet<Var<'a>> {
+//     let mut named_vars = HashSet::<Var<'a>>::new();
+//     self.preorder_rev(first_id, |formula, id| {
+//         if let Var(var_id) = formula.exprs[id] {
+//             let var_id: usize = var_id.try_into().unwrap();
+//             if let Var::Named(_) = formula.vars[var_id] {
+//                 named_vars.insert(formula.vars[var_id]);
+//             }
+//         }
+//     });
+//     named_vars // todo: when using this set, take care of order to guarantee determinism
+// }

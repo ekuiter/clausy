@@ -177,10 +177,10 @@
         <span class="kw">let </span><span class="kw-2">mut </span>vars: Vec&lt;Id&gt; = <span class="macro">vec!</span>[<span class="number">0</span>];
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">1</span>..=n {
             <span class="kw">if </span>variable_names.contains_key(<span class="kw-2">&amp;</span>i) {
-                vars.push(formula.var(variable_names.get(<span class="kw-2">&amp;</span>i).unwrap()));
+                vars.push(formula.var_expr(variable_names.get(<span class="kw-2">&amp;</span>i).unwrap()));
                 variable_names.remove(<span class="kw-2">&amp;</span>i);
             } <span class="kw">else </span>{
-                vars.push(formula.add_var_aux());
+                vars.push(formula.add_var_aux_expr());
             }
         }
         <span class="macro">debug_assert!</span>(variable_names.is_empty());

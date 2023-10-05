@@ -97,7 +97,7 @@
 
 <span class="kw">fn </span>parse_pair&lt;<span class="lifetime">&#39;a</span>&gt;(pair: Pair&lt;<span class="lifetime">&#39;a</span>, Rule&gt;, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; Id {
     <span class="kw">match </span>pair.as_rule() {
-        Rule::var =&gt; formula.var(pair.into_inner().next().unwrap().as_str()),
+        Rule::var =&gt; formula.var_expr(pair.into_inner().next().unwrap().as_str()),
         Rule::not =&gt; {
             <span class="kw">let </span>child_id = parse_pair(pair.into_inner().next().unwrap(), formula);
             formula.expr(Not(child_id))

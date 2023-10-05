@@ -708,6 +708,97 @@
 <a href="#708" id="708">708</a>
 <a href="#709" id="709">709</a>
 <a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Data structures and algorithms for feature-model formulas.
 
 </span><span class="attr">#![allow(unused_imports, rustdoc::private_intra_doc_links)]
@@ -723,13 +814,13 @@
 
 <span class="doccomment">/// Whether to print identifiers of expressions.
 ///
-/// Useful for debugging, but should generally be disabled because as expected by [crate::tests].
+/// Useful for debugging, but should generally be disabled, as this is expected by [crate::tests].
 </span><span class="kw">const </span>PRINT_ID: bool = <span class="bool-val">false</span>;
 
 <span class="doccomment">/// Prefix for auxiliary variables.
 ///
 /// Auxiliary variables are required by some algorithms on formulas and can be created with [Var::Aux].
-</span><span class="kw">const </span>AUX_VAR_PREFIX: <span class="kw-2">&amp;</span>str = <span class="string">&quot;_aux_&quot;</span>;
+</span><span class="kw">const </span>VAR_AUX_PREFIX: <span class="kw-2">&amp;</span>str = <span class="string">&quot;_aux_&quot;</span>;
 
 <span class="doccomment">/// Identifier type for expressions.
 ///
@@ -754,9 +845,10 @@
 /// An expression is always implicitly tied to a [Formula], to which the expression&#39;s [Id]s or [VarId] refer.
 /// We implement expressions as an enum to avoid additional heap allocations for [Var] and [Not].
 /// Note that we derive the default equality check and hashing algorithm here:
-/// This is sensible because the associated [Formula] guarantees that each of its sub-expressions is assigned exactly one identifier.
+/// This is sensible because the associated [Formula], if canonical, guarantees that each of its sub-expressions is assigned exactly one identifier.
 /// Thus, a shallow equality check or hash on is equivalent to a deep one if they are sub-expressions of the same [Formula].
-</span><span class="attr">#[derive(Debug, PartialEq, Eq, Hash)]
+/// While we derive [Clone], its use may violate structural sharing, which can be fixed with [Formula::canon_visitor] if needed.
+</span><span class="attr">#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>Expr {
     <span class="doccomment">/// A propositional variable.
     </span>Var(VarId),
@@ -769,6 +861,51 @@
 
     <span class="doccomment">/// A disjunction of an expression.
     </span>Or(Vec&lt;Id&gt;),
+}
+
+<span class="doccomment">/// Operations on expressions that are independent of its containing formula.
+</span><span class="kw">impl </span>Expr {
+    <span class="doccomment">/// Calculates the hash of this expression.
+    ///
+    /// Used to look up an expression&#39;s identifier in [Formula::exprs_inv].
+    </span><span class="kw">fn </span>calc_hash(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u64 {
+        <span class="kw">let </span><span class="kw-2">mut </span>hasher = DefaultHasher::new();
+        <span class="self">self</span>.hash(<span class="kw-2">&amp;mut </span>hasher);
+        hasher.finish()
+    }
+
+    <span class="doccomment">/// Returns the identifiers of the children of this expression.
+    ///
+    /// We return nothing for [Var] expressions, which have no expression identifiers as children (only a variable identifier).
+    /// As [Var] expressions are leaves of a formula&#39;s syntax tree, this function is useful when traversing that tree.
+    </span><span class="kw">fn </span>children(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[Id] {
+        <span class="kw">match </span><span class="self">self </span>{
+            Var(<span class="kw">_</span>) =&gt; <span class="kw-2">&amp;</span>[],
+            Not(child_id) =&gt; slice::from_ref(child_id),
+            And(child_ids) | Or(child_ids) =&gt; child_ids,
+        }
+    }
+}
+
+<span class="doccomment">/// Flattens children of an expression into their parent.
+///
+/// That is, this transforms a given expression `And(And(a), Or(b, c))` into `And(a, Or(b, c))`.
+/// Implemented as a macro for repeated use in [Formula::flatten_expr].
+</span><span class="macro">macro_rules! </span>flatten_expr {
+    (<span class="macro-nonterminal">$formula</span>:expr, <span class="macro-nonterminal">$expr</span>:expr, <span class="macro-nonterminal">$child_ids</span>:expr, <span class="macro-nonterminal">$constructor</span>:ident) =&gt; {
+        <span class="kw-2">*</span><span class="macro-nonterminal">$child_ids </span>= <span class="macro-nonterminal">$child_ids
+            </span>.iter()
+            .map(|id| {
+                <span class="kw">if let </span><span class="macro-nonterminal">$constructor</span>(grandchild_ids) = <span class="kw-2">&amp;</span><span class="macro-nonterminal">$formula</span>.exprs[<span class="kw-2">*</span>id] {
+                    grandchild_ids.iter()
+                } <span class="kw">else </span>{
+                    slice::from_ref(id).iter()
+                }
+            })
+            .flatten()
+            .map(|id| <span class="kw-2">*</span>id)
+            .collect();
+    };
 }
 
 <span class="doccomment">/// A variable in a formula.
@@ -791,21 +928,22 @@
 <span class="doccomment">/// A feature-model formula.
 ///
 /// We represent a formula by storing its syntax tree; that is, each unique sub-expression that appears in it.
-/// As an invariant, sub-expressions are uniquely stored, so no sub-expression can appear twice with distinct identifiers (structural sharing).
-/// This invariant allows for concise representation and facilitates some algorithms (e.g., [Formula::to_cnf_tseitin]).
+/// In canonical form, sub-expressions are uniquely stored, so no sub-expression appears twice with distinct identifiers (structural sharing).
+/// This allows for concise representation and facilitates some algorithms (e.g., [Formula::to_cnf_tseitin]).
 /// However, it also comes with the downside that each sub-expression has potentially many parents.
 /// Thus, owners of sub-expressions are not easily trackable (see [Formula::exprs] on garbage collection).
-/// Consequently, all algorithms must be implemented in a way that only mutates the children of an expression, not their parent(s).
-/// By structural sharing, we effectively treat the syntax tree as a directed acyclic graph.
+/// Consequently, we cannot access any parents when mutating sub-expressions, only children.
+/// Due to the structural-sharing, we effectively treat the syntax tree as a directed acyclic graph.
 /// We represent this graph as an adjacency list stored in [Formula::exprs].
+/// Note that due to performance reasons, structural sharing is not fully guaranteed by all algorithms (including parsers) until calling [Formula::canon_visitor].
 </span><span class="attr">#[derive(Debug)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt; {
     <span class="doccomment">/// Stores all expressions in this formula.
     ///
     /// Serves as a fast lookup for an expression, given its identifier.
     /// Expressions are stored in the order of their creation, so new expressions are appended with [Vec::push].
-    /// Also, while some algorithms may update expressions in-place, no expression is ever removed.
-    /// We refer to all expressions that appear below the auxiliary root expression as sub-expressions.
+    /// Also, while algorithms may update expressions in-place, no expression is ever removed.
+    /// We refer to all expressions that appear below the root expression as sub-expressions (including the root expression).
     /// By not ever removing any expressions, we keep all non-sub-expressions indefinitely.
     /// This potentially requires a lot of memory, but avoids explicit reference counting or garbage collection.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) exprs: Vec&lt;Expr&gt;,
@@ -817,14 +955,14 @@
     /// By structural sharing, the identifier for a sub-expression should be unique, but we still need a [Vec] for two reasons:
     /// First, there might be hash collisions, which we address by checking true equality when reading [Formula::exprs_inv].
     /// Second, while sub-expressions have a unique identifier, there might be distinct, orphaned expressions that are equal to a given sub-expression.
-    /// For example, such a situation arises when [Formula::set_child_exprs] modifies its expression&#39;s children
+    /// For example, such a situation arises when [Formula::set_expr] modifies a sub-expression
     /// and the resulting expression is equal (but not identical) to an existing sub-expression.
-    /// As an expression cannot easily change its own identifier (similar to how a variable cannot change its own type),
-    /// [Formula::set_child_exprs] considers the first identifier in [Formula::exprs_inv] to be the canonical one (modulo hash collisions).
-    /// Whenever [Formula::set_child_exprs] encounters the concerned expression, it then adapts its identifier to the canonical one.
+    /// As an expression cannot easily update its own identifier in the whole syntax tree,
+    /// [Formula::set_expr] considers the first identifier in [Formula::exprs_inv] to be the canonical one (modulo hash collisions).
+    /// Whenever [Formula::set_expr] encounters the concerned expression later, it then adapts its identifier to the canonical one.
     /// By this design, [Formula::exprs_inv] indeed maps any sub-expression (precisely: its hash) to its unique identifier
     /// (precisely: the first identifier whose expression is equal to the given sub-expression).
-    /// Any algorithms that mutate this formula should take this into account to preserve structural sharing as an invariant.
+    /// This information can be used to enforce structural sharing by calling [Formula::canon_visitor].
     </span>exprs_inv: HashMap&lt;u64, Vec&lt;Id&gt;&gt;,
 
     <span class="doccomment">/// Stores all variables in this formula.
@@ -839,23 +977,23 @@
     <span class="doccomment">/// Maps variables to their identifiers.
     ///
     /// Conceptually, this is analogous to [Formula::exprs_inv].
-    /// However, the inverse lookup of variables is more simple:
+    /// However, the inverse lookup of variables is less complex:
     /// First, this formula does not own the variable names, which avoids the hash collisions discussed for [Formula::exprs_inv].
     /// Second, variables and their identifiers are never mutated after creation, so no additional [Vec] is needed.
     </span>vars_inv: HashMap&lt;Var&lt;<span class="lifetime">&#39;a</span>&gt;, VarId&gt;,
 
-    <span class="doccomment">/// Specifies the auxiliary root expression of this formula.
+    <span class="doccomment">/// Specifies the root expression of this formula.
     ///
     /// Serves as an index into [Formula::exprs].
-    /// The corresponding expression is the auxiliary root of this formula&#39;s syntax tree and thus the starting point for most algorithms.
+    /// The corresponding expression is the root of this formula&#39;s syntax tree and thus the starting point for most algorithms.
     /// We consider all expressions below this expression (including itself) to be sub-expressions.
     /// There might be other (non-sub-)expressions that are currently not relevant to this formula.
-    /// Note that [Formula::get_root_expr] and [Formula::set_root_expr] do not store the user-supplied root expression here,
-    /// but an auxiliary [And] expression that has the root expression as its single child.
-    /// This allows algorithms to freely mutate the root expression if necessary (see [Formula] on mutating children).
-    </span>aux_root_id: Id,
+    </span>root_id: Id,
 
-    aux_var_id: u32,
+    <span class="doccomment">/// Specifies the identifier of the most recently added auxiliary variable.
+    ///
+    /// Ensures that new auxiliary variables (created with [Var::Aux]) are uniquely identified in the context of this formula.
+    </span>var_aux_id: u32,
 }
 
 <span class="doccomment">/// An expression that is explicitly paired with the formula it is tied to.
@@ -870,37 +1008,29 @@
     ///
     /// The created formula is initially invalid (see [Formula::assert_valid]).
     /// The auxiliary variable with number 0 has no meaningful sign and can therefore not be used.
-    /// This simplifies the representation of literals in [crate::core::clauses::Clauses].
+    /// This simplifies the representation of literals in [crate::core::clauses::Clauses], which can be negative.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             exprs: <span class="macro">vec!</span>[Var(<span class="number">0</span>)],
             exprs_inv: HashMap::new(),
             vars: <span class="macro">vec!</span>[Var::Aux(<span class="number">0</span>)],
             vars_inv: HashMap::new(),
-            aux_root_id: <span class="number">0</span>,
-            aux_var_id: <span class="number">0</span>,
+            root_id: <span class="number">0</span>,
+            var_aux_id: <span class="number">0</span>,
         }
     }
 
     <span class="doccomment">/// Panics if this formula is invalid.
     ///
-    /// A formula is valid if it has at least one variable (added with [Formula::var]) and a root expression (set with [Formula::set_root_expr]).
-    /// In addition, we ensure that structural sharing is not violated.
+    /// A formula is valid if it has at least one variable (added with [Formula::var_expr]) and a root expression (set with [Formula::set_root_expr]).
+    /// In addition, structural sharing must not be violated (see [Formula::canon_visitor]).
+    /// All assertions are optional and therefore not included in `cargo build --release`.
     </span><span class="attr">#[cfg(debug_assertions)]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_valid(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
-        <span class="macro">debug_assert!</span>(<span class="self">self</span>.aux_root_id &gt; <span class="number">0 </span>&amp;&amp; <span class="self">self</span>.exprs.len() &gt; <span class="number">1 </span>&amp;&amp; <span class="self">self</span>.vars.len() &gt; <span class="number">1</span>);
-        <span class="self">self</span>.assert_shared();
+        <span class="macro">debug_assert!</span>(<span class="self">self</span>.root_id &gt; <span class="number">0 </span>&amp;&amp; <span class="self">self</span>.exprs.len() &gt; <span class="number">1 </span>&amp;&amp; <span class="self">self</span>.vars.len() &gt; <span class="number">1</span>);
+        <span class="self">self</span>.assert_canon();
         <span class="self">self
     </span>}
-
-    <span class="doccomment">/// Computes the hash of an expression.
-    ///
-    /// Used to look up an expression&#39;s identifier in [Formula::exprs_inv].
-    </span><span class="kw">fn </span>hash_expr(expr: <span class="kw-2">&amp;</span>Expr) -&gt; u64 {
-        <span class="kw">let </span><span class="kw-2">mut </span>hasher = DefaultHasher::new();
-        expr.hash(<span class="kw-2">&amp;mut </span>hasher);
-        hasher.finish()
-    }
 
     <span class="doccomment">/// Adds a new expression to this formula, returning its new identifier.
     ///
@@ -909,8 +1039,8 @@
     /// Thus, the created identifier will become the expression&#39;s canonical identifier (see [Formula::exprs_inv]).
     </span><span class="kw">fn </span>add_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: Expr) -&gt; Id {
         <span class="kw">let </span>id = <span class="self">self</span>.exprs.len();
-        <span class="kw">let </span>hash = <span class="self">Self</span>::hash_expr(<span class="kw-2">&amp;</span>expr);
-        <span class="self">self</span>.exprs.insert(id, expr);
+        <span class="kw">let </span>hash = expr.calc_hash();
+        <span class="self">self</span>.exprs.push(expr);
         <span class="self">self</span>.exprs_inv.entry(hash).or_default().push(id);
         id
     }
@@ -920,135 +1050,183 @@
     /// The canonical identifier for a given expression is the first one that is associated with its hash
     /// and whose expression is also equal to the given expression (see [Formula::exprs_inv]).
     </span><span class="kw">fn </span>get_expr(<span class="kw-2">&amp;</span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>Expr) -&gt; <span class="prelude-ty">Option</span>&lt;Id&gt; {
-        <span class="kw">let </span>ids = <span class="self">self</span>.exprs_inv.get(<span class="kw-2">&amp;</span><span class="self">Self</span>::hash_expr(expr))<span class="question-mark">?</span>;
-        <span class="kw">for </span>id <span class="kw">in </span>ids {
-            <span class="kw">if </span><span class="self">self</span>.exprs[<span class="kw-2">*</span>id] == <span class="kw-2">*</span>expr {
-                <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="kw-2">*</span>id);
-            }
-        }
-        <span class="prelude-val">None
-    </span>}
+        <span class="self">self</span>.exprs_inv
+            .get(<span class="kw-2">&amp;</span>expr.calc_hash())<span class="question-mark">?
+            </span>.iter()
+            .filter(|id| <span class="self">self</span>.exprs[<span class="kw-2">**</span>id] == <span class="kw-2">*</span>expr)
+            .map(|id| <span class="kw-2">*</span>id)
+            .next()
+    }
 
     <span class="doccomment">/// Adds or looks up an expression of this formula, returning its identifier.
     ///
     /// This is the preferred way to obtain an expression&#39;s identifier, as it ensures structural sharing.
     /// That is, the expression is only added to this formula if it does not already exist.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: Expr) -&gt; Id {
+    /// Before we add the expression, we simplify it, which is a cheap operation (in contrast to [Formula::flatten_expr]).
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>expr: Expr) -&gt; Id {
+        <span class="self">self</span>.simp_expr(<span class="kw-2">&amp;mut </span>expr);
         <span class="self">self</span>.get_expr(<span class="kw-2">&amp;</span>expr).unwrap_or_else(|| <span class="self">self</span>.add_expr(expr))
     }
 
-    <span class="doccomment">/// Adds a new variable to this formula, returning the identifier of its [Var] expression.
+    <span class="doccomment">/// Adds a new variable to this formula, returning its identifier.
     ///
     /// Works analogously to [Formula::add_expr] (see [Formula::vars_inv]).
-    /// However, it does not return the variable&#39;s identifier, but its [Var] expression&#39;s identifier.
-    /// This is usually more convenient.
-    </span><span class="kw">fn </span>add_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var: Var&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; Id {
+    </span><span class="kw">fn </span>add_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var: Var&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; VarId {
         <span class="kw">let </span>id = <span class="self">self</span>.vars.len();
         <span class="kw">let </span>id_signed: i32 = id.try_into().unwrap();
-        <span class="self">self</span>.vars.insert(id, var);
+        <span class="self">self</span>.vars.push(var);
         <span class="self">self</span>.vars_inv.insert(var.clone(), id_signed);
-        <span class="self">self</span>.expr(Var(id_signed))
+        id_signed
     }
 
-    <span class="doccomment">/// Adds a new named variable to this formula, returning the identifier of its [Var] expression.
-    </span><span class="kw">fn </span>add_var_named(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str) -&gt; Id {
-        <span class="self">self</span>.add_var(Var::Named(var))
+    <span class="doccomment">/// Adds a new named variable to this formula, returning its identifier.
+    </span><span class="kw">fn </span>add_var_named(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str) -&gt; VarId {
+        <span class="self">self</span>.add_var(Var::Named(name))
     }
 
-    <span class="doccomment">/// Adds a new auxiliary variable to this formula, returning the identifier of its [Var] expression.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_var_aux(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Id {
-        <span class="self">self</span>.aux_var_id += <span class="number">1</span>;
-        <span class="self">self</span>.add_var(Var::Aux(<span class="self">self</span>.aux_var_id))
+    <span class="doccomment">/// Adds a new auxiliary variable to this formula, returning its identifier.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_var_aux(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; VarId {
+        <span class="self">self</span>.var_aux_id += <span class="number">1</span>;
+        <span class="self">self</span>.add_var(Var::Aux(<span class="self">self</span>.var_aux_id))
     }
 
-    <span class="doccomment">/// Looks ups the identifier for the [Var] expression of a named variable in this formula.
+    <span class="doccomment">/// Looks ups the identifier of a named variable in this formula.
     ///
     /// Works analogously to [Formula::get_expr] (see [Formula::vars_inv]).
-    /// As for [Formula::add_var], it is usually more convenient to return the [Var] expression&#39;s identifier.
-    </span><span class="kw">fn </span>get_var_named(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;Id&gt; {
-        <span class="prelude-val">Some</span>(<span class="self">self</span>.expr(Var(<span class="kw-2">*</span><span class="self">self</span>.vars_inv.get(<span class="kw-2">&amp;</span>Var::Named(var))<span class="question-mark">?</span>)))
+    </span><span class="kw">fn </span>get_var_named(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;VarId&gt; {
+        <span class="prelude-val">Some</span>(<span class="kw-2">*</span><span class="self">self</span>.vars_inv.get(<span class="kw-2">&amp;</span>Var::Named(name))<span class="question-mark">?</span>)
     }
 
     <span class="doccomment">/// Adds or looks up a named variable of this formula, returning its [Var] expression&#39;s identifier.
     ///
     /// This is the preferred way to obtain a [Var] expression&#39;s identifier (see [Formula::expr]).
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str) -&gt; Id {
-        <span class="self">self</span>.get_var_named(var)
-            .unwrap_or_else(|| <span class="self">self</span>.add_var_named(var))
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>var_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str) -&gt; Id {
+        <span class="kw">let </span>var_id = <span class="self">self
+            </span>.get_var_named(var)
+            .unwrap_or_else(|| <span class="self">self</span>.add_var_named(var));
+        <span class="self">self</span>.expr(Var(var_id))
+    }
+
+    <span class="doccomment">/// Adds a new auxiliary variable to this formula, returning its [Var] expression&#39;s identifier.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_var_aux_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Id {
+        <span class="kw">let </span>var_id = <span class="self">self</span>.add_var_aux();
+        <span class="self">self</span>.expr(Var(var_id))
     }
 
     <span class="doccomment">/// Returns the root expression of this formula.
-    ///
-    /// That is, we return the only child of the auxiliary root expression (see [Formula::aux_root_id]).
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_root_expr(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Id {
-        <span class="kw">if let </span>And(ids) = <span class="kw-2">&amp;</span><span class="self">self</span>.exprs[<span class="self">self</span>.aux_root_id] {
-            <span class="macro">debug_assert!</span>(ids.len() == <span class="number">1</span>);
-            ids[<span class="number">0</span>]
-        } <span class="kw">else </span>{
-            <span class="macro">unreachable!</span>()
-        }
+        <span class="self">self</span>.root_id
     }
 
     <span class="doccomment">/// Sets the root expression of this formula.
     ///
-    /// That is, we update this formula&#39;s auxiliary root expression with the given expression (see [Formula::aux_root_id]).
     /// For a formula to be valid, the root expression has to be set at least once.
-    /// It may also be updated subsequently to focus on other expressions of the formula.
+    /// It may also be updated subsequently to focus on other expressions of the formula or build more complex expressions.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_root_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, root_id: Id) {
-        <span class="self">self</span>.aux_root_id = <span class="self">self</span>.expr(And(<span class="macro">vec!</span>[root_id]));
+        <span class="self">self</span>.root_id = root_id;
     }
 
-    <span class="doccomment">/// Returns the identifiers of the children of an expression.
+    <span class="doccomment">/// Simplifies an expression in this formula to an equivalent one.
     ///
-    /// We return nothing for [Var] expressions, which have no expression identifiers as children (only a variable identifier).
-    /// As [Var] expressions are leaves of a formula&#39;s syntax tree, this function is useful for traversing that tree.
-    </span><span class="kw">fn </span>get_child_exprs&lt;<span class="lifetime">&#39;b</span>&gt;(expr: <span class="kw-2">&amp;</span><span class="lifetime">&#39;b </span>Expr) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;b </span>[Id] {
+    /// First, sorts the expression&#39;s children, thus equality is up to commutativity.
+    /// Second, removes duplicate children of the expressions, thus equality is up to idempotency.
+    /// Third, identifies unary expressions with their operands (i.e., `And(x)` is simplified to `x`).
+    /// Fourth, removes double negations (i.e., `Not(Not(x))` is simplified to `x`).
+    /// Because we clone expressions, this may violate structural sharing (see [Formula::canon_visitor]).
+    /// As this is a cheap and useful operation, we already call it in the parsing stage.
+    </span><span class="kw">fn </span>simp_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;mut </span>Expr) {
         <span class="kw">match </span>expr {
-            Var(<span class="kw">_</span>) =&gt; <span class="kw-2">&amp;</span>[],
-            Not(id) =&gt; slice::from_ref(id),
-            And(ids) | Or(ids) =&gt; ids,
+            Var(<span class="kw">_</span>) =&gt; (),
+            Not(child_id) =&gt; <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.exprs[<span class="kw-2">*</span>child_id] {
+                Var(<span class="kw">_</span>) | And(<span class="kw">_</span>) | Or(<span class="kw">_</span>) =&gt; (),
+                Not(grandchild_id) =&gt; {
+                    <span class="kw-2">*</span>expr = <span class="self">self</span>.exprs[<span class="kw-2">*</span>grandchild_id].clone();
+                }
+            },
+            And(<span class="kw-2">ref mut </span>child_ids) | Or(<span class="kw-2">ref mut </span>child_ids) =&gt; {
+                child_ids.sort();
+                child_ids.dedup();
+                <span class="kw">if </span>child_ids.len() == <span class="number">1 </span>{
+                    <span class="kw-2">*</span>expr = <span class="self">self</span>.exprs[child_ids[<span class="number">0</span>]].clone();
+                }
+            }
         }
     }
 
-    <span class="doccomment">/// Sets the children of an expression in this formula.
+    <span class="doccomment">/// Flattens children of an expression into their parent.
     ///
-    /// This function must take several precautions to preserve structural sharing, as it performs in-place mutations.
-    /// While this function may temporarily violate structural sharing when called for a given expression,
-    /// it also makes up for said violation when called for any parent of said expression.
-    /// To do this, the function performs three steps:
-    /// First, every new child expression is checked for potential duplicates with existing expressions,
-    /// which we resolve using the canonical identifier obtained with [Formula::get_expr].
-    /// Second, we replace the old children with the new children.
-    /// Third, as we might have changed the hash of the expression, we must update its mapping in [Formula::exprs_inv].
+    /// Analogously to [Formula::simp_expr], this performs a simplification of an expression.
+    /// However, this may create new expressions and is therefore more expensive and not called in the parsing stage.
+    /// This is useful to call during a postorder syntax tree traversal to ensure canonical form (see [Formula::canon_visitor]).
+    </span><span class="kw">fn </span>flatten_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;mut </span>Expr) {
+        <span class="kw">match </span>expr {
+            Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) =&gt; (),
+            And(child_ids) =&gt; {
+                <span class="macro">flatten_expr!</span>(<span class="self">self</span>, expr, child_ids, And);
+            }
+            Or(child_ids) =&gt; {
+                <span class="macro">flatten_expr!</span>(<span class="self">self</span>, expr, child_ids, Or);
+            }
+        }
+    }
+
+    <span class="doccomment">/// Invalidates an expression after it was mutated.
+    ///
+    /// Does so by updating its mapping in [Formula::exprs_inv].
     /// One of two cases applies, which can both be handled in the same way:
     /// Either the new expression has never been added before, so structural sharing was not violated.
-    /// Thus, we can just push the expression&#39;s identifier as the new canonical identifier for the expression.
+    /// Thus, we can just append the expression&#39;s identifier as the new canonical identifier for the expression.
     /// In the second case, the expression already exists and already has a canonical identifier.
-    /// Still, we can push the identifier anyway, as only the first identifier will be considered.
-    /// Because this function cleans up violations of children, it must be called after, not before children have been mutated.
-    /// Thus, it does not preserve structural sharing on its own when used in [Formula::preorder_rev].
-    </span><span class="kw">fn </span>set_child_exprs(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: Id, <span class="kw-2">mut </span>ids: Vec&lt;Id&gt;) {
-        <span class="kw">for </span>id <span class="kw">in </span>ids.iter_mut() {
-            <span class="kw-2">*</span>id = <span class="self">self</span>.get_expr(<span class="kw-2">&amp;</span><span class="self">self</span>.exprs[<span class="kw-2">*</span>id]).unwrap(); <span class="comment">// todo: (when) does this actually do something?
-        </span>}
-        <span class="kw">match </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.exprs[id] {
-            Var(<span class="kw">_</span>) =&gt; (),
-            Not(id) =&gt; <span class="kw-2">*</span>id = ids[<span class="number">0</span>],
-            And(child_ids) | Or(child_ids) =&gt; <span class="kw-2">*</span>child_ids = ids,
-        };
+    /// Still, we can append the identifier anyway, as only the first identifier will be considered.
+    /// In terms of correctness, appending the identifier suffices, although we may optimize by cleaning up [Formula::exprs_inv].
+    </span><span class="kw">fn </span>inval_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: Id) {
         <span class="self">self</span>.exprs_inv
-            .entry(<span class="self">Self</span>::hash_expr(<span class="kw-2">&amp;</span><span class="self">self</span>.exprs[id]))
+            .entry(<span class="self">self</span>.exprs[id].calc_hash())
             .or_default()
             .push(id);
     }
 
-    <span class="doccomment">/// Resets the auxiliary root expression, if necessary.
+    <span class="doccomment">/// Mutates an expression in this formula.
     ///
-    /// If the auxiliary root expression is mutated with [Formula::set_child_exprs], structural sharing might be violated.
-    /// Because [Formula::set_child_exprs] can only address this issue for children,
-    /// we need not explicitly address the only expression that is not a child itself - the auxiliary root expression.
-    </span><span class="kw">fn </span>reset_aux_root_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="self">self</span>.aux_root_id = <span class="self">self</span>.get_expr(<span class="kw-2">&amp;</span><span class="self">self</span>.exprs[<span class="self">self</span>.aux_root_id]).unwrap();
+    /// This function replaces the expression for a given identifier with a new given expression.
+    /// It has no effect on leaves in the syntax tree (i.e., variables).
+    /// We must take several precautions to preserve structural sharing, as we perform an in-place mutation.
+    /// While this function may temporarily violate structural sharing when called for a given expression,
+    /// it also makes up for (i.e., &quot;fixes&quot;) said violation when called for every parent of said expression afterwards (see [Formula::canon_visitor]).
+    /// To do so, the function performs three steps:
+    /// First, every new child expression is checked for potential duplicates with existing expressions,
+    /// which we resolve using the canonical identifier obtained with [Formula::get_expr].
+    /// Second, we replace the old expression with the new expression.
+    /// Third, as we might have changed the hash of the expression, we must invalidate it with [Formula::inval_expr].
+    /// Because this function cleans up violations of children, it must be called after, not before children have been mutated.
+    /// Thus, it does not preserve structural sharing when used in [Formula::preorder_rev], only in [Formula::postorder_rev].
+    /// Besides guaranteeing structural sharing, we perform flattening and simplification on the expression, which usually produces smaller formulas.
+    </span><span class="kw">fn </span>set_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: Id, <span class="kw-2">mut </span>expr: Expr) {
+        <span class="kw">if let </span>Var(<span class="kw">_</span>) = <span class="self">self</span>.exprs[id] {
+            <span class="kw">return</span>;
+        }
+        <span class="self">self</span>.flatten_expr(<span class="kw-2">&amp;mut </span>expr);
+        <span class="self">self</span>.simp_expr(<span class="kw-2">&amp;mut </span>expr);
+        <span class="kw">match </span>expr {
+            Var(<span class="kw">_</span>) =&gt; (),
+            Not(<span class="kw-2">ref mut </span>id) =&gt; <span class="kw-2">*</span>id = <span class="self">self</span>.get_expr(<span class="kw-2">&amp;</span><span class="self">self</span>.exprs[<span class="kw-2">*</span>id]).unwrap(),
+            And(<span class="kw-2">ref mut </span>ids) | Or(<span class="kw-2">ref mut </span>ids) =&gt; {
+                <span class="kw">for </span>id <span class="kw">in </span>ids.iter_mut() {
+                    <span class="kw-2">*</span>id = <span class="self">self</span>.get_expr(<span class="kw-2">&amp;</span><span class="self">self</span>.exprs[<span class="kw-2">*</span>id]).unwrap();
+                }
+            }
+        }
+        <span class="self">self</span>.exprs[id] = expr;
+        <span class="self">self</span>.inval_expr(id);
+    }
+
+    <span class="doccomment">/// Resets the root expression, if necessary.
+    ///
+    /// If the root expression is mutated with [Formula::set_expr], structural sharing might be violated.
+    /// Because [Formula::set_expr] can only address this issue for children,
+    /// we need not explicitly address the only expression that is not a child itself - the root expression.
+    </span><span class="kw">fn </span>reset_root_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.root_id = <span class="self">self</span>.get_expr(<span class="kw-2">&amp;</span><span class="self">self</span>.exprs[<span class="self">self</span>.root_id]).unwrap();
     }
 
     <span class="doccomment">/// Returns expressions that negate the given expressions.
@@ -1072,9 +1250,9 @@
         } <span class="kw">else </span>{
             String::from(<span class="string">&quot;&quot;</span>)
         };
-        <span class="kw">let </span><span class="kw-2">mut </span>write_helper = |kind: <span class="kw-2">&amp;</span>str, ids: <span class="kw-2">&amp;</span>[Id]| {
+        <span class="kw">let </span><span class="kw-2">mut </span>write_helper = |kind: <span class="kw-2">&amp;</span>str, child_ids: <span class="kw-2">&amp;</span>[Id]| {
             <span class="macro">write!</span>(f, <span class="string">&quot;{kind}{printed_id}(&quot;</span>)<span class="question-mark">?</span>;
-            <span class="kw">for </span>(i, id) <span class="kw">in </span>ids.iter().enumerate() {
+            <span class="kw">for </span>(i, id) <span class="kw">in </span>child_ids.iter().enumerate() {
                 <span class="kw">if </span>i &gt; <span class="number">0 </span>{
                     <span class="macro">write!</span>(f, <span class="string">&quot;, &quot;</span>)<span class="question-mark">?</span>;
                 }
@@ -1085,75 +1263,47 @@
         <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.exprs[id] {
             Var(var_id) =&gt; {
                 <span class="kw">let </span>var_id: usize = (<span class="kw-2">*</span>var_id).try_into().unwrap();
-                <span class="macro">write!</span>(f, <span class="string">&quot;{}{printed_id}&quot;</span>, <span class="self">self</span>.vars.get(var_id).unwrap())
+                <span class="macro">write!</span>(f, <span class="string">&quot;{}{printed_id}&quot;</span>, <span class="self">self</span>.vars[var_id])
             }
-            Not(id) =&gt; write_helper(<span class="string">&quot;Not&quot;</span>, slice::from_ref(id)),
-            And(ids) =&gt; write_helper(<span class="string">&quot;And&quot;</span>, ids),
-            Or(ids) =&gt; write_helper(<span class="string">&quot;Or&quot;</span>, ids),
+            Not(child_id) =&gt; write_helper(<span class="string">&quot;Not&quot;</span>, slice::from_ref(child_id)),
+            And(child_ids) =&gt; write_helper(<span class="string">&quot;And&quot;</span>, child_ids),
+            Or(child_ids) =&gt; write_helper(<span class="string">&quot;Or&quot;</span>, child_ids),
         }
-    }
-
-    <span class="comment">// todo
-    </span><span class="kw">fn </span>is_non_aux_and(<span class="kw-2">&amp;</span><span class="self">self</span>, id: Id) -&gt; bool {
-        <span class="kw">if let </span>And(<span class="kw">_</span>) = <span class="self">self</span>.exprs[id] {
-            id != <span class="self">self</span>.aux_root_id
-        } <span class="kw">else </span>{
-            <span class="bool-val">false
-        </span>}
-    }
-
-    <span class="comment">// todo (maybe combine with unary simplification?)
-    </span><span class="kw">fn </span>splice_or(<span class="kw-2">&amp;</span><span class="self">self</span>, clause_id: Id, new_clause: <span class="kw-2">&amp;mut </span>Vec&lt;Id&gt;) {
-        <span class="comment">// todo splice child or&#39;s
-        </span><span class="kw">if let </span>Or(literal_ids) = <span class="kw-2">&amp;</span><span class="self">self</span>.exprs[clause_id] {
-            <span class="kw">for </span>literal_id <span class="kw">in </span>literal_ids {
-                new_clause.push(<span class="kw-2">*</span>literal_id);
-            }
-        } <span class="kw">else </span>{
-            new_clause.push(clause_id);
-        }
-    }
-
-    <span class="comment">// todo
-    </span><span class="kw">fn </span>dedup(<span class="kw-2">mut </span>vec: Vec&lt;Id&gt;) -&gt; Vec&lt;Id&gt; {
-        <span class="comment">// todo (inefficient) deduplication for idempotency
-        </span>vec.sort();
-        vec.dedup();
-        vec
     }
 
     <span class="doccomment">/// Visits all sub-expressions of this formula using a reverse preorder traversal.
     ///
-    /// To preserve structural sharing, we assume that the given visitor is idempotent and only performs mutation
-    /// with the designated methods, such as [Formula::var], [Formula::expr] and [Formula::set_child_exprs].
+    /// We assume that the given visitor is idempotent (in terms of formula mutation) and only
+    /// performs mutation with the designated methods, such as [Formula::var_expr], [Formula::expr] and [Formula::set_expr].
     /// The visitor is called at most once per unique sub-expression:
-    /// It will not be called several times on the same sub-expression - this leverages structural sharing.
-    /// However, we can also not guarantee it to be called on all sub-expressions - as it might change the set of sub-expressions.
+    /// It will not be called several times on the same sub-expression as long (as it does not violate structural sharing).
+    /// However, we can also not guarantee it to be called on all sub-expressions - as it might change the very set of sub-expressions.
     /// For improved performance, the traversal is reversed, so children are traversed right-to-left.
-    </span><span class="kw">fn </span>preorder_rev(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>visitor: <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;mut </span><span class="self">Self</span>, Id) -&gt; ()) {
-        <span class="kw">let </span><span class="kw-2">mut </span>remaining_ids = <span class="macro">vec!</span>[<span class="self">self</span>.aux_root_id];
+    </span><span class="kw">fn </span>preorder_rev(<span class="kw-2">&amp;mut </span><span class="self">self</span>, first_id: Id, <span class="kw-2">mut </span>visitor: <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;mut </span><span class="self">Self</span>, Id) -&gt; ()) {
+        <span class="kw">let </span><span class="kw-2">mut </span>remaining_ids = <span class="macro">vec!</span>[first_id];
         <span class="kw">let </span><span class="kw-2">mut </span>visited_ids = HashSet::&lt;Id&gt;::new();
         <span class="kw">while </span>!remaining_ids.is_empty() {
             <span class="kw">let </span>id = remaining_ids.pop().unwrap();
             <span class="kw">if </span>!visited_ids.contains(<span class="kw-2">&amp;</span>id) {
                 visitor(<span class="self">self</span>, id);
-                remaining_ids.extend(<span class="self">Self</span>::get_child_exprs(<span class="kw-2">&amp;</span><span class="self">self</span>.exprs[id]));
+                remaining_ids.extend(<span class="self">self</span>.exprs[id].children());
                 visited_ids.insert(id);
             }
         }
-        <span class="self">self</span>.reset_aux_root_expr();
+        <span class="self">self</span>.reset_root_expr();
     }
 
     <span class="doccomment">/// Visits all sub-expressions of this formula using a reverse postorder traversal.
     ///
     /// Conceptually, this is similar to [Formula::preorder_rev], but sub-expressions are visited bottom-up instead of top-down.
-    </span><span class="kw">fn </span>postorder_rev(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>visitor: <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;mut </span><span class="self">Self</span>, Id) -&gt; ()) {
-        <span class="kw">let </span><span class="kw-2">mut </span>remaining_ids = <span class="macro">vec!</span>[<span class="self">self</span>.aux_root_id];
+    /// Also, this traversal can be used to ensure structural sharing if the visitor is correctly implemented (see [Formula::canon_visitor]).
+    </span><span class="kw">fn </span>postorder_rev(<span class="kw-2">&amp;mut </span><span class="self">self</span>, first_id: Id, <span class="kw-2">mut </span>visitor: <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;mut </span><span class="self">Self</span>, Id) -&gt; ()) {
+        <span class="kw">let </span><span class="kw-2">mut </span>remaining_ids = <span class="macro">vec!</span>[first_id];
         <span class="kw">let </span><span class="kw-2">mut </span>seen_ids = HashSet::&lt;Id&gt;::new();
         <span class="kw">let </span><span class="kw-2">mut </span>visited_ids = HashSet::&lt;Id&gt;::new();
         <span class="kw">while </span>!remaining_ids.is_empty() {
             <span class="kw">let </span>id = remaining_ids.last().unwrap();
-            <span class="kw">let </span>child_ids = <span class="self">Self</span>::get_child_exprs(<span class="kw-2">&amp;</span><span class="self">self</span>.exprs[<span class="kw-2">*</span>id]);
+            <span class="kw">let </span>child_ids = <span class="self">self</span>.exprs[<span class="kw-2">*</span>id].children();
             <span class="kw">if </span>!child_ids.is_empty() &amp;&amp; !seen_ids.contains(id) &amp;&amp; !visited_ids.contains(id) {
                 seen_ids.insert(<span class="kw-2">*</span>id);
                 remaining_ids.extend(child_ids);
@@ -1166,156 +1316,189 @@
                 remaining_ids.pop();
             }
         }
-        <span class="self">self</span>.reset_aux_root_expr();
+        <span class="self">self</span>.reset_root_expr();
+    }
+
+    <span class="doccomment">/// Visits all sub-expressions of this formula using a combined reverse pre- and postorder traversal.
+    ///
+    /// Can be used to efficiently interleave a preorder and postorder visitor.
+    /// Note that each interior expression is visited twice (with the pre- and then the postorder visitor).
+    /// However, the leaves (i.e., [Var] expressions) are only visited once (with the postorder visitor).
+    </span><span class="kw">fn </span>prepostorder_rev(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        first_id: Id,
+        <span class="kw-2">mut </span>pre_visitor: <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;mut </span><span class="self">Self</span>, Id) -&gt; (),
+        <span class="kw-2">mut </span>post_visitor: <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;mut </span><span class="self">Self</span>, Id) -&gt; (),
+    ) {
+        <span class="kw">let </span><span class="kw-2">mut </span>remaining_ids = <span class="macro">vec!</span>[first_id];
+        <span class="kw">let </span><span class="kw-2">mut </span>seen_ids: HashSet&lt;usize&gt; = HashSet::&lt;Id&gt;::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>visited_ids = HashSet::&lt;Id&gt;::new();
+        <span class="kw">while </span>!remaining_ids.is_empty() {
+            <span class="kw">let </span>id = remaining_ids.last().unwrap();
+            <span class="kw">if </span>!<span class="self">self</span>.exprs[<span class="kw-2">*</span>id].children().is_empty()
+                &amp;&amp; !seen_ids.contains(id)
+                &amp;&amp; !visited_ids.contains(id)
+            {
+                seen_ids.insert(<span class="kw-2">*</span>id);
+                pre_visitor(<span class="self">self</span>, <span class="kw-2">*</span>id);
+                remaining_ids.extend(<span class="self">self</span>.exprs[<span class="kw-2">*</span>id].children());
+            } <span class="kw">else </span>{
+                <span class="kw">if </span>!visited_ids.contains(id) {
+                    post_visitor(<span class="self">self</span>, <span class="kw-2">*</span>id);
+                    visited_ids.insert(<span class="kw-2">*</span>id);
+                    seen_ids.remove(id);
+                }
+                remaining_ids.pop();
+            }
+        }
+        <span class="self">self</span>.reset_root_expr();
     }
 
     <span class="doccomment">/// Panics if structural sharing is violated in this formula.
     ///
     /// That is, we assert that every sub-expression&#39;s identifier is indeed the canonical one.
+    /// Does not currently check for commutativity, idempotency, or unary expressions.
     </span><span class="attr">#[cfg(debug_assertions)]
-    </span><span class="kw">fn </span>assert_shared(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="self">self</span>.preorder_rev(|formula, id| {
+    </span><span class="kw">fn </span>assert_canon(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.preorder_rev(<span class="self">self</span>.root_id, |formula, id| {
             <span class="macro">debug_assert_eq!</span>(formula.get_expr(<span class="kw-2">&amp;</span>formula.exprs[id]).unwrap(), id)
         });
+    }
+
+    <span class="doccomment">/// Transforms this formula into canonical form.
+    ///
+    /// In canonical form, several useful guarantees hold:
+    /// First, no sub-expression occurs twice in the syntax tree with different identifiers (structural sharing).
+    /// Second, equality of sub-expressions is up to commutativity, idempotency, and unary expressions.
+    /// Third, no `And` expression is below an `And` expression (and analogously for `Or`).
+    /// Fourth, no `Not` expression is below a `Not` expression.
+    /// To ensure these guarantees, this visitor must be called in a postorder traversal, preorder does not work.
+    </span><span class="kw">fn </span>canon_visitor(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: Id) {
+        <span class="self">self</span>.set_expr(id, <span class="self">self</span>.exprs[id].clone());
     }
 
     <span class="doccomment">/// Manually enforces structural sharing in this formula.
     ///
     /// As [Formula::preorder_rev] mutates expressions before their children, it may violate structural sharing.
     /// The easiest way to fix this is by calling this function, which establishes the invariant again with a postorder traversal.
-    </span><span class="kw">fn </span>make_shared(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="self">self</span>.postorder_rev(|formula, id| {
-            formula.set_child_exprs(id, <span class="self">Self</span>::get_child_exprs(<span class="kw-2">&amp;</span>formula.exprs[id]).to_vec());
-        });
-    }
+    </span><span class="comment">// fn make_shared(&amp;mut self) {
+    //     self.postorder_rev(self.root_id, Self::make_shared_visitor);
+    // }
 
-    <span class="doccomment">/// Prints all sub-expression of this formula.
-    </span><span class="kw">fn </span>print_sub_exprs(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="self">self</span>.postorder_rev(|formula, id| <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, ExprInFormula(formula, <span class="kw-2">&amp;</span>id)));
-    }
-
-    <span class="doccomment">/// Transforms this formula into negation normal form by applying De Morgan&#39;s laws and removing double negations.
+    </span><span class="doccomment">/// Returns the identifiers of all sub-expressions of this formula.
     ///
-    /// We do this by traversing the formula top-down.
-    /// Meanwhile, we push negations towards the leaves (i.e., [Var] expressions) and we remove double negations.
-    /// After the traversal, we re-establish structural sharing (see [Formula::make_shared]).
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_nnf(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
-        <span class="self">self</span>.preorder_rev(|formula, id| {
-            <span class="comment">// todo probably need another copy here as for to_cnf_dist to make splicing/unary handling easier
-            </span><span class="kw">let </span><span class="kw-2">mut </span>child_ids: Vec&lt;Id&gt; = <span class="self">Self</span>::get_child_exprs(<span class="kw-2">&amp;</span>formula.exprs[id]).to_vec();
-            <span class="kw">for </span>child_id <span class="kw">in </span>child_ids.iter_mut() {
-                <span class="kw">match </span><span class="kw-2">&amp;</span>formula.exprs[<span class="kw-2">*</span>child_id] {
-                    Var(<span class="kw">_</span>) | And(<span class="kw">_</span>) | Or(<span class="kw">_</span>) =&gt; (),
-                    Not(grandchild_id) =&gt; {
-                        <span class="kw">match </span><span class="kw-2">&amp;</span>formula.exprs[<span class="kw-2">*</span>grandchild_id] {
-                            Var(<span class="kw">_</span>) =&gt; (),
-                            Not(greatgrandchild_id) =&gt; {
-                                <span class="kw-2">*</span>child_id = <span class="kw-2">*</span>greatgrandchild_id; <span class="comment">// todo what if this is an and and we are, too? could splice (maybe also remove unary)
-                            </span>}
-                            And(greatgrandchild_ids) =&gt; {
-                                <span class="kw">let </span>new_expr =
-                                    Or(formula.negate_exprs(greatgrandchild_ids.clone()));
-                                <span class="kw-2">*</span>child_id = formula.expr(new_expr);
-                            }
-                            Or(greatgrandchild_ids) =&gt; {
-                                <span class="comment">// todo: what if we created an and, but are ourselves an and? could splice here!
-                                </span><span class="kw">let </span>new_expr =
-                                    And(formula.negate_exprs(greatgrandchild_ids.clone()));
-                                <span class="kw-2">*</span>child_id = formula.expr(new_expr);
-                            }
-                        }
-                    }
-                }
-            }
-            formula.set_child_exprs(id, child_ids);
+    /// If in canonical form, each identifier is guaranteed to appear only once.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>sub_exprs(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;Id&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>sub_exprs = Vec::&lt;Id&gt;::new();
+        <span class="self">self</span>.preorder_rev(<span class="self">self</span>.root_id, |<span class="kw">_</span>, id| {
+            sub_exprs.push(id);
         });
-        <span class="self">self</span>.make_shared();
+        sub_exprs
+    }
+
+    <span class="doccomment">/// Transforms this formula into negation normal form by applying De Morgan&#39;s laws.
+    ///
+    /// We do this by traversing the formula top-down, eanwhile, we push negations towards the leaves (i.e., [Var] expressions).
+    </span><span class="kw">fn </span>nnf_visitor(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: Id) {
+        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.exprs[id] {
+            Var(<span class="kw">_</span>) | And(<span class="kw">_</span>) | Or(<span class="kw">_</span>) =&gt; (),
+            Not(child_id) =&gt; <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.exprs[<span class="kw-2">*</span>child_id] {
+                Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) =&gt; (),
+                And(grandchild_ids) =&gt; {
+                    <span class="kw">let </span>new_expr = Or(<span class="self">self</span>.negate_exprs(grandchild_ids.clone()));
+                    <span class="self">self</span>.set_expr(id, new_expr);
+                }
+                Or(grandchild_ids) =&gt; {
+                    <span class="kw">let </span>new_expr = And(<span class="self">self</span>.negate_exprs(grandchild_ids.clone()));
+                    <span class="self">self</span>.set_expr(id, new_expr);
+                }
+            },
+        }
+    }
+
+    <span class="doccomment">/// Transforms this formula into canonical negation normal form.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_nnf(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.prepostorder_rev(<span class="self">self</span>.root_id, <span class="self">Self</span>::nnf_visitor, <span class="self">Self</span>::canon_visitor);
         <span class="self">self
     </span>}
 
-    <span class="doccomment">/// Transforms this formula into conjunctive normal form by applying distributivity laws.
+    <span class="doccomment">/// Transforms this formula into canonical conjunctive normal form by applying distributivity laws.
     ///
     /// We do this by traversing the formula bottom-up and pushing [Or] expressions below [And] expressions via multiplication.
     /// This algorithm has exponential worst-case complexity, but ensures logical equivalence to the original formula.
-    /// Note that the formula must already be in negation normal form (see [Formula::to_nnf]).
-    /// `TODO`
+    /// Currently assumes that the formula is negation normal form (see [Formula::to_nnf]).
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_cnf_dist(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
-        <span class="comment">// todo: refactor code
-        // todo also, is this idempotent?
+        <span class="comment">// todo is this idempotent?
         // todo currently, this seems correct, but much less efficient than FeatureIDE, possibly optimize
-        </span><span class="self">self</span>.postorder_rev(|formula, id| {
-            <span class="comment">// todo need the children two times on the stack here, could maybe be disabled, but then merging is more complicated
-            </span><span class="kw">let </span>child_ids = <span class="self">Self</span>::get_child_exprs(<span class="kw-2">&amp;</span>formula.exprs[id]).to_vec();
-            <span class="kw">let </span><span class="kw-2">mut </span>new_child_ids = Vec::&lt;Id&gt;::new();
+        </span><span class="self">self</span>.postorder_rev(<span class="self">self</span>.root_id, |formula, id| {
+            <span class="comment">// todo extract this as a helper function for hybrid tseitin
+            </span><span class="kw">match </span><span class="kw-2">&amp;</span>formula.exprs[id] {
+                Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) =&gt; (),
+                And(child_ids) =&gt; {
+                    <span class="kw">let </span>new_child_ids = child_ids
+                        .iter()
+                        .map(|child_id| <span class="kw">match </span><span class="kw-2">&amp;</span>formula.exprs[<span class="kw-2">*</span>child_id] {
+                            And(grandchild_ids) =&gt; grandchild_ids.iter(),
+                            <span class="kw">_ </span>=&gt; slice::from_ref(child_id).iter(),
+                        })
+                        .flatten()
+                        .map(|id| <span class="kw-2">*</span>id)
+                        .collect();
+                    formula.set_expr(id, And(new_child_ids));
+                }
+                Or(child_ids) =&gt; {
+                    <span class="kw">let </span><span class="kw-2">mut </span>clauses = Vec::&lt;Vec&lt;Id&gt;&gt;::new();
+                    <span class="kw">for </span>(i, child_id) <span class="kw">in </span>child_ids.iter().enumerate() {
+                        <span class="kw">let </span>clause_ids = <span class="kw">match </span><span class="kw-2">&amp;</span>formula.exprs[<span class="kw-2">*</span>child_id] {
+                            <span class="comment">// todo could multiply all len&#39;s to calculate a threshold for hybrid tseitin
+                            </span>Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) | Or(<span class="kw">_</span>) =&gt; slice::from_ref(child_id),
+                            And(child_ids) =&gt; child_ids,
+                        };
 
-            <span class="kw">for </span>child_id <span class="kw">in </span>child_ids {
-                <span class="comment">// todo extract this as a helper function for hybrid tseitin
-                </span><span class="kw">match </span><span class="kw-2">&amp;</span>formula.exprs[child_id] {
-                    Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) =&gt; new_child_ids.push(child_id),
-                    And(grandchild_ids) =&gt; {
-                        <span class="kw">if </span>formula.is_non_aux_and(id) || grandchild_ids.len() == <span class="number">1 </span>{
-                            new_child_ids.extend(grandchild_ids.clone());
-                            <span class="comment">// todo new_child_ids.push(self.expr(And(cnf))); // todo unoptimized version
-                        </span>} <span class="kw">else </span>{
-                            new_child_ids.push(child_id);
-                        }
-                    }
-                    Or(grandchild_ids) =&gt; {
-                        <span class="kw">let </span><span class="kw-2">mut </span>clauses = Vec::&lt;Vec&lt;Id&gt;&gt;::new();
-                        <span class="kw">for </span>(i, grandchild_id) <span class="kw">in </span>grandchild_ids.iter().enumerate() {
-                            <span class="comment">// there might be a bug here: Or(...) should be moved to the first arm as | Or(_)
-                            </span><span class="kw">let </span>clause_ids = <span class="kw">match </span><span class="kw-2">&amp;</span>formula.exprs[<span class="kw-2">*</span>grandchild_id] {
-                                <span class="comment">// todo could multiply all len&#39;s to calculate a threshold for hybrid tseitin
-                                </span>Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) | Or(<span class="kw">_</span>) =&gt; slice::from_ref(grandchild_id),
-                                And(ids) =&gt; ids,
-                            };
-
-                            <span class="kw">if </span>i == <span class="number">0 </span>{
-                                clauses.extend(
-                                    <span class="comment">// todo possibly this can be done with a neutral element instead
-                                    </span>clause_ids
-                                        .iter()
-                                        .map(|clause_id| {
-                                            <span class="kw">let </span><span class="kw-2">mut </span>new_clause = Vec::&lt;Id&gt;::new();
-                                            formula.splice_or(<span class="kw-2">*</span>clause_id, <span class="kw-2">&amp;mut </span>new_clause);
-                                            new_clause
-                                        })
-                                        .collect::&lt;Vec&lt;Vec&lt;Id&gt;&gt;&gt;(),
-                                );
-                            } <span class="kw">else </span>{
-                                <span class="kw">let </span><span class="kw-2">mut </span>new_clauses = Vec::&lt;Vec&lt;Id&gt;&gt;::new();
-                                <span class="kw">for </span>clause <span class="kw">in </span><span class="kw-2">&amp;</span>clauses {
-                                    <span class="kw">for </span>clause_id <span class="kw">in </span>clause_ids {
-                                        <span class="kw">let </span><span class="kw-2">mut </span>new_clause = clause.clone();
-                                        formula.splice_or(<span class="kw-2">*</span>clause_id, <span class="kw-2">&amp;mut </span>new_clause);
-                                        new_clauses.push(new_clause);
+                        <span class="kw">if </span>i == <span class="number">0 </span>{
+                            clauses.extend(
+                                <span class="comment">// todo possibly this can be done with a neutral element instead
+                                </span>clause_ids
+                                    .iter()
+                                    .map(|clause_id| {
+                                        <span class="kw">let </span><span class="kw-2">mut </span>new_clause = Vec::&lt;Id&gt;::new();
+                                        <span class="kw">if let </span>Or(literal_ids) = <span class="kw-2">&amp;</span>formula.exprs[<span class="kw-2">*</span>clause_id] {
+                                            new_clause.extend(literal_ids);
+                                        } <span class="kw">else </span>{
+                                            new_clause.push(<span class="kw-2">*</span>clause_id);
+                                        }
+                                        new_clause
+                                    })
+                                    .collect::&lt;Vec&lt;Vec&lt;Id&gt;&gt;&gt;(),
+                            );
+                        } <span class="kw">else </span>{
+                            <span class="kw">let </span><span class="kw-2">mut </span>new_clauses = Vec::&lt;Vec&lt;Id&gt;&gt;::new();
+                            <span class="kw">for </span>clause <span class="kw">in </span><span class="kw-2">&amp;</span>clauses {
+                                <span class="kw">for </span>clause_id <span class="kw">in </span>clause_ids {
+                                    <span class="kw">let </span><span class="kw-2">mut </span>new_clause = clause.clone();
+                                    <span class="kw">if let </span>Or(literal_ids) = <span class="kw-2">&amp;</span>formula.exprs[<span class="kw-2">*</span>clause_id] {
+                                        new_clause.extend(literal_ids);
+                                    } <span class="kw">else </span>{
+                                        new_clause.push(<span class="kw-2">*</span>clause_id);
                                     }
+                                    new_clauses.push(new_clause);
                                 }
-                                clauses = new_clauses;
                             }
-                        }
-                        <span class="kw">let </span><span class="kw-2">mut </span>new_cnf_ids = Vec::&lt;Id&gt;::new();
-                        <span class="kw">for </span><span class="kw-2">mut </span>clause <span class="kw">in </span>clauses {
-                            clause = <span class="self">Self</span>::dedup(clause); <span class="comment">// todo idempotency
-                                                          // todo unary or
-                            </span><span class="kw">if </span>clause.len() &gt; <span class="number">1 </span>{
-                                new_cnf_ids.push(formula.expr(Or(clause)));
-                            } <span class="kw">else </span>{
-                                new_cnf_ids.push(clause[<span class="number">0</span>]);
-                            }
-                        }
-                        <span class="kw">if </span>formula.is_non_aux_and(id) || new_cnf_ids.len() == <span class="number">1 </span>{
-                            <span class="comment">// todo splice into parent and
-                            </span>new_child_ids.extend(new_cnf_ids);
-                            <span class="comment">// todo new_child_ids.push(self.expr(And(cnf))); // todo unoptimized version
-                        </span>} <span class="kw">else </span>{
-                            new_child_ids.push(formula.expr(And(new_cnf_ids)));
+                            clauses = new_clauses;
                         }
                     }
+                    <span class="kw">let </span><span class="kw-2">mut </span>new_cnf_ids = Vec::&lt;Id&gt;::new();
+                    <span class="kw">for </span>clause <span class="kw">in </span>clauses {
+                        <span class="kw">if </span>clause.len() &gt; <span class="number">1 </span>{
+                            <span class="kw">let </span>value = formula.expr(Or(clause));
+                            new_cnf_ids.push(value);
+                        } <span class="kw">else </span>{
+                            new_cnf_ids.push(clause[<span class="number">0</span>]);
+                        }
+                    }
+                    formula.set_expr(id, And(new_cnf_ids));
                 }
             }
-
-            formula.set_child_exprs(id, <span class="self">Self</span>::dedup(new_child_ids));
         });
         <span class="self">self
     </span>}
@@ -1323,66 +1506,64 @@
     <span class="doccomment">/// Defines an [And] expression with a new auxiliary variable.
     ///
     /// That is, we create a new auxiliary variable and clauses that let it imply all conjuncts and let it be implied by the conjunction.
-    </span><span class="kw">fn </span>def_and(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ids: <span class="kw-2">&amp;</span>[Id]) -&gt; (Id, Vec&lt;Id&gt;) {
-        <span class="kw">let </span>var = <span class="self">self</span>.add_var_aux();
-        <span class="kw">let </span>not_var = <span class="self">self</span>.expr(Not(var));
+    /// As an optimization, we do not create a [Var] expression for the new variable, as we are replacing an existing expression.
+    </span><span class="kw">fn </span>def_and(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var_expr_id: Id, ids: <span class="kw-2">&amp;</span>[Id]) -&gt; (VarId, Vec&lt;Id&gt;) {
+        <span class="kw">let </span>var_id = <span class="self">self</span>.add_var_aux();
+        <span class="kw">let </span>not_var_expr_id = <span class="self">self</span>.expr(Not(var_expr_id));
         <span class="kw">let </span><span class="kw-2">mut </span>clauses = Vec::&lt;Id&gt;::new();
-        <span class="kw">for </span>id <span class="kw">in </span>ids {
-            clauses.push(<span class="self">self</span>.expr(Or(<span class="macro">vec!</span>[not_var, <span class="kw-2">*</span>id])));
-        }
-        <span class="kw">let </span><span class="kw-2">mut </span>clause = <span class="macro">vec!</span>[var];
+        clauses.extend(
+            ids.iter()
+                .map(|id| <span class="self">self</span>.expr(Or(<span class="macro">vec!</span>[not_var_expr_id, <span class="kw-2">*</span>id]))),
+        );
+        <span class="kw">let </span><span class="kw-2">mut </span>clause = <span class="macro">vec!</span>[var_expr_id];
         <span class="comment">// todo might create double negation here, avoid this (presumably already in expr(Not(...))? although this would affect parsing, maybe extra method)
         </span>clause.extend(<span class="self">self</span>.negate_exprs(ids.to_vec()));
         clauses.push(<span class="self">self</span>.expr(Or(clause)));
         <span class="comment">// todo add these to the formula, ideally also splicing correctly
-        </span>(var, clauses)
+        </span>(var_id, clauses)
     }
 
     <span class="doccomment">/// Defines an [Or] expression with a new auxiliary variable.
     ///
     /// That is, we create a new auxiliary variable and clauses that let it imply the disjunction and let it be implied by all disjuncts.
-    </span><span class="kw">fn </span>def_or(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ids: <span class="kw-2">&amp;</span>[Id]) -&gt; (Id, Vec&lt;Id&gt;) {
-        <span class="kw">let </span>var = <span class="self">self</span>.add_var_aux();
-        <span class="kw">let </span>not_var = <span class="self">self</span>.expr(Not(var));
-        <span class="kw">let </span><span class="kw-2">mut </span>clause = <span class="macro">vec!</span>[not_var];
+    /// Works analogously to [Formula::def_and].
+    </span><span class="kw">fn </span>def_or(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var_expr_id: Id, ids: <span class="kw-2">&amp;</span>[Id]) -&gt; (VarId, Vec&lt;Id&gt;) {
+        <span class="kw">let </span>var_id = <span class="self">self</span>.add_var_aux();
+        <span class="kw">let </span>not_var_expr_id = <span class="self">self</span>.expr(Not(var_expr_id));
+        <span class="kw">let </span><span class="kw-2">mut </span>clause = <span class="macro">vec!</span>[not_var_expr_id];
         clause.extend(ids);
         <span class="kw">let </span><span class="kw-2">mut </span>clauses = <span class="macro">vec!</span>[<span class="self">self</span>.expr(Or(clause))];
-        <span class="kw">for </span>id <span class="kw">in </span>ids {
-            <span class="kw">let </span>new_expr = Or(<span class="macro">vec!</span>[var, <span class="self">self</span>.expr(Not(<span class="kw-2">*</span>id))]);
-            clauses.push(<span class="self">self</span>.expr(new_expr));
-        }
-        (var, clauses)
+        clauses.extend(ids.iter().map(|id| {
+            <span class="kw">let </span>new_expr = Or(<span class="macro">vec!</span>[var_expr_id, <span class="self">self</span>.expr(Not(<span class="kw-2">*</span>id))]);
+            <span class="self">self</span>.expr(new_expr)
+        }));
+        (var_id, clauses)
     }
 
-    <span class="comment">// todo currently assumes NNF for simplicity, but not a good idea generally - also, does not guarantee NNF itself, must be called again
+    <span class="comment">// todo currently assumes NNF for simplicity, but not a good idea generally - also, does not guarantee NNF itself, to_nnf must be called again (which is quite expensive, actually!!)
+    // todo this ensures &quot;minimal aux vars&quot; - minimal in the sense that no two aux vars have the same children
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_cnf_tseitin(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
         <span class="comment">// todo is this idempotent?
         </span><span class="kw">let </span><span class="kw-2">mut </span>new_clauses = Vec::&lt;Id&gt;::new();
 
-        <span class="self">self</span>.postorder_rev(|formula, id| {
-            <span class="kw">let </span>child_ids = <span class="self">Self</span>::get_child_exprs(<span class="kw-2">&amp;</span>formula.exprs[id]).to_vec();
-            <span class="kw">let </span><span class="kw-2">mut </span>new_child_ids = Vec::&lt;Id&gt;::new();
-
-            <span class="kw">for </span>child_id <span class="kw">in </span>child_ids {
-                <span class="kw">match </span><span class="kw-2">&amp;</span>formula.exprs[child_id] {
-                    Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) =&gt; new_child_ids.push(child_id),
-                    And(grandchild_ids) =&gt; {
-                        <span class="comment">// todo what about unary And?
-                        // todo ...
-                        </span><span class="kw">let </span>(var, clauses) = formula.def_and(<span class="kw-2">&amp;</span>grandchild_ids.clone());
-                        new_clauses.extend(clauses);
-                        new_child_ids.push(var);
-                    }
-                    Or(grandchild_ids) =&gt; {
-                        <span class="kw">let </span>(var, clauses) = formula.def_or(<span class="kw-2">&amp;</span>grandchild_ids.clone());
-                        new_clauses.extend(clauses);
-                        new_child_ids.push(var);
-                    }
+        <span class="self">self</span>.prepostorder_rev(<span class="self">self</span>.root_id, <span class="self">Self</span>::nnf_visitor, |formula, id| {
+            <span class="kw">match </span><span class="kw-2">&amp;</span>formula.exprs[id] {
+                Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) =&gt; (),
+                And(child_ids) =&gt; {
+                    <span class="comment">// todo what about unary And?
+                    // todo ...
+                    // todo this assumes deduplicated child_ids, as otherwise, duplicate children will get _two_ aux vars
+                    </span><span class="kw">let </span>(var_id, clauses) = formula.def_and(id, <span class="kw-2">&amp;</span>child_ids.clone());
+                    new_clauses.extend(clauses);
+                    formula.set_expr(id, Var(var_id));
+                }
+                Or(grandchild_ids) =&gt; {
+                    <span class="kw">let </span>(var_id, clauses) = formula.def_or(id, <span class="kw-2">&amp;</span>grandchild_ids.clone());
+                    new_clauses.extend(clauses);
+                    formula.set_expr(id, Var(var_id));
                 }
             }
-
-            formula.set_child_exprs(id, new_child_ids); <span class="comment">// todo dedup?
-        </span>});
+        });
 
         new_clauses.push(<span class="self">self</span>.get_root_expr());
         <span class="kw">let </span>root_id = <span class="self">self</span>.expr(And(new_clauses));
@@ -1390,7 +1571,8 @@
         <span class="self">self
     </span>}
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_clauses(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Clauses&lt;<span class="lifetime">&#39;a</span>&gt; {
+    <span class="comment">// todo
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_clauses(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Clauses&lt;<span class="lifetime">&#39;a</span>&gt; {
         Clauses::from(<span class="self">self</span>)
     }
 }
@@ -1400,7 +1582,7 @@
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
             Var::Named(name) =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;{name}&quot;</span>),
-            Var::Aux(id) =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;{}{id}&quot;</span>, AUX_VAR_PREFIX),
+            Var::Aux(id) =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;{}{id}&quot;</span>, VAR_AUX_PREFIX),
         }
     }
 }

@@ -287,7 +287,7 @@
         #[should_panic]
         </span><span class="kw">fn </span>no_root() {
             <span class="kw">let </span><span class="kw-2">mut </span>f = Formula::new();
-            <span class="kw">let </span>a = f.var(<span class="string">&quot;a&quot;</span>);
+            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>);
             f.expr(Not(a));
             f.assert_valid();
         }
@@ -295,7 +295,7 @@
         <span class="attr">#[test]
         </span><span class="kw">fn </span>valid() {
             <span class="kw">let </span><span class="kw-2">mut </span>f = Formula::new();
-            <span class="kw">let </span>a = f.var(<span class="string">&quot;a&quot;</span>);
+            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>);
             <span class="kw">let </span>not_a = f.expr(Not(a));
             f.set_root_expr(not_a);
             f.assert_valid();
@@ -308,7 +308,7 @@
         <span class="attr">#[test]
         </span><span class="kw">fn </span>not_a() {
             <span class="kw">let </span><span class="kw-2">mut </span>f = Formula::new();
-            <span class="kw">let </span>a = f.var(<span class="string">&quot;a&quot;</span>);
+            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>);
             <span class="kw">let </span>not_a = f.expr(Not(a));
             f.set_root_expr(not_a);
             <span class="macro">assert_eq!</span>(
@@ -320,7 +320,7 @@
         <span class="attr">#[test]
         </span><span class="kw">fn </span>not_not_a() {
             <span class="kw">let </span><span class="kw-2">mut </span>f = Formula::new();
-            <span class="kw">let </span>a = f.var(<span class="string">&quot;a&quot;</span>);
+            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>);
             <span class="kw">let </span>not_a = f.expr(Not(a));
             <span class="kw">let </span>not_not_a = f.expr(Not(not_a));
             f.set_root_expr(not_not_a);
@@ -330,23 +330,23 @@
         <span class="attr">#[test]
         </span><span class="kw">fn </span>and_not_not_a() {
             <span class="kw">let </span><span class="kw-2">mut </span>f = Formula::new();
-            <span class="kw">let </span>a = f.var(<span class="string">&quot;a&quot;</span>);
+            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>);
             <span class="kw">let </span>not_a = f.expr(Not(a));
             <span class="kw">let </span>not_not_a = f.expr(Not(not_a));
             <span class="kw">let </span>and = f.expr(And(<span class="macro">vec!</span>[not_not_a]));
             f.set_root_expr(and);
             <span class="macro">assert_eq!</span>(
                 f.assert_valid().to_nnf().assert_valid().to_string(),
-                <span class="string">&quot;And(a)&quot;
+                <span class="string">&quot;a&quot;
             </span>);
         }
 
         <span class="attr">#[test]
         </span><span class="kw">fn </span>complex() {
             <span class="kw">let </span><span class="kw-2">mut </span>f = Formula::new();
-            <span class="kw">let </span>a = f.var(<span class="string">&quot;a&quot;</span>);
-            <span class="kw">let </span>b = f.var(<span class="string">&quot;b&quot;</span>);
-            <span class="kw">let </span>c = f.var(<span class="string">&quot;c&quot;</span>);
+            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>);
+            <span class="kw">let </span>b = f.var_expr(<span class="string">&quot;b&quot;</span>);
+            <span class="kw">let </span>c = f.var_expr(<span class="string">&quot;c&quot;</span>);
             <span class="kw">let </span>not_a = f.expr(Not(a));
             <span class="kw">let </span>not_b = f.expr(Not(b));
             <span class="kw">let </span>not_c = f.expr(Not(c));
@@ -396,8 +396,8 @@
         <span class="attr">#[test]
         </span><span class="kw">fn </span>simple() {
             <span class="kw">let </span><span class="kw-2">mut </span>f = Formula::new();
-            <span class="kw">let </span>a = f.var(<span class="string">&quot;a&quot;</span>);
-            <span class="kw">let </span>b = f.var(<span class="string">&quot;b&quot;</span>);
+            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>);
+            <span class="kw">let </span>b = f.var_expr(<span class="string">&quot;b&quot;</span>);
             <span class="kw">let </span>a_and_b = f.expr(And(<span class="macro">vec!</span>[a, b]));
             <span class="kw">let </span>a_or_a_and_b = f.expr(Or(<span class="macro">vec!</span>[a, a_and_b]));
             <span class="kw">let </span>a_and_a_or_a_and_b = f.expr(And(<span class="macro">vec!</span>[a, a_or_a_and_b]));
@@ -414,9 +414,9 @@
         <span class="attr">#[test]
         </span><span class="kw">fn </span>complex() {
             <span class="kw">let </span><span class="kw-2">mut </span>f = Formula::new();
-            <span class="kw">let </span>a = f.var(<span class="string">&quot;a&quot;</span>);
-            <span class="kw">let </span>b = f.var(<span class="string">&quot;b&quot;</span>);
-            <span class="kw">let </span>c = f.var(<span class="string">&quot;c&quot;</span>);
+            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>);
+            <span class="kw">let </span>b = f.var_expr(<span class="string">&quot;b&quot;</span>);
+            <span class="kw">let </span>c = f.var_expr(<span class="string">&quot;c&quot;</span>);
             <span class="kw">let </span>not_a = f.expr(Not(a));
             <span class="kw">let </span>not_b = f.expr(Not(b));
             <span class="kw">let </span>not_c = f.expr(Not(c));

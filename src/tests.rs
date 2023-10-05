@@ -72,7 +72,7 @@ mod formula {
             f.set_root_expr(and);
             assert_eq!(
                 f.assert_valid().to_nnf().assert_valid().to_string(),
-                "And(a)"
+                "a"
             );
         }
 

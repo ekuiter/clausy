@@ -2,3 +2,4 @@
 !/target/doc
 /bin
 /.idea
+src/core/formula.rs
