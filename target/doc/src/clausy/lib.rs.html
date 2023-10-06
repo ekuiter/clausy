@@ -3,7 +3,19 @@
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
 <a href="#5" id="5">5</a>
-</pre></div><pre class="rust"><code><span class="kw">pub mod </span>shell;
+<a href="#6" id="6">6</a>
+<a href="#7" id="7">7</a>
+<a href="#8" id="8">8</a>
+<a href="#9" id="9">9</a>
+<a href="#10" id="10">10</a>
+<a href="#11" id="11">11</a>
+</pre></div><pre class="rust"><code><span class="doccomment">//! clausy transforms feature-model formulas into conjunctive normal form (CNF) for subsequent analysis.
+//! 
+//! * For information on installation and usage, visit [github.com/ekuiter/clausy](https://github.com/ekuiter/clausy/).
+//! * clausy should to be called from a binary crate via [shell::main], use in library crates is not intended.
+//! * As a starting point in this documentation, see [core::formula::Formula] for important algorithms.
+
+</span><span class="kw">pub mod </span>shell;
 <span class="kw">mod </span>core;
 <span class="kw">mod </span>parser;
 <span class="kw">mod </span>tests;
