@@ -20,7 +20,7 @@ fn parse_children<'a>(pair: Pair<'a, Rule>, formula: &mut Formula<'a>) -> Vec<Id
 
 fn parse_pair<'a>(pair: Pair<'a, Rule>, formula: &mut Formula<'a>) -> Id {
     match pair.as_rule() {
-        Rule::var => formula.var_expr(pair.into_inner().next().unwrap().as_str()),
+        Rule::var => formula.var_expr(pair.into_inner().next().unwrap().as_str().trim()),
         Rule::not => {
             let child_id = parse_pair(pair.into_inner().next().unwrap(), formula);
             formula.expr(Not(child_id))

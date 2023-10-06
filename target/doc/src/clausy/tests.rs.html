@@ -261,8 +261,6 @@
 <a href="#261" id="261">261</a>
 <a href="#262" id="262">262</a>
 <a href="#263" id="263">263</a>
-<a href="#264" id="264">264</a>
-<a href="#265" id="265">265</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Unit tests.
 
 </span><span class="attr">#![allow(unused_imports)]
@@ -365,7 +363,7 @@
             f.set_root_expr(root);
             <span class="macro">assert_eq!</span>(
                 f.assert_valid().to_nnf().assert_valid().to_string(),
-                <span class="string">&quot;Or(And(Not(a), c), And(b, Not(c), Or(a, Not(c))), Or(Not(b), c, And(Not(a), c)))&quot;
+                <span class="string">&quot;Or(c, Not(b), And(c, Not(a)), And(b, Not(c), Or(a, Not(c))))&quot;
             </span>);
         }
 
@@ -435,11 +433,9 @@
                 .assert_valid();
             <span class="macro">assert_eq!</span>(
                 f.to_string(),
-                <span class="string">&quot;And(Or(b, c, Not(b)), Or(b, c, Not(a), Not(b)), \
-            Or(c, Not(b), Not(c)), Or(c, Not(a), Not(b), Not(c)), Or(a, c, Not(b), Not(c)), \
-            Or(a, c, Not(a), Not(b), Not(c)), Or(b, c, Not(a), Not(b)), Or(b, c, Not(a), \
-            Not(b)), Or(c, Not(a), Not(b), Not(c)), Or(c, Not(a), Not(b), Not(c)), \
-            Or(a, c, Not(a), Not(b), Not(c)), Or(a, c, Not(a), Not(b), Not(c)))&quot;
+                <span class="string">&quot;And(Or(b, c, Not(b)), Or(c, Not(b), Not(c)), \
+                 Or(a, c, Not(b), Not(c)), Or(b, c, Not(a), Not(b)), \
+                 Or(c, Not(a), Not(b), Not(c)), Or(a, c, Not(a), Not(b), Not(c)))&quot;
             </span>);
         }
 

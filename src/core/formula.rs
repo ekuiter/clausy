@@ -554,6 +554,17 @@ impl<'a> Formula<'a> {
         self.reset_root_expr();
     }
 
+    /// Returns the identifiers of all sub-expressions of this formula.
+    ///
+    /// If in canonical form, each identifier is guaranteed to appear only once.
+    pub(crate) fn sub_exprs(&mut self) -> Vec<Id> {
+        let mut sub_exprs = Vec::<Id>::new();
+        self.preorder_rev(self.root_id, |_, id| {
+            sub_exprs.push(id);
+        });
+        sub_exprs
+    }
+
     /// Panics if structural sharing is violated in this formula.
     ///
     /// That is, we assert that every sub-expression's identifier is indeed the canonical one.
@@ -575,25 +586,6 @@ impl<'a> Formula<'a> {
     /// To ensure these guarantees, this visitor must be called in a postorder traversal, preorder does not work.
     fn canon_visitor(&mut self, id: Id) {
         self.set_expr(id, self.exprs[id].clone());
-    }
-
-    /// Manually enforces structural sharing in this formula.
-    ///
-    /// As [Formula::preorder_rev] mutates expressions before their children, it may violate structural sharing.
-    /// The easiest way to fix this is by calling this function, which establishes the invariant again with a postorder traversal.
-    // fn make_shared(&mut self) {
-    //     self.postorder_rev(self.root_id, Self::make_shared_visitor);
-    // }
-
-    /// Returns the identifiers of all sub-expressions of this formula.
-    ///
-    /// If in canonical form, each identifier is guaranteed to appear only once.
-    pub(crate) fn sub_exprs(&mut self) -> Vec<Id> {
-        let mut sub_exprs = Vec::<Id>::new();
-        self.preorder_rev(self.root_id, |_, id| {
-            sub_exprs.push(id);
-        });
-        sub_exprs
     }
 
     /// Transforms this formula into negation normal form by applying De Morgan's laws.

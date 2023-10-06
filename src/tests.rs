@@ -100,7 +100,7 @@ mod formula {
             f.set_root_expr(root);
             assert_eq!(
                 f.assert_valid().to_nnf().assert_valid().to_string(),
-                "Or(And(Not(a), c), And(b, Not(c), Or(a, Not(c))), Or(Not(b), c, And(Not(a), c)))"
+                "Or(c, Not(b), And(c, Not(a)), And(b, Not(c), Or(a, Not(c))))"
             );
         }
 
@@ -170,11 +170,9 @@ mod formula {
                 .assert_valid();
             assert_eq!(
                 f.to_string(),
-                "And(Or(b, c, Not(b)), Or(b, c, Not(a), Not(b)), \
-            Or(c, Not(b), Not(c)), Or(c, Not(a), Not(b), Not(c)), Or(a, c, Not(b), Not(c)), \
-            Or(a, c, Not(a), Not(b), Not(c)), Or(b, c, Not(a), Not(b)), Or(b, c, Not(a), \
-            Not(b)), Or(c, Not(a), Not(b), Not(c)), Or(c, Not(a), Not(b), Not(c)), \
-            Or(a, c, Not(a), Not(b), Not(c)), Or(a, c, Not(a), Not(b), Not(c)))"
+                "And(Or(b, c, Not(b)), Or(c, Not(b), Not(c)), \
+                 Or(a, c, Not(b), Not(c)), Or(b, c, Not(a), Not(b)), \
+                 Or(c, Not(a), Not(b), Not(c)), Or(a, c, Not(a), Not(b), Not(c)))"
             );
         }
 
