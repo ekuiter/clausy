@@ -9,6 +9,8 @@ use std::{
 
 use tempfile::NamedTempFile;
 
+use crate::core::formula::VarId;
+
 /// Returns the path of a bundled external program.
 ///
 /// Looks up the program (a) as a sibling of the currently running executable, (b) in the working directory,
@@ -31,7 +33,37 @@ fn path(file_name: &str) -> String {
     unreachable!()
 }
 
-/// Counts the number of satisfying assignments of some CNF in DIMACS format.
+/// Attempts to finds a solution of some CNF in DIMACS format.
+///
+/// Runs the efficient external model counter d4, which performs well on most small to medium size inputs.
+/// Returns the number as a string, as it will typically overflow otherwise.
+pub(crate) fn kissat(dimacs: &str) -> Option<Vec<VarId>> {
+    let process = Command::new(path("kissat_MAB-HyWalk"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    process.stdin.unwrap().write_all(dimacs.as_bytes()).unwrap();
+    let mut output = String::new();
+    process.stdout.unwrap().read_to_string(&mut output).unwrap();
+    debug_assert!(!output.is_empty());
+    let solution: Vec<VarId> = output
+        .lines()
+        .filter(|line| line.starts_with("v "))
+        .map(|line| line[2..].split(' ').collect::<Vec<&str>>())
+        .flatten()
+        .map(|str| str.parse().unwrap())
+        .filter(|var| *var != 0)
+        .collect();
+    if solution.len() > 0 {
+        Some(solution)
+    } else {
+        None
+    }
+}
+
+/// Counts the number of solutions of some CNF in DIMACS format.
 ///
 /// Runs the efficient external model counter d4, which performs well on most small to medium size inputs.
 /// Returns the number as a string, as it will typically overflow otherwise.

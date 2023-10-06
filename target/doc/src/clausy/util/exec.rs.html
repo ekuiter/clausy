@@ -77,6 +77,38 @@
 <a href="#77" id="77">77</a>
 <a href="#78" id="78">78</a>
 <a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Utilities for executing external programs.
 
 </span><span class="kw">use </span>std::{
@@ -87,6 +119,8 @@
 };
 
 <span class="kw">use </span>tempfile::NamedTempFile;
+
+<span class="kw">use </span><span class="kw">crate</span>::core::formula::VarId;
 
 <span class="doccomment">/// Returns the path of a bundled external program.
 ///
@@ -110,7 +144,37 @@
     <span class="macro">unreachable!</span>()
 }
 
-<span class="doccomment">/// Counts the number of satisfying assignments of some CNF in DIMACS format.
+<span class="doccomment">/// Attempts to finds a solution of some CNF in DIMACS format.
+///
+/// Runs the efficient external model counter d4, which performs well on most small to medium size inputs.
+/// Returns the number as a string, as it will typically overflow otherwise.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>kissat(dimacs: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;VarId&gt;&gt; {
+    <span class="kw">let </span>process = Command::new(path(<span class="string">&quot;kissat_MAB-HyWalk&quot;</span>))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    process.stdin.unwrap().write_all(dimacs.as_bytes()).unwrap();
+    <span class="kw">let </span><span class="kw-2">mut </span>output = String::new();
+    process.stdout.unwrap().read_to_string(<span class="kw-2">&amp;mut </span>output).unwrap();
+    <span class="macro">debug_assert!</span>(!output.is_empty());
+    <span class="kw">let </span>solution: Vec&lt;VarId&gt; = output
+        .lines()
+        .filter(|line| line.starts_with(<span class="string">&quot;v &quot;</span>))
+        .map(|line| line[<span class="number">2</span>..].split(<span class="string">&#39; &#39;</span>).collect::&lt;Vec&lt;<span class="kw-2">&amp;</span>str&gt;&gt;())
+        .flatten()
+        .map(|str| str.parse().unwrap())
+        .filter(|var| <span class="kw-2">*</span>var != <span class="number">0</span>)
+        .collect();
+    <span class="kw">if </span>solution.len() &gt; <span class="number">0 </span>{
+        <span class="prelude-val">Some</span>(solution)
+    } <span class="kw">else </span>{
+        <span class="prelude-val">None
+    </span>}
+}
+
+<span class="doccomment">/// Counts the number of solutions of some CNF in DIMACS format.
 ///
 /// Runs the efficient external model counter d4, which performs well on most small to medium size inputs.
 /// Returns the number as a string, as it will typically overflow otherwise.

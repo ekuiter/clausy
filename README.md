@@ -25,10 +25,16 @@ Documentation for clausy is available [online](https://ekuiter.github.io/clausy/
 
 ```
 # equivalent to the above, but more verbose
-bin/clausy meta/test.sat to_nnf to_cnf_dist to_clauses print
+bin/clausy meta/test.sat to_cnf_dist print
 
 # read from standard input and count solutions
-cat model.uvl | bin/clausy -.uvl to_nnf to_cnf_dist to_clauses count
+cat model.uvl | bin/clausy -.uvl to_cnf_dist count
+
+# read from command line and find some solution
+echo '(!def(a)|def(b))' | bin/clausy -.model to_cnf_dist satisfy
+
+# read from command line and check tautology
+if echo '(def(a)|!def(a))' | bin/clausy -.model '(-1)' to_cnf_tseitin satisfy | grep -q UNSATISFIABLE; then echo TAUTOLOGY; fi
 
 # run tests
 ./build.sh test

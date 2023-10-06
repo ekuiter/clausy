@@ -92,12 +92,9 @@ macro_rules! flatten_expr {
     ($formula:expr, $expr:expr, $child_ids:expr, $constructor:ident) => {
         *$child_ids = $child_ids
             .iter()
-            .map(|id| {
-                if let $constructor(grandchild_ids) = &$formula.exprs[*id] {
-                    grandchild_ids.iter()
-                } else {
-                    slice::from_ref(id).iter()
-                }
+            .map(|child_id| match &$formula.exprs[*child_id] {
+                $constructor(grandchild_ids) => grandchild_ids,
+                _ => slice::from_ref(child_id),
             })
             .flatten()
             .map(|id| *id)
@@ -495,6 +492,7 @@ impl<'a> Formula<'a> {
     ///
     /// Conceptually, this is similar to [Formula::preorder_rev], but sub-expressions are visited bottom-up instead of top-down.
     /// Also, this traversal can be used to ensure structural sharing if the visitor is correctly implemented (see [Formula::canon_visitor]).
+    #[allow(dead_code)]
     fn postorder_rev(&mut self, first_id: Id, mut visitor: impl FnMut(&mut Self, Id) -> ()) {
         let mut remaining_ids = vec![first_id];
         let mut seen_ids = HashSet::<Id>::new();

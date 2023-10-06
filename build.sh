@@ -32,6 +32,12 @@ if [[ $ACTION == build ]]; then
         chmod +x bin/d4
     fi
 
+    if [[ ! -f bin/kissat_MAB-HyWalk ]]; then
+        require-command curl
+        curl https://github.com/ekuiter/torte/raw/main/docker/solver/other/kissat_MAB-HyWalk -Lo bin/kissat_MAB-HyWalk
+        chmod +x bin/kissat_MAB-HyWalk
+    fi
+
     if [[ ! -f bin/io.jar ]]; then
         require-command java
         io/gradlew -p io shadowJar

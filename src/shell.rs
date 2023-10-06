@@ -12,6 +12,16 @@ use crate::{
     util::{file_exists, read_file},
 };
 
+/// Converts a formula into its clause representation, if not done yet.
+macro_rules! clauses {
+    ($clauses:expr, $formula:expr) => {{
+        if $clauses.is_none() {
+            $clauses = Some(Clauses::from(&$formula));
+        }
+        $clauses.as_ref().unwrap()
+    }};
+}
+
 /// Main entry point.
 ///
 /// Parses and runs each given command in order.
@@ -26,7 +36,6 @@ pub fn main(mut commands: Vec<String>) {
     }
 
     if commands.len() == 1 && file_exists(&commands[0]) {
-        commands.push("to_nnf".to_string());
         commands.push("to_cnf_dist".to_string());
         commands.push("to_clauses".to_string());
         commands.push("print".to_string());
@@ -58,17 +67,22 @@ pub fn main(mut commands: Vec<String>) {
             "to_cnf_dist" => formula = formula.to_cnf_dist(),
             "to_cnf_tseitin" => formula = formula.to_cnf_tseitin(),
             "to_clauses" => clauses = Some(Clauses::from(&formula)),
-            "satisfy" => todo!(),
-            "tautology" => todo!(),
-            "count" => println!("{}", clauses.as_ref().unwrap().count()),
+            "satisfy" => println!(
+                "{}",
+                clauses!(clauses, formula)
+                    .satisfy()
+                    .unwrap_or(String::from("UNSATISFIABLE"))
+            ),
+            "count" => println!("{}", clauses!(clauses, formula).count()),
             "assert_count" => {
                 if parsed_files.len() == 1 {
                     let (file, extension) = parsed_files.values().next().unwrap();
-                    clauses.as_ref().unwrap().assert_count(file, extension.as_ref().unwrap().clone());
+                    clauses!(clauses, formula)
+                        .assert_count(file, extension.as_ref().unwrap().clone());
                 } else {
                     unreachable!();
                 }
-            },
+            }
             "enumerate" => todo!(),
             "compare" => todo!(),
             _ => {

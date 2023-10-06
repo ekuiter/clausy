@@ -130,6 +130,24 @@
 <a href="#130" id="130">130</a>
 <a href="#131" id="131">131</a>
 <a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Clause representation of a feature-model formula.
 
 </span><span class="kw">use </span>std::{fmt, slice};
@@ -208,20 +226,38 @@
         <span class="macro">debug_assert!</span>(<span class="self">self</span>.vars.len() &gt; <span class="number">0 </span>&amp;&amp; <span class="self">self</span>.clauses.len() &gt; <span class="number">0</span>);
     }
 
-    <span class="doccomment">/// Counts the number of satisfying assignments of this clause representation.
+    <span class="doccomment">/// Attempts to finds a solution of this clause representation.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>satisfy(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+        exec::kissat(<span class="kw-2">&amp;</span><span class="self">self</span>.to_string()).map(|solution| {
+            solution
+                .iter()
+                .map(|literal| {
+                    <span class="kw">let </span>idx: usize = literal.unsigned_abs().try_into().unwrap();
+                    <span class="macro">format!</span>(
+                        <span class="string">&quot;{}{}&quot;</span>,
+                        <span class="kw">if </span><span class="kw-2">*</span>literal &gt; <span class="number">0 </span>{ <span class="string">&quot;+&quot; </span>} <span class="kw">else </span>{ <span class="string">&quot;-&quot; </span>},
+                        <span class="self">self</span>.vars[idx].to_string()
+                    )
+                })
+                .collect::&lt;Vec&lt;String&gt;&gt;()
+                .join(<span class="string">&quot;\n&quot;</span>)
+        })
+    }
+
+    <span class="doccomment">/// Counts the number of solutions of this clause representation.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>count(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
         exec::d4(<span class="kw-2">&amp;</span><span class="self">self</span>.to_string())
     }
 
-    <span class="doccomment">/// Counts the number of satisfying assignments of a feature-model file using FeatureIDE.
-    /// 
+    <span class="doccomment">/// Counts the number of solutions of a feature-model file using FeatureIDE.
+    ///
     /// The file extension must be given so FeatureIDE can detect the correct format.
     </span><span class="kw">fn </span>count_featureide(file: <span class="kw-2">&amp;</span>str, extension: String) -&gt; String {
         exec::d4(<span class="kw-2">&amp;</span>exec::io(file, <span class="kw-2">&amp;</span>extension, <span class="string">&quot;dimacs&quot;</span>))
     }
 
     <span class="doccomment">/// Panics if this clause representation has a different model count than that of FeatureIDE.
-    /// 
+    ///
     /// Useful for checking the correctness of count-preserving algorithms (e.g., [Formula::to_cnf_tseitin]).
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_count(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str, extension: String) {
         <span class="macro">assert_eq!</span>(<span class="self">self</span>.count(), <span class="self">Self</span>::count_featureide(file, extension));
