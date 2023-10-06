@@ -327,12 +327,13 @@ impl<'a> Formula<'a> {
 
     /// Simplifies an expression in this formula to an equivalent one.
     ///
-    /// First, sorts the expression's children, thus equality is up to commutativity.
-    /// Second, removes duplicate children of the expressions, thus equality is up to idempotency.
-    /// Third, identifies unary expressions with their operands (i.e., `And(x)` is simplified to `x`).
-    /// Fourth, removes double negations (i.e., `Not(Not(x))` is simplified to `x`).
-    /// Because we clone expressions, this may violate structural sharing (see [Formula::canon_visitor]).
-    /// As this is a cheap and useful operation, we already call it in the parsing stage.
+    /// First, we sort the expression's children, thus equality is up to commutativity.
+    /// Second, we remove duplicate children of the expressions, thus equality is up to idempotency.
+    /// Third, we identify unary expressions with their operands (i.e., `And(x)` is simplified to `x`).
+    /// Fourth, we remove double negations (i.e., `Not(Not(x))` is simplified to `x`).
+    /// Fifth, ...
+    /// Because we clone expressions, this function may violate structural sharing (see [Formula::canon_visitor]).
+    /// As this is a cheap and useful operation to make the formula smaller, we already call it in the parsing stage.
     fn simp_expr(&mut self, expr: &mut Expr) {
         match expr {
             Var(_) => (),
@@ -404,8 +405,6 @@ impl<'a> Formula<'a> {
         if let Var(_) = self.exprs[id] {
             return;
         }
-        self.flatten_expr(&mut expr);
-        self.simp_expr(&mut expr);
         match expr {
             Var(_) => (),
             Not(ref mut id) => *id = self.get_expr(&self.exprs[*id]).unwrap(),
@@ -415,6 +414,8 @@ impl<'a> Formula<'a> {
                 }
             }
         }
+        self.flatten_expr(&mut expr);
+        self.simp_expr(&mut expr);
         self.exprs[id] = expr;
         self.inval_expr(id);
     }
@@ -598,11 +599,13 @@ impl<'a> Formula<'a> {
     /// Transforms this formula into negation normal form by applying De Morgan's laws.
     ///
     /// We do this by traversing the formula top-down, eanwhile, we push negations towards the leaves (i.e., [Var] expressions).
+    /// Double negations cannot be encountered, as they have already been removed by [Formula::simp_expr].
     fn nnf_visitor(&mut self, id: Id) {
         match &self.exprs[id] {
             Var(_) | And(_) | Or(_) => (),
             Not(child_id) => match &self.exprs[*child_id] {
-                Var(_) | Not(_) => (),
+                Var(_) => (),
+                Not(_) => unreachable!(),
                 And(grandchild_ids) => {
                     let new_expr = Or(self.negate_exprs(grandchild_ids.clone()));
                     self.set_expr(id, new_expr);
