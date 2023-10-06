@@ -33,8 +33,8 @@ cat model.uvl | bin/clausy -.uvl to_cnf_dist count
 # read from command line and find some solution
 echo '(!def(a)|def(b))' | bin/clausy -.model to_cnf_dist satisfy
 
-# read from command line and check tautology
-echo '(def(a)|!def(a))' | bin/clausy -.model '(-1)' to_cnf_dist satisfy &>/dev/null || echo tautology
+# return whether input is a tautology (check $?)
+! echo '(def(a)|!def(a))' | bin/clausy -.model '(-1)' to_cnf_dist satisfy &>/dev/null
 
 # run tests
 ./build.sh test
