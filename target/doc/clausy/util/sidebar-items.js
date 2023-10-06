@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["file_exists","read_file"],"mod":["exec"]};

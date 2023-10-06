@@ -794,6 +794,8 @@
 <a href="#794" id="794">794</a>
 <a href="#795" id="795">795</a>
 <a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Data structures and algorithms for feature-model formulas.
 
 </span><span class="attr">#![allow(unused_imports, rustdoc::private_intra_doc_links)]
@@ -1416,80 +1418,9 @@
     ///
     /// We do this by traversing the formula bottom-up and pushing [Or] expressions below [And] expressions via multiplication.
     /// This algorithm has exponential worst-case complexity, but ensures logical equivalence to the original formula.
-    /// Currently assumes that the formula is negation normal form (see [Formula::to_nnf]).
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_cnf_dist(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
         <span class="comment">// todo is this idempotent?
-        // todo currently, this seems correct, but much less efficient than FeatureIDE, possibly optimize
-        </span><span class="self">self</span>.postorder_rev(<span class="self">self</span>.root_id, |formula, id| {
-            <span class="comment">// todo extract this as a helper function for hybrid tseitin
-            </span><span class="kw">match </span><span class="kw-2">&amp;</span>formula.exprs[id] {
-                Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) =&gt; (),
-                And(child_ids) =&gt; {
-                    <span class="kw">let </span>new_child_ids = child_ids
-                        .iter()
-                        .map(|child_id| <span class="kw">match </span><span class="kw-2">&amp;</span>formula.exprs[<span class="kw-2">*</span>child_id] {
-                            And(grandchild_ids) =&gt; grandchild_ids.iter(),
-                            <span class="kw">_ </span>=&gt; slice::from_ref(child_id).iter(),
-                        })
-                        .flatten()
-                        .map(|id| <span class="kw-2">*</span>id)
-                        .collect();
-                    formula.set_expr(id, And(new_child_ids));
-                }
-                Or(child_ids) =&gt; {
-                    <span class="kw">let </span><span class="kw-2">mut </span>clauses = Vec::&lt;Vec&lt;Id&gt;&gt;::new();
-                    <span class="kw">for </span>(i, child_id) <span class="kw">in </span>child_ids.iter().enumerate() {
-                        <span class="kw">let </span>clause_ids = <span class="kw">match </span><span class="kw-2">&amp;</span>formula.exprs[<span class="kw-2">*</span>child_id] {
-                            <span class="comment">// todo could multiply all len&#39;s to calculate a threshold for hybrid tseitin
-                            </span>Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) | Or(<span class="kw">_</span>) =&gt; slice::from_ref(child_id),
-                            And(child_ids) =&gt; child_ids,
-                        };
-
-                        <span class="kw">if </span>i == <span class="number">0 </span>{
-                            clauses.extend(
-                                <span class="comment">// todo possibly this can be done with a neutral element instead
-                                </span>clause_ids
-                                    .iter()
-                                    .map(|clause_id| {
-                                        <span class="kw">let </span><span class="kw-2">mut </span>new_clause = Vec::&lt;Id&gt;::new();
-                                        <span class="kw">if let </span>Or(literal_ids) = <span class="kw-2">&amp;</span>formula.exprs[<span class="kw-2">*</span>clause_id] {
-                                            new_clause.extend(literal_ids);
-                                        } <span class="kw">else </span>{
-                                            new_clause.push(<span class="kw-2">*</span>clause_id);
-                                        }
-                                        new_clause
-                                    })
-                                    .collect::&lt;Vec&lt;Vec&lt;Id&gt;&gt;&gt;(),
-                            );
-                        } <span class="kw">else </span>{
-                            <span class="kw">let </span><span class="kw-2">mut </span>new_clauses = Vec::&lt;Vec&lt;Id&gt;&gt;::new();
-                            <span class="kw">for </span>clause <span class="kw">in </span><span class="kw-2">&amp;</span>clauses {
-                                <span class="kw">for </span>clause_id <span class="kw">in </span>clause_ids {
-                                    <span class="kw">let </span><span class="kw-2">mut </span>new_clause = clause.clone();
-                                    <span class="kw">if let </span>Or(literal_ids) = <span class="kw-2">&amp;</span>formula.exprs[<span class="kw-2">*</span>clause_id] {
-                                        new_clause.extend(literal_ids);
-                                    } <span class="kw">else </span>{
-                                        new_clause.push(<span class="kw-2">*</span>clause_id);
-                                    }
-                                    new_clauses.push(new_clause);
-                                }
-                            }
-                            clauses = new_clauses;
-                        }
-                    }
-                    <span class="kw">let </span><span class="kw-2">mut </span>new_cnf_ids = Vec::&lt;Id&gt;::new();
-                    <span class="kw">for </span>clause <span class="kw">in </span>clauses {
-                        <span class="kw">if </span>clause.len() &gt; <span class="number">1 </span>{
-                            <span class="kw">let </span>value = formula.expr(Or(clause));
-                            new_cnf_ids.push(value);
-                        } <span class="kw">else </span>{
-                            new_cnf_ids.push(clause[<span class="number">0</span>]);
-                        }
-                    }
-                    formula.set_expr(id, And(new_cnf_ids));
-                }
-            }
-        });
+        </span><span class="self">self</span>.prepostorder_rev(<span class="self">self</span>.root_id, <span class="self">Self</span>::nnf_visitor, cnf_dist_visitor());
         <span class="self">self
     </span>}
 
@@ -1564,6 +1495,79 @@
     <span class="comment">// todo
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_clauses(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Clauses&lt;<span class="lifetime">&#39;a</span>&gt; {
         Clauses::from(<span class="self">self</span>)
+    }
+}
+
+<span class="kw">fn </span>cnf_dist_visitor() -&gt; <span class="kw">impl </span>Fn(<span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;_</span>&gt;, usize) {
+    |formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;_</span>&gt;, id| {
+        <span class="comment">// todo extract this as a helper function for hybrid tseitin
+        </span><span class="kw">match </span><span class="kw-2">&amp;</span>formula.exprs[id] {
+            Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) =&gt; (),
+            And(child_ids) =&gt; {
+                <span class="kw">let </span>new_child_ids = child_ids
+                    .iter()
+                    .map(|child_id| <span class="kw">match </span><span class="kw-2">&amp;</span>formula.exprs[<span class="kw-2">*</span>child_id] {
+                        And(grandchild_ids) =&gt; grandchild_ids.iter(),
+                        <span class="kw">_ </span>=&gt; slice::from_ref(child_id).iter(),
+                    })
+                    .flatten()
+                    .map(|id| <span class="kw-2">*</span>id)
+                    .collect();
+                formula.set_expr(id, And(new_child_ids));
+            }
+            Or(child_ids) =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>clauses = Vec::&lt;Vec&lt;Id&gt;&gt;::new();
+                <span class="kw">for </span>(i, child_id) <span class="kw">in </span>child_ids.iter().enumerate() {
+                    <span class="kw">let </span>clause_ids = <span class="kw">match </span><span class="kw-2">&amp;</span>formula.exprs[<span class="kw-2">*</span>child_id] {
+                        <span class="comment">// todo could multiply all len&#39;s to calculate a threshold for hybrid tseitin
+                        </span>Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) | Or(<span class="kw">_</span>) =&gt; slice::from_ref(child_id),
+                        And(child_ids) =&gt; child_ids,
+                    };
+
+                    <span class="kw">if </span>i == <span class="number">0 </span>{
+                        clauses.extend(
+                            <span class="comment">// todo possibly this can be done with a neutral element instead
+                            </span>clause_ids
+                                .iter()
+                                .map(|clause_id| {
+                                    <span class="kw">let </span><span class="kw-2">mut </span>new_clause = Vec::&lt;Id&gt;::new();
+                                    <span class="kw">if let </span>Or(literal_ids) = <span class="kw-2">&amp;</span>formula.exprs[<span class="kw-2">*</span>clause_id] {
+                                        new_clause.extend(literal_ids);
+                                    } <span class="kw">else </span>{
+                                        new_clause.push(<span class="kw-2">*</span>clause_id);
+                                    }
+                                    new_clause
+                                })
+                                .collect::&lt;Vec&lt;Vec&lt;Id&gt;&gt;&gt;(),
+                        );
+                    } <span class="kw">else </span>{
+                        <span class="kw">let </span><span class="kw-2">mut </span>new_clauses = Vec::&lt;Vec&lt;Id&gt;&gt;::new();
+                        <span class="kw">for </span>clause <span class="kw">in </span><span class="kw-2">&amp;</span>clauses {
+                            <span class="kw">for </span>clause_id <span class="kw">in </span>clause_ids {
+                                <span class="kw">let </span><span class="kw-2">mut </span>new_clause = clause.clone();
+                                <span class="kw">if let </span>Or(literal_ids) = <span class="kw-2">&amp;</span>formula.exprs[<span class="kw-2">*</span>clause_id] {
+                                    new_clause.extend(literal_ids);
+                                } <span class="kw">else </span>{
+                                    new_clause.push(<span class="kw-2">*</span>clause_id);
+                                }
+                                new_clauses.push(new_clause);
+                            }
+                        }
+                        clauses = new_clauses;
+                    }
+                }
+                <span class="kw">let </span><span class="kw-2">mut </span>new_cnf_ids = Vec::&lt;Id&gt;::new();
+                <span class="kw">for </span>clause <span class="kw">in </span>clauses {
+                    <span class="kw">if </span>clause.len() &gt; <span class="number">1 </span>{
+                        <span class="kw">let </span>value = formula.expr(Or(clause));
+                        new_cnf_ids.push(value);
+                    } <span class="kw">else </span>{
+                        new_cnf_ids.push(clause[<span class="number">0</span>]);
+                    }
+                }
+                formula.set_expr(id, And(new_cnf_ids));
+            }
+        }
     }
 }
 

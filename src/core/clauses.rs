@@ -81,14 +81,18 @@ impl<'a> Clauses<'a> {
         exec::d4(&self.to_string())
     }
 
-    // todo
+    /// Counts the number of satisfying assignments of a feature-model file using FeatureIDE.
+    /// 
+    /// The file extension must be given so FeatureIDE can detect the correct format.
     fn count_featureide(file: &str, extension: String) -> String {
         exec::d4(&exec::io(file, &extension, "dimacs"))
     }
 
-    // todo
+    /// Panics if this clause representation has a different model count than that of FeatureIDE.
+    /// 
+    /// Useful for checking the correctness of count-preserving algorithms (e.g., [Formula::to_cnf_tseitin]).
     pub(crate) fn assert_count(&self, file: &str, extension: String) {
-        debug_assert_eq!(self.count(), Self::count_featureide(file, extension));
+        assert_eq!(self.count(), Self::count_featureide(file, extension));
     }
 }
 

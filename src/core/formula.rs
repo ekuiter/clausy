@@ -9,8 +9,6 @@ use std::{
 };
 use Expr::*;
 
-use super::clauses::Clauses;
-
 /// Whether to print identifiers of expressions.
 ///
 /// Useful for debugging, but should generally be disabled, as this is expected by [crate::tests].
@@ -610,90 +608,92 @@ impl<'a> Formula<'a> {
         }
     }
 
+    /// Transforms this formula into canonical conjunctive normal form by applying distributivity laws.
+    ///
+    /// We do this by traversing the formula bottom-up and pushing [Or] expressions below [And] expressions via multiplication.
+    /// This algorithm has exponential worst-case complexity, but ensures logical equivalence to the original formula.
+    /// Assumes that this formula is already in negation normal form.
+    fn cnf_dist_visitor(&mut self, id: Id) {
+        // todo is this idempotent?
+        // todo refactor
+        match &self.exprs[id] {
+            Var(_) | Not(_) => (),
+            And(child_ids) => {
+                let new_child_ids = child_ids
+                    .iter()
+                    .map(|child_id| match &self.exprs[*child_id] {
+                        And(grandchild_ids) => grandchild_ids.iter(),
+                        _ => slice::from_ref(child_id).iter(),
+                    })
+                    .flatten()
+                    .map(|id| *id)
+                    .collect();
+                self.set_expr(id, And(new_child_ids));
+            }
+            Or(child_ids) => {
+                let mut clauses = Vec::<Vec<Id>>::new();
+                for (i, child_id) in child_ids.iter().enumerate() {
+                    let clause_ids = match &self.exprs[*child_id] {
+                        // todo could multiply all len's to calculate a threshold for hybrid tseitin
+                        Var(_) | Not(_) | Or(_) => slice::from_ref(child_id),
+                        And(child_ids) => child_ids,
+                    };
+
+                    if i == 0 {
+                        clauses.extend(
+                            // todo possibly this can be done with a neutral element instead
+                            clause_ids
+                                .iter()
+                                .map(|clause_id| {
+                                    let mut new_clause = Vec::<Id>::new();
+                                    if let Or(literal_ids) = &self.exprs[*clause_id] {
+                                        new_clause.extend(literal_ids);
+                                    } else {
+                                        new_clause.push(*clause_id);
+                                    }
+                                    new_clause
+                                })
+                                .collect::<Vec<Vec<Id>>>(),
+                        );
+                    } else {
+                        let mut new_clauses = Vec::<Vec<Id>>::new();
+                        for clause in &clauses {
+                            for clause_id in clause_ids {
+                                let mut new_clause = clause.clone();
+                                if let Or(literal_ids) = &self.exprs[*clause_id] {
+                                    new_clause.extend(literal_ids);
+                                } else {
+                                    new_clause.push(*clause_id);
+                                }
+                                new_clauses.push(new_clause);
+                            }
+                        }
+                        clauses = new_clauses;
+                    }
+                }
+                let mut new_cnf_ids = Vec::<Id>::new();
+                for clause in clauses {
+                    if clause.len() > 1 {
+                        let value = self.expr(Or(clause));
+                        new_cnf_ids.push(value);
+                    } else {
+                        new_cnf_ids.push(clause[0]);
+                    }
+                }
+                self.set_expr(id, And(new_cnf_ids));
+            }
+        }
+    }
+
     /// Transforms this formula into canonical negation normal form.
     pub(crate) fn to_nnf(mut self) -> Self {
         self.prepostorder_rev(self.root_id, Self::nnf_visitor, Self::canon_visitor);
         self
     }
 
-    /// Transforms this formula into canonical conjunctive normal form by applying distributivity laws.
-    ///
-    /// We do this by traversing the formula bottom-up and pushing [Or] expressions below [And] expressions via multiplication.
-    /// This algorithm has exponential worst-case complexity, but ensures logical equivalence to the original formula.
-    /// Currently assumes that the formula is negation normal form (see [Formula::to_nnf]).
+    /// Transforms this formula into canonical conjunctive normal form.
     pub(crate) fn to_cnf_dist(mut self) -> Self {
-        // todo is this idempotent?
-        // todo currently, this seems correct, but much less efficient than FeatureIDE, possibly optimize
-        self.postorder_rev(self.root_id, |formula, id| {
-            // todo extract this as a helper function for hybrid tseitin
-            match &formula.exprs[id] {
-                Var(_) | Not(_) => (),
-                And(child_ids) => {
-                    let new_child_ids = child_ids
-                        .iter()
-                        .map(|child_id| match &formula.exprs[*child_id] {
-                            And(grandchild_ids) => grandchild_ids.iter(),
-                            _ => slice::from_ref(child_id).iter(),
-                        })
-                        .flatten()
-                        .map(|id| *id)
-                        .collect();
-                    formula.set_expr(id, And(new_child_ids));
-                }
-                Or(child_ids) => {
-                    let mut clauses = Vec::<Vec<Id>>::new();
-                    for (i, child_id) in child_ids.iter().enumerate() {
-                        let clause_ids = match &formula.exprs[*child_id] {
-                            // todo could multiply all len's to calculate a threshold for hybrid tseitin
-                            Var(_) | Not(_) | Or(_) => slice::from_ref(child_id),
-                            And(child_ids) => child_ids,
-                        };
-
-                        if i == 0 {
-                            clauses.extend(
-                                // todo possibly this can be done with a neutral element instead
-                                clause_ids
-                                    .iter()
-                                    .map(|clause_id| {
-                                        let mut new_clause = Vec::<Id>::new();
-                                        if let Or(literal_ids) = &formula.exprs[*clause_id] {
-                                            new_clause.extend(literal_ids);
-                                        } else {
-                                            new_clause.push(*clause_id);
-                                        }
-                                        new_clause
-                                    })
-                                    .collect::<Vec<Vec<Id>>>(),
-                            );
-                        } else {
-                            let mut new_clauses = Vec::<Vec<Id>>::new();
-                            for clause in &clauses {
-                                for clause_id in clause_ids {
-                                    let mut new_clause = clause.clone();
-                                    if let Or(literal_ids) = &formula.exprs[*clause_id] {
-                                        new_clause.extend(literal_ids);
-                                    } else {
-                                        new_clause.push(*clause_id);
-                                    }
-                                    new_clauses.push(new_clause);
-                                }
-                            }
-                            clauses = new_clauses;
-                        }
-                    }
-                    let mut new_cnf_ids = Vec::<Id>::new();
-                    for clause in clauses {
-                        if clause.len() > 1 {
-                            let value = formula.expr(Or(clause));
-                            new_cnf_ids.push(value);
-                        } else {
-                            new_cnf_ids.push(clause[0]);
-                        }
-                    }
-                    formula.set_expr(id, And(new_cnf_ids));
-                }
-            }
-        });
+        self.prepostorder_rev(self.root_id, Self::nnf_visitor, Self::cnf_dist_visitor);
         self
     }
 
@@ -763,11 +763,6 @@ impl<'a> Formula<'a> {
         let root_id = self.expr(And(new_clauses));
         self.set_root_expr(root_id);
         self
-    }
-
-    // todo
-    pub(crate) fn to_clauses(&self) -> Clauses<'a> {
-        Clauses::from(self)
     }
 }
 

@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+use crate::core::clauses::Clauses;
 use crate::core::formula::ExprInFormula;
 use crate::parser::sat_inline::SatInlineFormulaParser;
 
@@ -56,10 +57,18 @@ pub fn main(mut commands: Vec<String>) {
             "to_nnf" => formula = formula.to_nnf(),
             "to_cnf_dist" => formula = formula.to_cnf_dist(),
             "to_cnf_tseitin" => formula = formula.to_cnf_tseitin(),
-            "to_clauses" => clauses = Some(formula.to_clauses()),
+            "to_clauses" => clauses = Some(Clauses::from(&formula)),
             "satisfy" => todo!(),
             "tautology" => todo!(),
             "count" => println!("{}", clauses.as_ref().unwrap().count()),
+            "assert_count" => {
+                if parsed_files.len() == 1 {
+                    let (file, extension) = parsed_files.values().next().unwrap();
+                    clauses.as_ref().unwrap().assert_count(file, extension.as_ref().unwrap().clone());
+                } else {
+                    unreachable!();
+                }
+            },
             "enumerate" => todo!(),
             "compare" => todo!(),
             _ => {
