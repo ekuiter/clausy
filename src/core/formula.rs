@@ -616,18 +616,7 @@ impl<'a> Formula<'a> {
         // todo refactor
         match &self.exprs[id] {
             Var(_) | Not(_) => (),
-            And(child_ids) => {
-                let new_child_ids = child_ids
-                    .iter()
-                    .map(|child_id| match &self.exprs[*child_id] {
-                        And(grandchild_ids) => grandchild_ids.iter(),
-                        _ => slice::from_ref(child_id).iter(),
-                    })
-                    .flatten()
-                    .map(|id| *id)
-                    .collect();
-                self.set_expr(id, And(new_child_ids));
-            }
+            And(_) => self.set_expr(id, self.exprs[id].clone()),
             Or(child_ids) => {
                 let mut clauses = Vec::<Vec<Id>>::new();
                 for (i, child_id) in child_ids.iter().enumerate() {

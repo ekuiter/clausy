@@ -67,12 +67,7 @@ pub fn main(mut commands: Vec<String>) {
             "to_cnf_dist" => formula = formula.to_cnf_dist(),
             "to_cnf_tseitin" => formula = formula.to_cnf_tseitin(),
             "to_clauses" => clauses = Some(Clauses::from(&formula)),
-            "satisfy" => println!(
-                "{}",
-                clauses!(clauses, formula)
-                    .satisfy()
-                    .unwrap_or(String::from("UNSATISFIABLE"))
-            ),
+            "satisfy" => println!("{}", clauses!(clauses, formula).satisfy().unwrap()),
             "count" => println!("{}", clauses!(clauses, formula).count()),
             "assert_count" => {
                 if parsed_files.len() == 1 {

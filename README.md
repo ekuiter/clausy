@@ -34,7 +34,7 @@ cat model.uvl | bin/clausy -.uvl to_cnf_dist count
 echo '(!def(a)|def(b))' | bin/clausy -.model to_cnf_dist satisfy
 
 # read from command line and check tautology
-if echo '(def(a)|!def(a))' | bin/clausy -.model '(-1)' to_cnf_tseitin satisfy | grep -q UNSATISFIABLE; then echo TAUTOLOGY; fi
+echo '(def(a)|!def(a))' | bin/clausy -.model '(-1)' to_cnf_dist satisfy &>/dev/null || echo tautology
 
 # run tests
 ./build.sh test
