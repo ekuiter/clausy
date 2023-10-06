@@ -33,13 +33,10 @@ impl<'a> Clauses<'a> {
 
         let add_literal = |id, clause: &mut Vec<VarId>| match formula.exprs[id] {
             Var(var_id) => clause.push(var_id),
-            Not(child_id) => {
-                if let Var(var_id) = formula.exprs[child_id] {
-                    clause.push(-var_id);
-                } else {
-                    unreachable!();
-                }
-            }
+            Not(child_id) => match formula.exprs[child_id] {
+                Var(var_id) => clause.push(-var_id),
+                _ => unreachable!(),
+            },
             _ => unreachable!(),
         };
 

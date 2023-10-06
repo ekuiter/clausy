@@ -50,6 +50,7 @@ https://cca.informatik.uni-freiburg.de/sat/ss23/05/
 what optimizations do featureide and z3 have? can we get faster/smaller formulas?
 
 one possible optimization: remove obvious tautologies/contradictions (e.g., replace Or(a,-a) with And()). however, this is not obvious to implement in linear time (need to find whether there is any pair of (non-)negated children IDs).
+
 one more: the negation operator Not could be completely avoided by encoding it in the sign of child IDs. this would save memory and reduce the number of lookups (might be particularly interesting for implementing polarity-based Plaisted-Greenbaum). however, this would also make the code much harder to read and probably requires introducing an auxiliary root again.
 
 profile #[inline(always)]
@@ -83,3 +84,5 @@ profile #[inline(always)]
 //     });
 //     named_vars // todo: when using this set, take care of order to guarantee determinism
 // }
+
+todo: hybrid visitor that decides for the dist or tseitin visitor (one criterion: could multiply all len's to calculate a threshold for hybrid tseitin, as done in z3)

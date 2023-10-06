@@ -340,6 +340,11 @@ impl<'a> Formula<'a> {
             },
             And(ref mut child_ids) | Or(ref mut child_ids) => {
                 child_ids.sort();
+                // todo: here, we could detect obvious tautologies/contradictions as follows:
+                // sort not by ID, but by ID + "if this is a Not, sort by its child ID" (and id' = Not(id) always follows after id)
+                // then, iterate over child_ids and check whether there is any id followed by id' such that id' = Not(id).
+                // if so, this is a tautology/contradiction and can be replaced with And()/Or().
+                // disadvantage: as long as we don't encode Not with ID signs, this requires a lot of lookups.
                 child_ids.dedup();
                 if child_ids.len() == 1 {
                     *expr = self.exprs[child_ids[0]].clone();
@@ -612,62 +617,38 @@ impl<'a> Formula<'a> {
     /// This algorithm has exponential worst-case complexity, but ensures logical equivalence to the original formula.
     /// Assumes that this formula is already in negation normal form.
     fn cnf_dist_visitor(&mut self, id: Id) {
-        // todo is this idempotent?
-        // todo refactor
         match &self.exprs[id] {
             Var(_) | Not(_) => (),
             And(_) => self.set_expr(id, self.exprs[id].clone()),
             Or(child_ids) => {
-                let mut clauses = Vec::<Vec<Id>>::new();
-                for (i, child_id) in child_ids.iter().enumerate() {
+                let mut new_clauses: Vec<Vec<Id>> = vec![vec![]];
+                for child_id in child_ids {
                     let clause_ids = match &self.exprs[*child_id] {
-                        // todo could multiply all len's to calculate a threshold for hybrid tseitin
                         Var(_) | Not(_) | Or(_) => slice::from_ref(child_id),
                         And(child_ids) => child_ids,
                     };
-
-                    if i == 0 {
-                        clauses.extend(
-                            // todo possibly this can be done with a neutral element instead
-                            clause_ids
-                                .iter()
-                                .map(|clause_id| {
-                                    let mut new_clause = Vec::<Id>::new();
-                                    if let Or(literal_ids) = &self.exprs[*clause_id] {
-                                        new_clause.extend(literal_ids);
-                                    } else {
-                                        new_clause.push(*clause_id);
-                                    }
-                                    new_clause
-                                })
-                                .collect::<Vec<Vec<Id>>>(),
-                        );
-                    } else {
-                        let mut new_clauses = Vec::<Vec<Id>>::new();
-                        for clause in &clauses {
-                            for clause_id in clause_ids {
-                                let mut new_clause = clause.clone();
-                                if let Or(literal_ids) = &self.exprs[*clause_id] {
-                                    new_clause.extend(literal_ids);
-                                } else {
-                                    new_clause.push(*clause_id);
-                                }
-                                new_clauses.push(new_clause);
-                            }
-                        }
-                        clauses = new_clauses;
-                    }
+                    new_clauses = new_clauses
+                        .iter()
+                        .map(|new_clause| {
+                            clause_ids.iter().map(|clause_id| {
+                                new_clause
+                                    .iter()
+                                    .chain(match &self.exprs[*clause_id] {
+                                        Or(literal_ids) => literal_ids,
+                                        _ => slice::from_ref(clause_id),
+                                    })
+                                    .cloned()
+                                    .collect()
+                            })
+                        })
+                        .flatten()
+                        .collect();
                 }
-                let mut new_cnf_ids = Vec::<Id>::new();
-                for clause in clauses {
-                    if clause.len() > 1 {
-                        let value = self.expr(Or(clause));
-                        new_cnf_ids.push(value);
-                    } else {
-                        new_cnf_ids.push(clause[0]);
-                    }
-                }
-                self.set_expr(id, And(new_cnf_ids));
+                let new_clause_ids = new_clauses
+                    .into_iter()
+                    .map(|new_clause| self.expr(Or(new_clause)))
+                    .collect();
+                self.set_expr(id, And(new_clause_ids));
             }
         }
     }
