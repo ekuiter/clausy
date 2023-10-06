@@ -21,7 +21,7 @@ bin/clausy meta/test.sat
 
 ## Documentation & Tests
 
-Documentation for clausy is available [online](https://ekuiter.github.io/clausy/).
+Documentation for clausy is also available [online](https://ekuiter.github.io/clausy/).
 
 ```
 # equivalent to the above, but more verbose
