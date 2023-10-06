@@ -24,7 +24,7 @@ bin/clausy meta/test.sat
 Documentation for clausy is available [online](https://ekuiter.github.io/clausy/).
 
 ```
-# equivalent, but more verbose
+# equivalent to the above, but more verbose
 bin/clausy meta/test.sat to_nnf to_cnf_dist to_clauses print
 
 # read from standard input and count solutions
