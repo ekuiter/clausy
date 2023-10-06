@@ -19,7 +19,7 @@ cat meta/test.sat | docker run -i clausy
 bin/clausy meta/test.sat
 ```
 
-## Documentation & Tests
+## Advanced Usage, Documentation, and Tests
 
 Documentation for clausy is available [online](https://ekuiter.github.io/clausy/).
 
