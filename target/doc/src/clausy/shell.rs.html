@@ -104,12 +104,6 @@
 <a href="#104" id="104">104</a>
 <a href="#105" id="105">105</a>
 <a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a>
-<a href="#108" id="108">108</a>
-<a href="#109" id="109">109</a>
-<a href="#110" id="110">110</a>
-<a href="#111" id="111">111</a>
-<a href="#112" id="112">112</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Imperative shell for operating on feature-model formulas.
 
 </span><span class="kw">use </span>std::collections::HashMap;
@@ -179,13 +173,7 @@
             <span class="string">&quot;to_cnf_dist&quot; </span>=&gt; formula = formula.to_cnf_dist(),
             <span class="string">&quot;to_cnf_tseitin&quot; </span>=&gt; formula = formula.to_cnf_tseitin(),
             <span class="string">&quot;to_clauses&quot; </span>=&gt; clauses = <span class="prelude-val">Some</span>(Clauses::from(<span class="kw-2">&amp;</span>formula)),
-            <span class="string">&quot;satisfy&quot; </span>=&gt; <span class="macro">println!</span>(
-                <span class="string">&quot;{}&quot;</span>,
-                <span class="macro">clauses!</span>(clauses, formula)
-                    .satisfy()
-                    .unwrap_or(String::from(<span class="string">&quot;UNSATISFIABLE&quot;</span>))
-            ),
-            <span class="string">&quot;tautology&quot; </span>=&gt; <span class="macro">todo!</span>(),
+            <span class="string">&quot;satisfy&quot; </span>=&gt; <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="macro">clauses!</span>(clauses, formula).satisfy().unwrap()),
             <span class="string">&quot;count&quot; </span>=&gt; <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="macro">clauses!</span>(clauses, formula).count()),
             <span class="string">&quot;assert_count&quot; </span>=&gt; {
                 <span class="kw">if </span>parsed_files.len() == <span class="number">1 </span>{

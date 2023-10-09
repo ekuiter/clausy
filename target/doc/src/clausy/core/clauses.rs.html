@@ -145,9 +145,6 @@
 <a href="#145" id="145">145</a>
 <a href="#146" id="146">146</a>
 <a href="#147" id="147">147</a>
-<a href="#148" id="148">148</a>
-<a href="#149" id="149">149</a>
-<a href="#150" id="150">150</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Clause representation of a feature-model formula.
 
 </span><span class="kw">use </span>std::{fmt, slice};
@@ -183,13 +180,10 @@
 
         <span class="kw">let </span>add_literal = |id, clause: <span class="kw-2">&amp;mut </span>Vec&lt;VarId&gt;| <span class="kw">match </span>formula.exprs[id] {
             Var(var_id) =&gt; clause.push(var_id),
-            Not(child_id) =&gt; {
-                <span class="kw">if let </span>Var(var_id) = formula.exprs[child_id] {
-                    clause.push(-var_id);
-                } <span class="kw">else </span>{
-                    <span class="macro">unreachable!</span>();
-                }
-            }
+            Not(child_id) =&gt; <span class="kw">match </span>formula.exprs[child_id] {
+                Var(var_id) =&gt; clause.push(-var_id),
+                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+            },
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
         };
 
