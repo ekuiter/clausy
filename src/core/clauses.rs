@@ -67,10 +67,12 @@ impl<'a> Clauses<'a> {
 
     /// Panics if this clause representation is invalid.
     ///
-    /// A clause representation is valid if it has at least one variable and one clause.
+    /// A clause representation is valid if it has at least one variable.
+    /// If there is no clause, the represented formula is a tautology.
+    /// If there is an empty clause, the represented formula is a contradiction.
     #[cfg(debug_assertions)]
     pub fn assert_valid(&self) {
-        debug_assert!(self.vars.len() > 0 && self.clauses.len() > 0);
+        debug_assert!(self.vars.len() > 0);
     }
 
     /// Attempts to finds a solution of this clause representation.
@@ -133,7 +135,6 @@ impl<'a> fmt::Display for Clauses<'a> {
         }
         write!(f, "p cnf {} {}\n", self.vars.len() - 1, self.clauses.len())?;
         for clause in &self.clauses {
-            debug_assert_ne!(clause.len(), 0);
             for literal in clause {
                 debug_assert_ne!(*literal, 0);
                 let var: usize = literal.unsigned_abs().try_into().unwrap();

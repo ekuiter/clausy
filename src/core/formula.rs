@@ -84,6 +84,37 @@ impl Expr {
     }
 }
 
+/// Simplifies an expression in this formula to an equivalent one.
+///
+/// For example, this transforms a given expression `Or(b, And(a, Not(a), a), b)` into `b`.
+/// Implemented as a macro for repeated use in [Formula::simp_expr].
+macro_rules! simp_expr {
+    ($formula:expr, $expr:expr, $child_ids:expr, $constructor:ident) => {
+        {
+            $child_ids.sort_unstable_by_key(|child_id| match $formula.exprs[*child_id] {
+                Not(grandchild_id) => grandchild_id * 2 + 1, // todo: do we have formulas where IDs might overflow here?
+                _ => *child_id * 2,
+            });
+            $child_ids.dedup();
+            if $child_ids.len() == 1 {
+                *$expr = $formula.exprs[$child_ids[0]].clone();
+            } else if $child_ids
+                .windows(2)
+                .flat_map(<&[Id; 2]>::try_from)
+                .find(|&&[child_a_id, child_b_id]| match $formula.exprs[child_a_id] {
+                    Not(_) => false,
+                    _ => match $formula.exprs[child_b_id] {
+                        Not(grandchild_b_id) => child_a_id == grandchild_b_id,
+                        _ => false,
+                    },
+                })
+                .is_some() {
+                *$expr = $constructor(vec![]);
+            }
+        }
+    };
+}
+
 /// Flattens children of an expression into their parent.
 ///
 /// That is, this transforms a given expression `And(And(a), Or(b, c))` into `And(a, Or(b, c))`.
@@ -98,7 +129,7 @@ macro_rules! flatten_expr {
             })
             .flatten()
             .map(|id| *id)
-            .collect();
+            .collect()
     };
 }
 
@@ -326,7 +357,7 @@ impl<'a> Formula<'a> {
     /// Second, we remove duplicate children of the expressions, thus equality is up to idempotency.
     /// Third, we identify unary expressions with their operands (i.e., `And(x)` is simplified to `x`).
     /// Fourth, we remove double negations (i.e., `Not(Not(x))` is simplified to `x`).
-    /// Fifth, ...
+    /// Fifth, we remove obvious tautologies and contradictions (i.e., `And(a, Not(a))` is simplified to `Or()`).
     /// Because we clone expressions, this function may violate structural sharing (see [Formula::canon_visitor]).
     /// As this is a cheap and useful operation to make the formula smaller, we already call it in the parsing stage.
     fn simp_expr(&mut self, expr: &mut Expr) {
@@ -338,18 +369,8 @@ impl<'a> Formula<'a> {
                     *expr = self.exprs[*grandchild_id].clone();
                 }
             },
-            And(ref mut child_ids) | Or(ref mut child_ids) => {
-                child_ids.sort();
-                // todo: here, we could detect obvious tautologies/contradictions as follows:
-                // sort not by ID, but by ID + "if this is a Not, sort by its child ID" (and id' = Not(id) always follows after id)
-                // then, iterate over child_ids and check whether there is any id followed by id' such that id' = Not(id).
-                // if so, this is a tautology/contradiction and can be replaced with And()/Or().
-                // disadvantage: as long as we don't encode Not with ID signs, this requires a lot of lookups.
-                child_ids.dedup();
-                if child_ids.len() == 1 {
-                    *expr = self.exprs[child_ids[0]].clone();
-                }
-            }
+            And(child_ids) => simp_expr!(self, expr, child_ids, Or),
+            Or(child_ids) => simp_expr!(self, expr, child_ids, And),
         }
     }
 
@@ -361,12 +382,8 @@ impl<'a> Formula<'a> {
     fn flatten_expr(&mut self, expr: &mut Expr) {
         match expr {
             Var(_) | Not(_) => (),
-            And(child_ids) => {
-                flatten_expr!(self, expr, child_ids, And);
-            }
-            Or(child_ids) => {
-                flatten_expr!(self, expr, child_ids, Or);
-            }
+            And(child_ids) => flatten_expr!(self, expr, child_ids, And),
+            Or(child_ids) => flatten_expr!(self, expr, child_ids, Or),
         }
     }
 
