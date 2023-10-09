@@ -47,7 +47,7 @@ ignoring abstract features in the comparison might be harder, as slicing them ca
 https://cca.informatik.uni-freiburg.de/sat/ss23/04/
 https://cca.informatik.uni-freiburg.de/sat/ss23/05/
 
-what optimizations do featureide and z3 have? can we get faster/smaller formulas?
+what optimizations does z3 have? can we get faster/smaller formulas?
 
 one possible optimization: remove obvious tautologies/contradictions (e.g., replace Or(a,-a) with And()). however, this is not obvious to implement in linear time (need to find whether there is any pair of (non-)negated children IDs).
 
