@@ -89,30 +89,31 @@ impl Expr {
 /// For example, this transforms a given expression `Or(b, And(a, Not(a), a), b)` into `b`.
 /// Implemented as a macro for repeated use in [Formula::simp_expr].
 macro_rules! simp_expr {
-    ($formula:expr, $expr:expr, $child_ids:expr, $constructor:ident) => {
-        {
-            $child_ids.sort_unstable_by_key(|child_id| match $formula.exprs[*child_id] {
-                Not(grandchild_id) => grandchild_id * 2 + 1,
-                _ => *child_id * 2,
-            });
-            $child_ids.dedup();
-            if $child_ids.len() == 1 {
-                *$expr = $formula.exprs[$child_ids[0]].clone();
-            } else if $child_ids
-                .windows(2)
-                .flat_map(<&[Id; 2]>::try_from)
-                .find(|&&[child_a_id, child_b_id]| match $formula.exprs[child_a_id] {
+    ($formula:expr, $expr:expr, $child_ids:expr, $constructor:ident) => {{
+        $child_ids.sort_unstable_by_key(|child_id| match $formula.exprs[*child_id] {
+            Not(grandchild_id) => grandchild_id * 2 + 1,
+            _ => *child_id * 2,
+        });
+        $child_ids.dedup();
+        if $child_ids.len() == 1 {
+            *$expr = $formula.exprs[$child_ids[0]].clone();
+        } else if $child_ids
+            .windows(2)
+            .flat_map(<&[Id; 2]>::try_from)
+            .find(
+                |&&[child_a_id, child_b_id]| match $formula.exprs[child_a_id] {
                     Not(_) => false,
                     _ => match $formula.exprs[child_b_id] {
                         Not(grandchild_b_id) => child_a_id == grandchild_b_id,
                         _ => false,
                     },
-                })
-                .is_some() {
-                *$expr = $constructor(vec![]);
-            }
+                },
+            )
+            .is_some()
+        {
+            *$expr = $constructor(vec![]);
         }
-    };
+    }};
 }
 
 /// Flattens children of an expression into their parent.
@@ -219,6 +220,11 @@ pub(crate) struct Formula<'a> {
     ///
     /// Ensures that new auxiliary variables (created with [Var::Aux]) are uniquely identified in the context of this formula.
     var_aux_id: u32,
+
+    /// Stores new expressions created by an algorithm but not yet included in the syntax tree.
+    ///
+    /// Used by [Formula::to_cnf_tseitin] for holding on to definitional expressions.
+    new_exprs: Option<Vec<Id>>,
 }
 
 /// An expression that is explicitly paired with the formula it is tied to.
@@ -242,6 +248,7 @@ impl<'a> Formula<'a> {
             vars_inv: HashMap::new(),
             root_id: 0,
             var_aux_id: 0,
+            new_exprs: None,
         }
     }
 
@@ -670,18 +677,6 @@ impl<'a> Formula<'a> {
         }
     }
 
-    /// Transforms this formula into canonical negation normal form.
-    pub(crate) fn to_nnf(mut self) -> Self {
-        self.prepostorder_rev(self.root_id, Self::nnf_visitor, Self::canon_visitor);
-        self
-    }
-
-    /// Transforms this formula into canonical conjunctive normal form.
-    pub(crate) fn to_cnf_dist(mut self) -> Self {
-        self.prepostorder_rev(self.root_id, Self::nnf_visitor, Self::cnf_dist_visitor);
-        self
-    }
-
     /// Defines an [And] expression with a new auxiliary variable.
     ///
     /// That is, we create a new auxiliary variable and clauses that let it imply all conjuncts and let it be implied by the conjunction.
@@ -718,28 +713,45 @@ impl<'a> Formula<'a> {
         (var_id, clauses)
     }
 
-    // todo currently assumes NNF for simplicity, but not a good idea generally - also, does not guarantee NNF itself, to_nnf must be called again (which is quite expensive, actually!!)
-    // todo at least assumes canonical form/structural to ensure "minimal aux vars" - minimal in the sense that no two aux vars have the same children
+    // todo currently assumes NNF for simplicity, but not a good idea generally
+    // todo at least assumes canonical form/structural to ensure "minimal aux vars" - minimal in the sense that no two aux vars have the same children (possibly call to_canon after parsing)
     // todo is this idempotent?
-    pub(crate) fn to_cnf_tseitin(mut self) -> Self {
-        let mut new_clauses = Vec::<Id>::new();
-        self.prepostorder_rev(self.root_id, Self::nnf_visitor, |formula, id| {
-            match &formula.exprs[id] {
-                Var(_) | Not(_) => (),
-                And(child_ids) => {
-                    let (var_id, clauses) = formula.def_and(id, &child_ids.clone());
-                    new_clauses.extend(clauses);
-                    formula.set_expr(id, Var(var_id));
-                }
-                Or(grandchild_ids) => {
-                    let (var_id, clauses) = formula.def_or(id, &grandchild_ids.clone());
-                    new_clauses.extend(clauses);
-                    formula.set_expr(id, Var(var_id));
-                }
+    fn cnf_tseitin_visitor(&mut self, id: Id) {
+        match &self.exprs[id] {
+            Var(_) | Not(_) => (),
+            And(child_ids) => {
+                let (var_id, clauses) = self.def_and(id, &child_ids.clone());
+                self.new_exprs.as_mut().unwrap().extend(clauses);
+                self.set_expr(id, Var(var_id));
             }
-        });
-        new_clauses.push(self.get_root_expr());
-        let root_id = self.expr(And(new_clauses));
+            Or(grandchild_ids) => {
+                let (var_id, clauses) = self.def_or(id, &grandchild_ids.clone());
+                self.new_exprs.as_mut().unwrap().extend(clauses);
+                self.set_expr(id, Var(var_id));
+            }
+        }
+    }
+
+    /// Transforms this formula into canonical negation normal form.
+    pub(crate) fn to_nnf(mut self) -> Self {
+        self.prepostorder_rev(self.root_id, Self::nnf_visitor, Self::canon_visitor);
+        self
+    }
+
+    /// Transforms this formula into canonical conjunctive normal form.
+    pub(crate) fn to_cnf_dist(mut self) -> Self {
+        self.prepostorder_rev(self.root_id, Self::nnf_visitor, Self::cnf_dist_visitor);
+        self
+    }
+
+    pub(crate) fn to_cnf_tseitin(mut self) -> Self {
+        self.new_exprs = Some(vec![]);
+        self.prepostorder_rev(self.root_id, Self::nnf_visitor, Self::cnf_tseitin_visitor);
+        let root_id = self.get_root_expr();
+        self.new_exprs.as_mut().unwrap().push(root_id);
+        let new_expr = And(self.new_exprs.unwrap());
+        self.new_exprs = None;
+        let root_id = self.expr(new_expr);
         self.set_root_expr(root_id);
         self
     }
