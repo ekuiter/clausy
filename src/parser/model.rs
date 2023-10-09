@@ -39,7 +39,6 @@ fn parse_pair<'a>(pair: Pair<'a, Rule>, formula: &mut Formula<'a>) -> Id {
 
 fn parse_into<'a>(file: &'a str, formula: &mut Formula<'a>) -> Id {
     let mut child_ids = Vec::<Id>::new();
-
     for line in file.lines() {
         let pair = ModelFormulaParser::parse(Rule::line, line)
             .unwrap()
@@ -51,14 +50,7 @@ fn parse_into<'a>(file: &'a str, formula: &mut Formula<'a>) -> Id {
             _ => child_ids.push(parse_pair(pair, formula)),
         }
     }
-
-    // todo: set all variables exclusive to the file as dead in formula and vice versa
-
-    if child_ids.len() == 1 {
-        child_ids[0]
-    } else {
-        formula.expr(And(child_ids))
-    }
+    formula.expr(And(child_ids))
 }
 
 impl FormulaParser for ModelFormulaParser {

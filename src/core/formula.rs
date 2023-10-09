@@ -92,7 +92,7 @@ macro_rules! simp_expr {
     ($formula:expr, $expr:expr, $child_ids:expr, $constructor:ident) => {
         {
             $child_ids.sort_unstable_by_key(|child_id| match $formula.exprs[*child_id] {
-                Not(grandchild_id) => grandchild_id * 2 + 1, // todo: do we have formulas where IDs might overflow here?
+                Not(grandchild_id) => grandchild_id * 2 + 1,
                 _ => *child_id * 2,
             });
             $child_ids.dedup();
@@ -695,7 +695,6 @@ impl<'a> Formula<'a> {
                 .map(|id| self.expr(Or(vec![not_var_expr_id, *id]))),
         );
         let mut clause = vec![var_expr_id];
-        // todo might create double negation here, avoid this (presumably already in expr(Not(...))? although this would affect parsing, maybe extra method)
         clause.extend(self.negate_exprs(ids.to_vec()));
         clauses.push(self.expr(Or(clause)));
         // todo add these to the formula, ideally also splicing correctly
@@ -720,18 +719,14 @@ impl<'a> Formula<'a> {
     }
 
     // todo currently assumes NNF for simplicity, but not a good idea generally - also, does not guarantee NNF itself, to_nnf must be called again (which is quite expensive, actually!!)
-    // todo this ensures "minimal aux vars" - minimal in the sense that no two aux vars have the same children
+    // todo at least assumes canonical form/structural to ensure "minimal aux vars" - minimal in the sense that no two aux vars have the same children
+    // todo is this idempotent?
     pub(crate) fn to_cnf_tseitin(mut self) -> Self {
-        // todo is this idempotent?
         let mut new_clauses = Vec::<Id>::new();
-
         self.prepostorder_rev(self.root_id, Self::nnf_visitor, |formula, id| {
             match &formula.exprs[id] {
                 Var(_) | Not(_) => (),
                 And(child_ids) => {
-                    // todo what about unary And?
-                    // todo ...
-                    // todo this assumes deduplicated child_ids, as otherwise, duplicate children will get _two_ aux vars
                     let (var_id, clauses) = formula.def_and(id, &child_ids.clone());
                     new_clauses.extend(clauses);
                     formula.set_expr(id, Var(var_id));
@@ -743,7 +738,6 @@ impl<'a> Formula<'a> {
                 }
             }
         });
-
         new_clauses.push(self.get_root_expr());
         let root_id = self.expr(And(new_clauses));
         self.set_root_expr(root_id);

@@ -8,7 +8,6 @@ optional features (disable with #cfg, so binary can be optimized):
 
 general:
 - multithreaded tree traversal / transformations where possible? or too much overhead / impossible to implement safely? would require abandoning several approaches (e.g., next_id). alternatively: implement multithreading by parallel transformation of separate formulas (e.g., constraints or entire models) and merging them afterwards.
-- grep 'todo' in codebase
 - is this a knowledge compilation technique? because so much depends on efficient structural sharing - given two neg-CNFs, it is not necessarily efficient to compare them, because they do not usually share structure. i.e., tseitin(phi-a & -phi-b) is probably much better than tseitin(phi-a) & neg-tseitin(phi-b), I suppose. So, this may be less of a knowledge compilation artifact. a formula instance could however be serialized and then contain for example all revisions of a system or all architectures(?) of linux. in that case, we would store a pointer to each relevant formula, tseitin-transform them all, and afterwards we can build arbitrary formulas (e.g., any comparison a & -b) on the roots of those formulas in O(1), and the resulting formulas will only contain relevant constraints (because a & -b does not encode constraints only c refers to). Each step in this pipeline is tractable no matter the size/complexity, intractable is only the NP-complete solving at the end. we could have a compiler then, and a querying tool - the latter can retrieve DIMACS files for any individual version, for comparing versions, for checking whether a given configuration is valid in any version, ... whatever (we can efficiently encode phi, -phi, phi-a (<)=> phi-b, a and b, a or b, a or b or c ... (a big disjunction - was it ever like this?), a and b and c (was it always like this?) without needing a BDD at all). So i describe how to lift Sat-based analyses on entire histories of (or otherwise similar, e.g., architecture in linux?) models. this is something that is very specific for feature models, that we have many similar, but not equal problems to solve, which are related (similar to variational sat, but we are less interested in solving many queries, but solving one query with many internal similarities). possibly even slicing may be possible: as we need phi[x\true] or phi[x\false], and these formulas could be constructed with a lot of reuse (no exponential explosion needed) and then tseitin-transformed (however, slicing many variables may get less nice - don't now if this will be more efficient than FeatureIDE). (is this a good idea? we found that slicing typically does not work so great on Tseitin variables, what happens if I slice a natural variable and create new Tseitin variables for it? is this even an interesting use case??) evolution+slicing could maybe be combined to extract the evolution of a particular subsystem (and, e.g., count it incrementally if counting it directly with PMC/slice+#SAT is impossible).
 - maybe this can be combined with presence conditions in some way?
 - serde for save/load mechanism?
@@ -26,9 +25,10 @@ general:
   - maximum structural sharing
   - minimum aux variables
   - deterministic
+- do we have formulas where IDs might overflow (esp. in simp_expr)?
 
 formula:
-- check if all relevant simplifications are implemented correctly: splicing/merging (and more?), eliminating implies/bi-implies (which may be exponential itself!)
+- eliminating implies/bi-implies (which may be exponential itself!)
 - faster hash function? https://nnethercote.github.io/perf-book/hashing.html https://nnethercote.github.io/2021/12/08/a-brutally-effective-hash-function-in-rust.html as keys are unique, maybe use nohash_hasher?
 - for vectors, could use with_capacity to avoid re-allocations (profiling required)
 - traversal: the set visited_ids can get large for large formulas for both traversals. maybe it can be compacted in some way. (bit matrix? pre-sized vec<bool> with false as default, that is possible extended when new expressions are created?)
@@ -55,7 +55,7 @@ one more: the negation operator Not could be completely avoided by encoding it i
 
 profile #[inline(always)]
 
-// todo: evaluate this
+evaluate this:
 // let new_hash = Self::hash_expr(&self.exprs[id]);
 // if new_hash != old_hash {
 //     self.exprs_inv
@@ -82,7 +82,7 @@ profile #[inline(always)]
 //             }
 //         }
 //     });
-//     named_vars // todo: when using this set, take care of order to guarantee determinism
+//     named_vars // remember when using this set, take care of order to guarantee determinism
 // }
 
-todo: hybrid visitor that decides for the dist or tseitin visitor (one criterion: could multiply all len's to calculate a threshold for hybrid tseitin, as done in z3)
+hybrid visitor that decides for the dist or tseitin visitor (one criterion: could multiply all len's to calculate a threshold for hybrid tseitin, as done in z3)
