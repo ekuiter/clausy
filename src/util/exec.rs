@@ -33,10 +33,9 @@ fn path(file_name: &str) -> String {
     unreachable!()
 }
 
-/// Attempts to finds a solution of some CNF in DIMACS format.
+/// Attempts to find a solution of some CNF in DIMACS format.
 ///
-/// Runs the efficient external model counter d4, which performs well on most small to medium size inputs.
-/// Returns the number as a string, as it will typically overflow otherwise.
+/// Runs the external satisfiability solver counter kissat, which performs well on all known feature-model formulas.
 pub(crate) fn kissat(dimacs: &str) -> Option<Vec<VarId>> {
     let process = Command::new(path("kissat_MAB-HyWalk"))
         .stdin(Stdio::piped())
@@ -65,7 +64,7 @@ pub(crate) fn kissat(dimacs: &str) -> Option<Vec<VarId>> {
 
 /// Counts the number of solutions of some CNF in DIMACS format.
 ///
-/// Runs the efficient external model counter d4, which performs well on most small to medium size inputs.
+/// Runs the external model counter d4, which performs well on most small to medium size inputs.
 /// Returns the number as a string, as it will typically overflow otherwise.
 pub(crate) fn d4(dimacs: &str) -> String {
     let mut tmp = NamedTempFile::new().unwrap();
@@ -89,6 +88,9 @@ pub(crate) fn d4(dimacs: &str) -> String {
     )
 }
 
+/// Enumerates all solutions of some CNF in DIMACS format.
+///
+/// Runs an external AllSAT solver, which is only suitable for formulas with few solutions.
 pub(crate) fn bc_minisat_all(dimacs: &str) -> Vec<Vec<VarId>> {
     let mut tmp_in = NamedTempFile::new().unwrap();
     let tmp_out = NamedTempFile::new().unwrap();

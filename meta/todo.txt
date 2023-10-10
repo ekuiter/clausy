@@ -85,4 +85,7 @@ evaluate this:
 //     named_vars // remember when using this set, take care of order to guarantee determinism
 // }
 
-hybrid visitor that decides for the dist or tseitin visitor (one criterion: could multiply all len's to calculate a threshold for hybrid tseitin, as done in z3)
+- hybrid visitor that decides for the dist or tseitin visitor (one criterion: could multiply all len's to calculate a threshold for hybrid tseitin, as done in z3)
+- reproduce ASE (hybrid parameter should influence solving performance)
+- measure time + max heap size
+- measure time of parsing, preprocessing, and DPLL/CDCL (instrument solvers?)
