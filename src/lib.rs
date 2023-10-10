@@ -4,6 +4,8 @@
 //! * clausy should to be called from a binary crate via [shell::main], use in library crates is not intended.
 //! * As a starting point in this documentation, see [core::formula::Formula] for important algorithms.
 
+#![allow(rustdoc::private_intra_doc_links)]
+
 pub mod shell;
 mod core;
 mod parser;

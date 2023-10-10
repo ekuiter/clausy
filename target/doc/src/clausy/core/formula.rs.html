@@ -757,9 +757,35 @@
 <a href="#757" id="757">757</a>
 <a href="#758" id="758">758</a>
 <a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Data structures and algorithms for feature-model formulas.
 
 </span><span class="attr">#![allow(unused_imports, rustdoc::private_intra_doc_links)]
+
 </span><span class="kw">use </span>std::{
     collections::{hash_map::DefaultHasher, HashMap, HashSet},
     fmt,
@@ -843,6 +869,38 @@
     }
 }
 
+<span class="doccomment">/// Simplifies an expression in this formula to an equivalent one.
+///
+/// For example, this transforms a given expression `Or(b, And(a, Not(a), a), b)` into `b`.
+/// Implemented as a macro for repeated use in [Formula::simp_expr].
+</span><span class="macro">macro_rules! </span>simp_expr {
+    (<span class="macro-nonterminal">$formula</span>:expr, <span class="macro-nonterminal">$expr</span>:expr, <span class="macro-nonterminal">$child_ids</span>:expr, <span class="macro-nonterminal">$constructor</span>:ident) =&gt; {{
+        <span class="macro-nonterminal">$child_ids</span>.sort_unstable_by_key(|child_id| <span class="kw">match </span><span class="macro-nonterminal">$formula</span>.exprs[<span class="kw-2">*</span>child_id] {
+            Not(grandchild_id) =&gt; grandchild_id * <span class="number">2 </span>+ <span class="number">1</span>,
+            <span class="kw">_ </span>=&gt; <span class="kw-2">*</span>child_id * <span class="number">2</span>,
+        });
+        <span class="macro-nonterminal">$child_ids</span>.dedup();
+        <span class="kw">if </span><span class="macro-nonterminal">$child_ids</span>.len() == <span class="number">1 </span>{
+            <span class="kw-2">*</span><span class="macro-nonterminal">$expr </span>= <span class="macro-nonterminal">$formula</span>.exprs[<span class="macro-nonterminal">$child_ids</span>[<span class="number">0</span>]].clone();
+        } <span class="kw">else if </span><span class="macro-nonterminal">$child_ids
+            </span>.windows(<span class="number">2</span>)
+            .flat_map(&lt;<span class="kw-2">&amp;</span>[Id; <span class="number">2</span>]&gt;::try_from)
+            .find(
+                |&amp;&amp;[child_a_id, child_b_id]| <span class="kw">match </span><span class="macro-nonterminal">$formula</span>.exprs[child_a_id] {
+                    Not(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
+                    <span class="kw">_ </span>=&gt; <span class="kw">match </span><span class="macro-nonterminal">$formula</span>.exprs[child_b_id] {
+                        Not(grandchild_b_id) =&gt; child_a_id == grandchild_b_id,
+                        <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+                    },
+                },
+            )
+            .is_some()
+        {
+            <span class="kw-2">*</span><span class="macro-nonterminal">$expr </span>= <span class="macro-nonterminal">$constructor</span>(<span class="macro">vec!</span>[]);
+        }
+    }};
+}
+
 <span class="doccomment">/// Flattens children of an expression into their parent.
 ///
 /// That is, this transforms a given expression `And(And(a), Or(b, c))` into `And(a, Or(b, c))`.
@@ -857,7 +915,7 @@
             })
             .flatten()
             .map(|id| <span class="kw-2">*</span>id)
-            .collect();
+            .collect()
     };
 }
 
@@ -947,6 +1005,11 @@
     ///
     /// Ensures that new auxiliary variables (created with [Var::Aux]) are uniquely identified in the context of this formula.
     </span>var_aux_id: u32,
+
+    <span class="doccomment">/// Stores new expressions created by an algorithm but not yet included in the syntax tree.
+    ///
+    /// Used by [Formula::to_cnf_tseitin] for holding on to definitional expressions.
+    </span>new_exprs: <span class="prelude-ty">Option</span>&lt;Vec&lt;Id&gt;&gt;,
 }
 
 <span class="doccomment">/// An expression that is explicitly paired with the formula it is tied to.
@@ -970,6 +1033,7 @@
             vars_inv: HashMap::new(),
             root_id: <span class="number">0</span>,
             var_aux_id: <span class="number">0</span>,
+            new_exprs: <span class="prelude-val">None</span>,
         }
     }
 
@@ -1085,7 +1149,7 @@
     /// Second, we remove duplicate children of the expressions, thus equality is up to idempotency.
     /// Third, we identify unary expressions with their operands (i.e., `And(x)` is simplified to `x`).
     /// Fourth, we remove double negations (i.e., `Not(Not(x))` is simplified to `x`).
-    /// Fifth, ...
+    /// Fifth, we remove obvious tautologies and contradictions (i.e., `And(a, Not(a))` is simplified to `Or()`).
     /// Because we clone expressions, this function may violate structural sharing (see [Formula::canon_visitor]).
     /// As this is a cheap and useful operation to make the formula smaller, we already call it in the parsing stage.
     </span><span class="kw">fn </span>simp_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;mut </span>Expr) {
@@ -1097,18 +1161,8 @@
                     <span class="kw-2">*</span>expr = <span class="self">self</span>.exprs[<span class="kw-2">*</span>grandchild_id].clone();
                 }
             },
-            And(<span class="kw-2">ref mut </span>child_ids) | Or(<span class="kw-2">ref mut </span>child_ids) =&gt; {
-                child_ids.sort();
-                <span class="comment">// todo: here, we could detect obvious tautologies/contradictions as follows:
-                // sort not by ID, but by ID + &quot;if this is a Not, sort by its child ID&quot; (and id&#39; = Not(id) always follows after id)
-                // then, iterate over child_ids and check whether there is any id followed by id&#39; such that id&#39; = Not(id).
-                // if so, this is a tautology/contradiction and can be replaced with And()/Or().
-                // disadvantage: as long as we don&#39;t encode Not with ID signs, this requires a lot of lookups.
-                </span>child_ids.dedup();
-                <span class="kw">if </span>child_ids.len() == <span class="number">1 </span>{
-                    <span class="kw-2">*</span>expr = <span class="self">self</span>.exprs[child_ids[<span class="number">0</span>]].clone();
-                }
-            }
+            And(child_ids) =&gt; <span class="macro">simp_expr!</span>(<span class="self">self</span>, expr, child_ids, Or),
+            Or(child_ids) =&gt; <span class="macro">simp_expr!</span>(<span class="self">self</span>, expr, child_ids, And),
         }
     }
 
@@ -1120,12 +1174,8 @@
     </span><span class="kw">fn </span>flatten_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;mut </span>Expr) {
         <span class="kw">match </span>expr {
             Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) =&gt; (),
-            And(child_ids) =&gt; {
-                <span class="macro">flatten_expr!</span>(<span class="self">self</span>, expr, child_ids, And);
-            }
-            Or(child_ids) =&gt; {
-                <span class="macro">flatten_expr!</span>(<span class="self">self</span>, expr, child_ids, Or);
-            }
+            And(child_ids) =&gt; <span class="macro">flatten_expr!</span>(<span class="self">self</span>, expr, child_ids, And),
+            Or(child_ids) =&gt; <span class="macro">flatten_expr!</span>(<span class="self">self</span>, expr, child_ids, Or),
         }
     }
 
@@ -1412,18 +1462,6 @@
         }
     }
 
-    <span class="doccomment">/// Transforms this formula into canonical negation normal form.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_nnf(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
-        <span class="self">self</span>.prepostorder_rev(<span class="self">self</span>.root_id, <span class="self">Self</span>::nnf_visitor, <span class="self">Self</span>::canon_visitor);
-        <span class="self">self
-    </span>}
-
-    <span class="doccomment">/// Transforms this formula into canonical conjunctive normal form.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_cnf_dist(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
-        <span class="self">self</span>.prepostorder_rev(<span class="self">self</span>.root_id, <span class="self">Self</span>::nnf_visitor, <span class="self">Self</span>::cnf_dist_visitor);
-        <span class="self">self
-    </span>}
-
     <span class="doccomment">/// Defines an [And] expression with a new auxiliary variable.
     ///
     /// That is, we create a new auxiliary variable and clauses that let it imply all conjuncts and let it be implied by the conjunction.
@@ -1437,8 +1475,7 @@
                 .map(|id| <span class="self">self</span>.expr(Or(<span class="macro">vec!</span>[not_var_expr_id, <span class="kw-2">*</span>id]))),
         );
         <span class="kw">let </span><span class="kw-2">mut </span>clause = <span class="macro">vec!</span>[var_expr_id];
-        <span class="comment">// todo might create double negation here, avoid this (presumably already in expr(Not(...))? although this would affect parsing, maybe extra method)
-        </span>clause.extend(<span class="self">self</span>.negate_exprs(ids.to_vec()));
+        clause.extend(<span class="self">self</span>.negate_exprs(ids.to_vec()));
         clauses.push(<span class="self">self</span>.expr(Or(clause)));
         <span class="comment">// todo add these to the formula, ideally also splicing correctly
         </span>(var_id, clauses)
@@ -1461,33 +1498,46 @@
         (var_id, clauses)
     }
 
-    <span class="comment">// todo currently assumes NNF for simplicity, but not a good idea generally - also, does not guarantee NNF itself, to_nnf must be called again (which is quite expensive, actually!!)
-    // todo this ensures &quot;minimal aux vars&quot; - minimal in the sense that no two aux vars have the same children
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_cnf_tseitin(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
-        <span class="comment">// todo is this idempotent?
-        </span><span class="kw">let </span><span class="kw-2">mut </span>new_clauses = Vec::&lt;Id&gt;::new();
-
-        <span class="self">self</span>.prepostorder_rev(<span class="self">self</span>.root_id, <span class="self">Self</span>::nnf_visitor, |formula, id| {
-            <span class="kw">match </span><span class="kw-2">&amp;</span>formula.exprs[id] {
-                Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) =&gt; (),
-                And(child_ids) =&gt; {
-                    <span class="comment">// todo what about unary And?
-                    // todo ...
-                    // todo this assumes deduplicated child_ids, as otherwise, duplicate children will get _two_ aux vars
-                    </span><span class="kw">let </span>(var_id, clauses) = formula.def_and(id, <span class="kw-2">&amp;</span>child_ids.clone());
-                    new_clauses.extend(clauses);
-                    formula.set_expr(id, Var(var_id));
-                }
-                Or(grandchild_ids) =&gt; {
-                    <span class="kw">let </span>(var_id, clauses) = formula.def_or(id, <span class="kw-2">&amp;</span>grandchild_ids.clone());
-                    new_clauses.extend(clauses);
-                    formula.set_expr(id, Var(var_id));
-                }
+    <span class="comment">// todo currently assumes NNF for simplicity, but not a good idea generally
+    // todo at least assumes canonical form/structural to ensure &quot;minimal aux vars&quot; - minimal in the sense that no two aux vars have the same children (possibly call to_canon after parsing)
+    // todo is this idempotent?
+    </span><span class="kw">fn </span>cnf_tseitin_visitor(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: Id) {
+        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.exprs[id] {
+            Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) =&gt; (),
+            And(child_ids) =&gt; {
+                <span class="kw">let </span>(var_id, clauses) = <span class="self">self</span>.def_and(id, <span class="kw-2">&amp;</span>child_ids.clone());
+                <span class="self">self</span>.new_exprs.as_mut().unwrap().extend(clauses);
+                <span class="self">self</span>.set_expr(id, Var(var_id));
             }
-        });
+            Or(grandchild_ids) =&gt; {
+                <span class="kw">let </span>(var_id, clauses) = <span class="self">self</span>.def_or(id, <span class="kw-2">&amp;</span>grandchild_ids.clone());
+                <span class="self">self</span>.new_exprs.as_mut().unwrap().extend(clauses);
+                <span class="self">self</span>.set_expr(id, Var(var_id));
+            }
+        }
+    }
 
-        new_clauses.push(<span class="self">self</span>.get_root_expr());
-        <span class="kw">let </span>root_id = <span class="self">self</span>.expr(And(new_clauses));
+    <span class="doccomment">/// Transforms this formula into canonical negation normal form by applying De Morgan&#39;s laws.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_nnf(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.prepostorder_rev(<span class="self">self</span>.root_id, <span class="self">Self</span>::nnf_visitor, <span class="self">Self</span>::canon_visitor);
+        <span class="self">self
+    </span>}
+
+    <span class="doccomment">/// Transforms this formula into canonical conjunctive normal form by applying distributivity laws.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_cnf_dist(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.prepostorder_rev(<span class="self">self</span>.root_id, <span class="self">Self</span>::nnf_visitor, <span class="self">Self</span>::cnf_dist_visitor);
+        <span class="self">self
+    </span>}
+
+    <span class="doccomment">/// Transforms this formula into canonical conjunctive normal form by TODO
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_cnf_tseitin(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.new_exprs = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[]);
+        <span class="self">self</span>.prepostorder_rev(<span class="self">self</span>.root_id, <span class="self">Self</span>::nnf_visitor, <span class="self">Self</span>::cnf_tseitin_visitor);
+        <span class="kw">let </span>root_id = <span class="self">self</span>.get_root_expr();
+        <span class="self">self</span>.new_exprs.as_mut().unwrap().push(root_id);
+        <span class="kw">let </span>new_expr = And(<span class="self">self</span>.new_exprs.unwrap());
+        <span class="self">self</span>.new_exprs = <span class="prelude-val">None</span>;
+        <span class="kw">let </span>root_id = <span class="self">self</span>.expr(new_expr);
         <span class="self">self</span>.set_root_expr(root_id);
         <span class="self">self
     </span>}

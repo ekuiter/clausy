@@ -1,6 +1,7 @@
 //! Data structures and algorithms for feature-model formulas.
 
 #![allow(unused_imports, rustdoc::private_intra_doc_links)]
+
 use std::{
     collections::{hash_map::DefaultHasher, HashMap, HashSet},
     fmt,
@@ -732,18 +733,19 @@ impl<'a> Formula<'a> {
         }
     }
 
-    /// Transforms this formula into canonical negation normal form.
+    /// Transforms this formula into canonical negation normal form by applying De Morgan's laws.
     pub(crate) fn to_nnf(mut self) -> Self {
         self.prepostorder_rev(self.root_id, Self::nnf_visitor, Self::canon_visitor);
         self
     }
 
-    /// Transforms this formula into canonical conjunctive normal form.
+    /// Transforms this formula into canonical conjunctive normal form by applying distributivity laws.
     pub(crate) fn to_cnf_dist(mut self) -> Self {
         self.prepostorder_rev(self.root_id, Self::nnf_visitor, Self::cnf_dist_visitor);
         self
     }
 
+    /// Transforms this formula into canonical conjunctive normal form by TODO
     pub(crate) fn to_cnf_tseitin(mut self) -> Self {
         self.new_exprs = Some(vec![]);
         self.prepostorder_rev(self.root_id, Self::nnf_visitor, Self::cnf_tseitin_visitor);

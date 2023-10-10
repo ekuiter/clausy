@@ -145,6 +145,19 @@
 <a href="#145" id="145">145</a>
 <a href="#146" id="146">146</a>
 <a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Clause representation of a feature-model formula.
 
 </span><span class="kw">use </span>std::{fmt, slice};
@@ -214,28 +227,42 @@
 
     <span class="doccomment">/// Panics if this clause representation is invalid.
     ///
-    /// A clause representation is valid if it has at least one variable and one clause.
+    /// A clause representation is valid if it has at least one variable.
+    /// If there is no clause, the represented formula is a tautology.
+    /// If there is an empty clause, the represented formula is a contradiction.
     </span><span class="attr">#[cfg(debug_assertions)]
     </span><span class="kw">pub fn </span>assert_valid(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="macro">debug_assert!</span>(<span class="self">self</span>.vars.len() &gt; <span class="number">0 </span>&amp;&amp; <span class="self">self</span>.clauses.len() &gt; <span class="number">0</span>);
+        <span class="macro">debug_assert!</span>(<span class="self">self</span>.vars.len() &gt; <span class="number">0</span>);
+    }
+
+    <span class="doccomment">/// Returns a solution as a human-readable string.
+    </span><span class="kw">fn </span>solution_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, solution: <span class="kw-2">&amp;</span>Vec&lt;VarId&gt;) -&gt; String {
+        solution
+            .iter()
+            .map(|literal| {
+                <span class="kw">let </span>idx: usize = literal.unsigned_abs().try_into().unwrap();
+                <span class="macro">format!</span>(
+                    <span class="string">&quot;{}{}&quot;</span>,
+                    <span class="kw">if </span><span class="kw-2">*</span>literal &gt; <span class="number">0 </span>{ <span class="string">&quot;+&quot; </span>} <span class="kw">else </span>{ <span class="string">&quot;-&quot; </span>},
+                    <span class="self">self</span>.vars[idx].to_string()
+                )
+            })
+            .collect::&lt;Vec&lt;String&gt;&gt;()
+            .join(<span class="string">&quot; &quot;</span>)
     }
 
     <span class="doccomment">/// Attempts to finds a solution of this clause representation.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>satisfy(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-        exec::kissat(<span class="kw-2">&amp;</span><span class="self">self</span>.to_string()).map(|solution| {
-            solution
-                .iter()
-                .map(|literal| {
-                    <span class="kw">let </span>idx: usize = literal.unsigned_abs().try_into().unwrap();
-                    <span class="macro">format!</span>(
-                        <span class="string">&quot;{}{}&quot;</span>,
-                        <span class="kw">if </span><span class="kw-2">*</span>literal &gt; <span class="number">0 </span>{ <span class="string">&quot;+&quot; </span>} <span class="kw">else </span>{ <span class="string">&quot;-&quot; </span>},
-                        <span class="self">self</span>.vars[idx].to_string()
-                    )
-                })
-                .collect::&lt;Vec&lt;String&gt;&gt;()
-                .join(<span class="string">&quot;\n&quot;</span>)
-        })
+        exec::kissat(<span class="kw-2">&amp;</span><span class="self">self</span>.to_string()).map(|solution| <span class="self">self</span>.solution_to_string(<span class="kw-2">&amp;</span>solution))
+    }
+
+    <span class="doccomment">/// Enumerates all solutions of this clause representation.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>enumerate(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
+        exec::bc_minisat_all(<span class="kw-2">&amp;</span><span class="self">self</span>.to_string())
+            .iter()
+            .map(|solution| <span class="self">self</span>.solution_to_string(solution))
+            .collect::&lt;Vec&lt;String&gt;&gt;()
+            .join(<span class="string">&quot;\n&quot;</span>)
     }
 
     <span class="doccomment">/// Counts the number of solutions of this clause representation.
@@ -280,7 +307,6 @@
         }
         <span class="macro">write!</span>(f, <span class="string">&quot;p cnf {} {}\n&quot;</span>, <span class="self">self</span>.vars.len() - <span class="number">1</span>, <span class="self">self</span>.clauses.len())<span class="question-mark">?</span>;
         <span class="kw">for </span>clause <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.clauses {
-            <span class="macro">debug_assert_ne!</span>(clause.len(), <span class="number">0</span>);
             <span class="kw">for </span>literal <span class="kw">in </span>clause {
                 <span class="macro">debug_assert_ne!</span>(<span class="kw-2">*</span>literal, <span class="number">0</span>);
                 <span class="kw">let </span>var: usize = literal.unsigned_abs().try_into().unwrap();

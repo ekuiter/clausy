@@ -75,6 +75,7 @@ impl<'a> Clauses<'a> {
         debug_assert!(self.vars.len() > 0);
     }
 
+    /// Returns a solution as a human-readable string.
     fn solution_to_string(&self, solution: &Vec<VarId>) -> String {
         solution
             .iter()

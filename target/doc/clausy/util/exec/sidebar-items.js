@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["d4","io","kissat","path"]};
+window.SIDEBAR_ITEMS = {"fn":["bc_minisat_all","d4","io","kissat","path"]};
