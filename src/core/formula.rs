@@ -498,10 +498,10 @@ impl<'a> Formula<'a> {
 
     /// Visits all sub-expressions of this formula using a reverse preorder traversal.
     ///
-    /// We assume that the given visitor is idempotent (in terms of formula mutation) and only
-    /// performs mutation with the designated methods, such as [Formula::var_expr], [Formula::expr] and [Formula::set_expr].
+    /// We assume that the given visitor only performs mutation with the designated methods,
+    /// such as [Formula::var_expr], [Formula::expr] and [Formula::set_expr].
     /// The visitor is called at most once per unique sub-expression:
-    /// It will not be called several times on the same sub-expression as long (as it does not violate structural sharing).
+    /// It will not be called several times on the same sub-expression (if this formula is in canonical form).
     /// However, we can also not guarantee it to be called on all sub-expressions - as it might change the very set of sub-expressions.
     /// For improved performance, the traversal is reversed, so children are traversed right-to-left.
     fn preorder_rev(&mut self, first_id: Id, mut visitor: impl FnMut(&mut Self, Id) -> ()) {
@@ -522,7 +522,6 @@ impl<'a> Formula<'a> {
     ///
     /// Conceptually, this is similar to [Formula::preorder_rev], but sub-expressions are visited bottom-up instead of top-down.
     /// Also, this traversal can be used to ensure structural sharing if the visitor is correctly implemented (see [Formula::canon_visitor]).
-    #[allow(dead_code)]
     fn postorder_rev(&mut self, first_id: Id, mut visitor: impl FnMut(&mut Self, Id) -> ()) {
         let mut remaining_ids = vec![first_id];
         let mut seen_ids = HashSet::<Id>::new();
@@ -602,22 +601,12 @@ impl<'a> Formula<'a> {
         });
     }
 
-    /// Transforms this formula into canonical form.
-    ///
-    /// In canonical form, several useful guarantees hold:
-    /// First, no sub-expression occurs twice in the syntax tree with different identifiers (structural sharing).
-    /// Second, equality of sub-expressions is up to commutativity, idempotency, and unary expressions.
-    /// Third, no `And` expression is below an `And` expression (and analogously for `Or`).
-    /// Fourth, no `Not` expression is below a `Not` expression.
-    /// To ensure these guarantees, this visitor must be called in a postorder traversal, preorder does not work.
+    /// Transforms an expression into canonical form (see [Formula::to_canon]).
     fn canon_visitor(&mut self, id: Id) {
         self.set_expr(id, self.exprs[id].clone());
     }
 
-    /// Transforms this formula into negation normal form by applying De Morgan's laws.
-    ///
-    /// We do this by traversing the formula top-down, eanwhile, we push negations towards the leaves (i.e., [Var] expressions).
-    /// Double negations cannot be encountered, as they have already been removed by [Formula::simp_expr].
+    /// Transforms an expression into negation normal form by applying De Morgan's laws (see [Formula::to_nnf]).
     fn nnf_visitor(&mut self, id: Id) {
         match &self.exprs[id] {
             Var(_) | And(_) | Or(_) => (),
@@ -636,11 +625,7 @@ impl<'a> Formula<'a> {
         }
     }
 
-    /// Transforms this formula into canonical conjunctive normal form by applying distributivity laws.
-    ///
-    /// We do this by traversing the formula bottom-up and pushing [Or] expressions below [And] expressions via multiplication.
-    /// This algorithm has exponential worst-case complexity, but ensures logical equivalence to the original formula.
-    /// Assumes that this formula is already in negation normal form.
+    /// Transforms an expression into canonical conjunctive normal form by applying distributivity laws (see [Formula::to_cnf_dist]).
     fn cnf_dist_visitor(&mut self, id: Id) {
         match &self.exprs[id] {
             Var(_) | Not(_) => (),
@@ -693,7 +678,6 @@ impl<'a> Formula<'a> {
         let mut clause = vec![var_expr_id];
         clause.extend(self.negate_exprs(ids.to_vec()));
         clauses.push(self.expr(Or(clause)));
-        // todo add these to the formula, ideally also splicing correctly
         (var_id, clauses)
     }
 
@@ -714,9 +698,7 @@ impl<'a> Formula<'a> {
         (var_id, clauses)
     }
 
-    // todo currently assumes NNF for simplicity, but not a good idea generally
-    // todo at least assumes canonical form/structural to ensure "minimal aux vars" - minimal in the sense that no two aux vars have the same children (possibly call to_canon after parsing)
-    // todo is this idempotent?
+    /// Transforms an expression into canonical conjunctive normal form by introducing auxiliary variables (see [Formula::to_cnf_tseitin]).
     fn cnf_tseitin_visitor(&mut self, id: Id) {
         match &self.exprs[id] {
             Var(_) | Not(_) => (),
@@ -733,22 +715,52 @@ impl<'a> Formula<'a> {
         }
     }
 
-    /// Transforms this formula into canonical negation normal form by applying De Morgan's laws.
+    /// Transforms this formula into canonical form (see [Formula::canon_visitor]).
+    /// 
+    /// The resulting formula is logically equivalent to the original formula.
+    /// This function is useful when an algorithm assumes or profits from canonical form, or for simplifying a formula after parsing.
+    /// In canonical form, several useful guarantees hold:
+    /// First, no sub-expression occurs twice in the syntax tree with different identifiers (structural sharing).
+    /// Second, equality of sub-expressions is up to commutativity, idempotency, and unary expressions.
+    /// Third, no `And` expression is below an `And` expression (and analogously for `Or`).
+    /// Fourth, no `Not` expression is below a `Not` expression.
+    /// To ensure these guarantees, this visitor must be called in a postorder traversal, preorder does not work.
+    pub(crate) fn to_canon(mut self) -> Self {
+        self.postorder_rev(self.root_id, Self::canon_visitor);
+        self
+    }
+
+    /// Transforms this formula into canonical negation normal form by applying De Morgan's laws (see [Formula::nnf_visitor]).
+    ///
+    /// The resulting formula is logically equivalent to the original formula.
+    /// We do this by traversing the formula top-down, meanwhile, we push negations towards the leaves (i.e., [Var] expressions).
+    /// Double negations cannot be encountered, as they have already been removed by [Formula::simp_expr].
     pub(crate) fn to_nnf(mut self) -> Self {
         self.prepostorder_rev(self.root_id, Self::nnf_visitor, Self::canon_visitor);
         self
     }
 
-    /// Transforms this formula into canonical conjunctive normal form by applying distributivity laws.
+    /// Transforms this formula into canonical conjunctive normal form by applying distributivity laws (see [Formula::cnf_dist_visitor]).
+    ///
+    /// The resulting formula is logically equivalent to the original formula.
+    /// We do this by traversing the formula bottom-up and pushing [Or] expressions below [And] expressions via multiplication.
+    /// This algorithm has exponential worst-case complexity, but ensures logical equivalence to the original formula.
     pub(crate) fn to_cnf_dist(mut self) -> Self {
         self.prepostorder_rev(self.root_id, Self::nnf_visitor, Self::cnf_dist_visitor);
         self
     }
 
-    /// Transforms this formula into canonical conjunctive normal form by TODO
+    /// Transforms this formula into canonical conjunctive normal form by introducing auxiliary variables (see [Formula::cnf_tseitin_visitor]).
+    /// 
+    /// The resulting formula is equivalent to the original formula in terms of its named variables (i.e., satisfiability and model count are preserved).
+    /// If this formula is in canonical form (see [Formula::to_canon]), we introduce exactly one auxiliary variable per (complex) sub-expression.
+    /// Thus, every sub-expression will be "abbreviated" with an auxiliary variable, including the root expression, which facilitates negation.
+    /// Also, no sub-expression will be abbreviated twice, so the number of auxiliary variables is equal to the number of sub-expressions.
+    /// If this formula is not in canonical form, more auxiliary variables might be introduced.
+    /// Note that we only abbreviate complex sub-expressions (i.e., [And] and [Or] expressions).
     pub(crate) fn to_cnf_tseitin(mut self) -> Self {
         self.new_exprs = Some(vec![]);
-        self.prepostorder_rev(self.root_id, Self::nnf_visitor, Self::cnf_tseitin_visitor);
+        self.postorder_rev(self.root_id, Self::cnf_tseitin_visitor);
         let root_id = self.get_root_expr();
         self.new_exprs.as_mut().unwrap().push(root_id);
         let new_expr = And(self.new_exprs.unwrap());

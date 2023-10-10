@@ -63,6 +63,7 @@ pub fn main(mut commands: Vec<String>) {
                     println!("{}", ExprInFormula(&formula, &id));
                 }
             }
+            "to_canon" => formula = formula.to_canon(),
             "to_nnf" => formula = formula.to_nnf(),
             "to_cnf_dist" => formula = formula.to_cnf_dist(),
             "to_cnf_tseitin" => formula = formula.to_cnf_tseitin(),

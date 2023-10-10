@@ -104,6 +104,7 @@
 <a href="#104" id="104">104</a>
 <a href="#105" id="105">105</a>
 <a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Imperative shell for operating on feature-model formulas.
 
 </span><span class="kw">use </span>std::collections::HashMap;
@@ -169,6 +170,7 @@
                     <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, ExprInFormula(<span class="kw-2">&amp;</span>formula, <span class="kw-2">&amp;</span>id));
                 }
             }
+            <span class="string">&quot;to_canon&quot; </span>=&gt; formula = formula.to_canon(),
             <span class="string">&quot;to_nnf&quot; </span>=&gt; formula = formula.to_nnf(),
             <span class="string">&quot;to_cnf_dist&quot; </span>=&gt; formula = formula.to_cnf_dist(),
             <span class="string">&quot;to_cnf_tseitin&quot; </span>=&gt; formula = formula.to_cnf_tseitin(),
