@@ -26,16 +26,29 @@ if [[ $ACTION == build ]]; then
 
     mkdir -p bin
 
+    if [[ ! -f bin/kissat_MAB-HyWalk ]]; then
+        require-command curl
+        curl https://github.com/ekuiter/torte/raw/main/docker/solver/other/kissat_MAB-HyWalk -Lo bin/kissat_MAB-HyWalk
+        chmod +x bin/kissat_MAB-HyWalk
+    fi
+
     if [[ ! -f bin/d4 ]]; then
         require-command curl
         curl https://github.com/ekuiter/torte/raw/main/docker/solver/model-counting-competition-2022/d4 -Lo bin/d4
         chmod +x bin/d4
     fi
 
-    if [[ ! -f bin/kissat_MAB-HyWalk ]]; then
+    if [[ ! -f bin/bc_minisat_all_static ]]; then
         require-command curl
-        curl https://github.com/ekuiter/torte/raw/main/docker/solver/other/kissat_MAB-HyWalk -Lo bin/kissat_MAB-HyWalk
-        chmod +x bin/kissat_MAB-HyWalk
+        require-command tar
+        require-command make
+        require-command cc
+        curl http://www.sd.is.uec.ac.jp/toda/code/bc_minisat_all-1.1.2.tar.gz -Lo bc_minisat_all-1.1.2.tar.gz
+        tar xzvf bc_minisat_all-1.1.2.tar.gz
+        rm -f bc_minisat_all-1.1.2.tar.gz
+        make -C bc_minisat_all-1.1.2 rs
+        mv bc_minisat_all-1.1.2/bc_minisat_all_static bin/
+        rm -rf bc_minisat_all-1.1.2
     fi
 
     if [[ ! -f bin/io.jar ]]; then

@@ -1,7 +1,7 @@
 //! Utilities for executing external programs.
 
 use std::{
-    env,
+    env, fs,
     io::{Read, Write},
     path::Path,
     process::{Command, Stdio},
@@ -44,9 +44,9 @@ pub(crate) fn kissat(dimacs: &str) -> Option<Vec<VarId>> {
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    process.stdin.unwrap().write_all(dimacs.as_bytes()).unwrap();
+    process.stdin.unwrap().write_all(dimacs.as_bytes()).ok();
     let mut output = String::new();
-    process.stdout.unwrap().read_to_string(&mut output).unwrap();
+    process.stdout.unwrap().read_to_string(&mut output).ok();
     debug_assert!(!output.is_empty());
     let solution: Vec<VarId> = output
         .lines()
@@ -54,7 +54,7 @@ pub(crate) fn kissat(dimacs: &str) -> Option<Vec<VarId>> {
         .map(|line| line[2..].split(' ').collect::<Vec<&str>>())
         .flatten()
         .map(|str| str.parse().unwrap())
-        .filter(|var| *var != 0)
+        .filter(|literal| *literal != 0)
         .collect();
     if solution.len() > 0 {
         Some(solution)
@@ -69,7 +69,7 @@ pub(crate) fn kissat(dimacs: &str) -> Option<Vec<VarId>> {
 /// Returns the number as a string, as it will typically overflow otherwise.
 pub(crate) fn d4(dimacs: &str) -> String {
     let mut tmp = NamedTempFile::new().unwrap();
-    write!(tmp, "{}", dimacs).unwrap();
+    write!(tmp, "{}", dimacs).ok();
     let output = Command::new(path("d4"))
         .arg("-i")
         .arg(tmp.path())
@@ -89,6 +89,30 @@ pub(crate) fn d4(dimacs: &str) -> String {
     )
 }
 
+pub(crate) fn bc_minisat_all(dimacs: &str) -> Vec<Vec<VarId>> {
+    let mut tmp_in = NamedTempFile::new().unwrap();
+    let tmp_out = NamedTempFile::new().unwrap();
+    write!(tmp_in, "{}", dimacs).ok();
+    Command::new(path("bc_minisat_all_static"))
+        .arg(tmp_in.path())
+        .arg(tmp_out.path())
+        .output()
+        .ok();
+    fs::read_to_string(tmp_out.path())
+        .unwrap()
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| line.split(' ').collect::<Vec<&str>>())
+        .map(|literals| {
+            literals
+                .iter()
+                .map(|literals| literals.parse().unwrap())
+                .filter(|literal| *literal != 0)
+                .collect()
+        })
+        .collect()
+}
+
 /// Converts a given feature-model file from one format into another.
 ///
 /// Runs the tool FeatureIDE using the Java runtime environment.
@@ -103,9 +127,9 @@ pub(crate) fn io(input: &str, input_format: &str, output_format: &str) -> String
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    process.stdin.unwrap().write_all(input.as_bytes()).unwrap();
+    process.stdin.unwrap().write_all(input.as_bytes()).ok();
     let mut output = String::new();
-    process.stdout.unwrap().read_to_string(&mut output).unwrap();
+    process.stdout.unwrap().read_to_string(&mut output).ok();
     debug_assert!(!output.is_empty());
     output
 }

@@ -78,7 +78,7 @@ pub fn main(mut commands: Vec<String>) {
                     unreachable!();
                 }
             }
-            "enumerate" => todo!(),
+            "enumerate" => println!("{}", clauses!(clauses, formula).enumerate()),
             "compare" => todo!(),
             _ => {
                 if file_exists(command) {

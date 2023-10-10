@@ -75,22 +75,33 @@ impl<'a> Clauses<'a> {
         debug_assert!(self.vars.len() > 0);
     }
 
+    fn solution_to_string(&self, solution: &Vec<VarId>) -> String {
+        solution
+            .iter()
+            .map(|literal| {
+                let idx: usize = literal.unsigned_abs().try_into().unwrap();
+                format!(
+                    "{}{}",
+                    if *literal > 0 { "+" } else { "-" },
+                    self.vars[idx].to_string()
+                )
+            })
+            .collect::<Vec<String>>()
+            .join(" ")
+    }
+
     /// Attempts to finds a solution of this clause representation.
     pub(crate) fn satisfy(&self) -> Option<String> {
-        exec::kissat(&self.to_string()).map(|solution| {
-            solution
-                .iter()
-                .map(|literal| {
-                    let idx: usize = literal.unsigned_abs().try_into().unwrap();
-                    format!(
-                        "{}{}",
-                        if *literal > 0 { "+" } else { "-" },
-                        self.vars[idx].to_string()
-                    )
-                })
-                .collect::<Vec<String>>()
-                .join("\n")
-        })
+        exec::kissat(&self.to_string()).map(|solution| self.solution_to_string(&solution))
+    }
+
+    /// Enumerates all solutions of this clause representation.
+    pub(crate) fn enumerate(&self) -> String {
+        exec::bc_minisat_all(&self.to_string())
+            .iter()
+            .map(|solution| self.solution_to_string(solution))
+            .collect::<Vec<String>>()
+            .join("\n")
     }
 
     /// Counts the number of solutions of this clause representation.
