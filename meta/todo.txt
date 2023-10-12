@@ -27,6 +27,9 @@ general:
   - minimum aux variables
   - deterministic
 - do we have formulas where IDs might overflow (esp. in simp_expr)?
+- implement reasoning about FM edits 1.0
+- implement time measurements for phases
+- implement slicing by repurposing named variables as tseitin variables?
 
 formula:
 - eliminating implies/bi-implies (which may be exponential itself!)
