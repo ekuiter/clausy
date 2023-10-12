@@ -97,12 +97,12 @@ impl<'a> Clauses<'a> {
     }
 
     /// Enumerates all solutions of this clause representation.
-    pub(crate) fn enumerate(&self) -> String {
-        exec::bc_minisat_all(&self.to_string())
-            .iter()
-            .map(|solution| self.solution_to_string(solution))
-            .collect::<Vec<String>>()
-            .join("\n")
+    ///
+    /// Prints solutions to standard output as soon as they are known, instead of returning them.
+    pub(crate) fn enumerate(&self) {
+        let (iter, tmp_in) = exec::bc_minisat_all(&self.to_string());
+        iter.for_each(|solution| println!("{}", self.solution_to_string(&solution)));
+        drop(tmp_in);
     }
 
     /// Counts the number of solutions of this clause representation.

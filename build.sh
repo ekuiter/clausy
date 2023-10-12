@@ -46,6 +46,7 @@ if [[ $ACTION == build ]]; then
         curl http://www.sd.is.uec.ac.jp/toda/code/bc_minisat_all-1.1.2.tar.gz -Lo bc_minisat_all-1.1.2.tar.gz
         tar xzvf bc_minisat_all-1.1.2.tar.gz
         rm -f bc_minisat_all-1.1.2.tar.gz
+        sed -i 's/out = NULL;/s->out = stderr;/' bc_minisat_all-1.1.2/main.c
         make -C bc_minisat_all-1.1.2 rs
         mv bc_minisat_all-1.1.2/bc_minisat_all_static bin/
         rm -rf bc_minisat_all-1.1.2

@@ -79,7 +79,7 @@ pub fn main(mut commands: Vec<String>) {
                     unreachable!();
                 }
             }
-            "enumerate" => println!("{}", clauses!(clauses, formula).enumerate()),
+            "enumerate" => clauses!(clauses, formula).enumerate(),
             _ => {
                 if file_exists(command) {
                     let (file, extension) = parsed_files.get(command).unwrap();

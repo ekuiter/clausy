@@ -2,7 +2,7 @@
 
 use std::{
     env, fs,
-    io::{Read, Write},
+    io::{BufRead, BufReader, Read, Write},
     path::Path,
     process::{Command, Stdio},
 };
@@ -92,28 +92,24 @@ pub(crate) fn d4(dimacs: &str) -> String {
 ///
 /// Runs an external AllSAT solver, which is only suitable for formulas with few solutions.
 /// This does not currently output solutions for fully indeterminate (i.e., unconstrained) variables.
-pub(crate) fn bc_minisat_all(dimacs: &str) -> Vec<Vec<VarId>> {
+pub(crate) fn bc_minisat_all(dimacs: &str) -> (impl Iterator<Item = Vec<VarId>>, NamedTempFile) {
     let mut tmp_in = NamedTempFile::new().unwrap();
-    let tmp_out = NamedTempFile::new().unwrap();
     write!(tmp_in, "{}", dimacs).ok();
-    Command::new(path("bc_minisat_all_static"))
+    let process = Command::new(path("bc_minisat_all_static"))
         .arg(tmp_in.path())
-        .arg(tmp_out.path())
-        .output()
-        .ok();
-    fs::read_to_string(tmp_out.path())
-        .unwrap()
-        .lines()
-        .filter(|line| !line.trim().is_empty())
-        .map(|line| line.split(' ').collect::<Vec<&str>>())
-        .map(|literals| {
-            literals
-                .iter()
-                .map(|literals| literals.parse().unwrap())
-                .filter(|literal| *literal != 0)
-                .collect()
-        })
-        .collect()
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let iter = BufReader::new(process.stderr.unwrap()).lines().map(|line| {
+        line.unwrap()
+            .split(' ')
+            .map(|literal| literal.parse().unwrap())
+            .filter(|literal| *literal != 0)
+            .collect::<Vec<VarId>>()
+    });
+    (iter, tmp_in)
 }
 
 /// Converts a given feature-model file from one format into another.
