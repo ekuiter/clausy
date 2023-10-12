@@ -1,7 +1,7 @@
 //! Utilities for executing external programs.
 
 use std::{
-    env, fs,
+    env,
     io::{BufRead, BufReader, Read, Write},
     path::Path,
     process::{Command, Stdio},
