@@ -91,6 +91,7 @@ pub(crate) fn d4(dimacs: &str) -> String {
 /// Enumerates all solutions of some CNF in DIMACS format.
 ///
 /// Runs an external AllSAT solver, which is only suitable for formulas with few solutions.
+/// This does not currently output solutions for fully indeterminate (i.e., unconstrained) variables.
 pub(crate) fn bc_minisat_all(dimacs: &str) -> Vec<Vec<VarId>> {
     let mut tmp_in = NamedTempFile::new().unwrap();
     let tmp_out = NamedTempFile::new().unwrap();

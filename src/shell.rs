@@ -29,7 +29,7 @@ pub fn main(mut commands: Vec<String>) {
     let mut formula = Formula::new();
     let mut clauses = None;
     let mut parsed_files = HashMap::<String, (String, Option<String>)>::new();
-    let mut parsed_ids = vec![];
+    let mut parsed_results = vec![];
 
     if commands.is_empty() {
         commands.push("-".to_string());
@@ -80,14 +80,14 @@ pub fn main(mut commands: Vec<String>) {
                 }
             }
             "enumerate" => println!("{}", clauses!(clauses, formula).enumerate()),
-            "compare" => todo!(),
             _ => {
                 if file_exists(command) {
                     let (file, extension) = parsed_files.get(command).unwrap();
-                    parsed_ids.push(formula.parse(&file, parser(extension.clone())));
-                    formula.set_root_expr(*parsed_ids.last().unwrap());
+                    parsed_results.push(formula.parse(&file, parser(extension.clone())));
+                    let (root_id, _) = *parsed_results.last().unwrap();
+                    formula.set_root_expr(root_id);
                 } else if SatInlineFormulaParser::can_parse(command) {
-                    let root_id = SatInlineFormulaParser::new(parsed_ids.clone())
+                    let root_id = SatInlineFormulaParser::new(parsed_results.clone())
                         .parse_into(&command, &mut formula);
                     formula.set_root_expr(root_id);
                 } else {

@@ -1,7 +1,9 @@
 //! Parser for any file format accepted by FeatureIDE.
 
+use std::collections::HashSet;
+
 use crate::{
-    core::formula::{Formula, Id},
+    core::formula::{Formula, Id, VarId},
     util,
 };
 
@@ -26,7 +28,7 @@ impl FormulaParser for IoFormulaParser {
         util::exec::io(&file, &self.extension, "sat")
     }
 
-    fn parse_into<'b>(&self, file: &'b String, formula: &mut Formula<'b>) -> Id {
+    fn parse_into<'b>(&self, file: &'b String, formula: &mut Formula<'b>) -> (Id, HashSet<VarId>) {
         SatFormulaParser.parse_into(file, formula)
     }
 }

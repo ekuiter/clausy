@@ -340,6 +340,16 @@ impl<'a> Formula<'a> {
         self.expr(Var(var_id))
     }
 
+    /// Adds or looks up a named variable of this formula, returning its [Var] expression's and [Var]'s identifier.
+    pub(crate) fn var_expr_with_id(&mut self, var: &'a str) -> (Id, VarId) {
+        let expr_id = self.var_expr(var);
+        if let Var(var_id) = self.exprs[expr_id] {
+            (expr_id, var_id)
+        } else {
+            unreachable!()
+        }
+    }
+
     /// Adds a new auxiliary variable to this formula, returning its [Var] expression's identifier.
     pub(crate) fn add_var_aux_expr(&mut self) -> Id {
         let var_id = self.add_var_aux();
@@ -462,6 +472,20 @@ impl<'a> Formula<'a> {
             *id = self.expr(Not(*id));
         }
         ids
+    }
+
+    /// Returns all identifiers of named variables in this formula that are not in a given a set of variable identifiers.
+    pub(crate) fn named_vars_except(&self, var_ids: &HashSet<VarId>) -> Vec<VarId> {
+        self.vars
+            .iter()
+            .enumerate()
+            .flat_map(|(idx, var)| match *var {
+                Var::Named(_) => Some(idx),
+                Var::Aux(_) => None,
+            })
+            .map(|idx| idx.try_into().unwrap())
+            .filter(|var_id| !var_ids.contains(var_id))
+            .collect()
     }
 
     /// Writes an expression of this formula to a formatter.
@@ -667,7 +691,8 @@ impl<'a> Formula<'a> {
     ///
     /// That is, we create a new auxiliary variable and clauses that let it imply all conjuncts and let it be implied by the conjunction.
     /// As an optimization, we do not create a [Var] expression for the new variable, as we are replacing an existing expression.
-    fn def_and(&mut self, var_expr_id: Id, ids: &[Id]) -> (VarId, Vec<Id>) {
+    /// We add the clauses defining the new variable to [Formula::new_exprs].
+    fn def_and(&mut self, var_expr_id: Id, ids: &[Id]) -> VarId {
         let var_id = self.add_var_aux();
         let not_var_expr_id = self.expr(Not(var_expr_id));
         let mut clauses = Vec::<Id>::new();
@@ -678,14 +703,15 @@ impl<'a> Formula<'a> {
         let mut clause = vec![var_expr_id];
         clause.extend(self.negate_exprs(ids.to_vec()));
         clauses.push(self.expr(Or(clause)));
-        (var_id, clauses)
+        self.new_exprs.as_mut().unwrap().extend(clauses);
+        var_id
     }
 
     /// Defines an [Or] expression with a new auxiliary variable.
     ///
     /// That is, we create a new auxiliary variable and clauses that let it imply the disjunction and let it be implied by all disjuncts.
     /// Works analogously to [Formula::def_and].
-    fn def_or(&mut self, var_expr_id: Id, ids: &[Id]) -> (VarId, Vec<Id>) {
+    fn def_or(&mut self, var_expr_id: Id, ids: &[Id]) -> VarId {
         let var_id = self.add_var_aux();
         let not_var_expr_id = self.expr(Not(var_expr_id));
         let mut clause = vec![not_var_expr_id];
@@ -695,7 +721,8 @@ impl<'a> Formula<'a> {
             let new_expr = Or(vec![var_expr_id, self.expr(Not(*id))]);
             self.expr(new_expr)
         }));
-        (var_id, clauses)
+        self.new_exprs.as_mut().unwrap().extend(clauses);
+        var_id
     }
 
     /// Transforms an expression into canonical conjunctive normal form by introducing auxiliary variables (see [Formula::to_cnf_tseitin]).
@@ -703,20 +730,18 @@ impl<'a> Formula<'a> {
         match &self.exprs[id] {
             Var(_) | Not(_) => (),
             And(child_ids) => {
-                let (var_id, clauses) = self.def_and(id, &child_ids.clone());
-                self.new_exprs.as_mut().unwrap().extend(clauses);
+                let var_id = self.def_and(id, &child_ids.clone());
                 self.set_expr(id, Var(var_id));
             }
             Or(grandchild_ids) => {
-                let (var_id, clauses) = self.def_or(id, &grandchild_ids.clone());
-                self.new_exprs.as_mut().unwrap().extend(clauses);
+                let var_id = self.def_or(id, &grandchild_ids.clone());
                 self.set_expr(id, Var(var_id));
             }
         }
     }
 
     /// Transforms this formula into canonical form (see [Formula::canon_visitor]).
-    /// 
+    ///
     /// The resulting formula is logically equivalent to the original formula.
     /// This function is useful when an algorithm assumes or profits from canonical form, or for simplifying a formula after parsing.
     /// In canonical form, several useful guarantees hold:
@@ -751,7 +776,7 @@ impl<'a> Formula<'a> {
     }
 
     /// Transforms this formula into canonical conjunctive normal form by introducing auxiliary variables (see [Formula::cnf_tseitin_visitor]).
-    /// 
+    ///
     /// The resulting formula is equivalent to the original formula in terms of its named variables (i.e., satisfiability and model count are preserved).
     /// If this formula is in canonical form (see [Formula::to_canon]), we introduce exactly one auxiliary variable per (complex) sub-expression.
     /// Thus, every sub-expression will be "abbreviated" with an auxiliary variable, including the root expression, which facilitates negation.

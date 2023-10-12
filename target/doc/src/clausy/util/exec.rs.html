@@ -135,6 +135,7 @@
 <a href="#135" id="135">135</a>
 <a href="#136" id="136">136</a>
 <a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Utilities for executing external programs.
 
 </span><span class="kw">use </span>std::{
@@ -228,6 +229,7 @@
 <span class="doccomment">/// Enumerates all solutions of some CNF in DIMACS format.
 ///
 /// Runs an external AllSAT solver, which is only suitable for formulas with few solutions.
+/// This does not currently output solutions for fully indeterminate (i.e., unconstrained) variables.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bc_minisat_all(dimacs: <span class="kw-2">&amp;</span>str) -&gt; Vec&lt;Vec&lt;VarId&gt;&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>tmp_in = NamedTempFile::new().unwrap();
     <span class="kw">let </span>tmp_out = NamedTempFile::new().unwrap();

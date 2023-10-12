@@ -1,6 +1,6 @@
 //! Parser for DIMACS .sat files.
 
-use std::{collections::HashMap, vec};
+use std::{collections::{HashMap, HashSet}, vec};
 
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
@@ -55,9 +55,10 @@ fn parse_pair<'a>(pair: Pair<'a, Rule>, vars: &[Id], formula: &mut Formula<'a>) 
 }
 
 impl FormulaParser for SatFormulaParser {
-    fn parse_into<'a>(&self, file: &'a String, formula: &mut Formula<'a>) -> Id {
+    fn parse_into<'a>(&self, file: &'a String, formula: &mut Formula<'a>) -> (Id, HashSet<VarId>) {
         let mut pairs = SatFormulaParser::parse(Rule::file, file).unwrap();
 
+        let mut var_ids = HashSet::<VarId>::new();
         let mut variable_names = HashMap::<VarId, &str>::new();
         while let Rule::comment = pairs.peek().unwrap().as_rule() {
             let pair = pairs.next().unwrap().into_inner().next().unwrap();
@@ -82,7 +83,9 @@ impl FormulaParser for SatFormulaParser {
         let mut vars: Vec<Id> = vec![0];
         for i in 1..=n {
             if variable_names.contains_key(&i) {
-                vars.push(formula.var_expr(variable_names.get(&i).unwrap()));
+                let (expr_id, var_id) = formula.var_expr_with_id(variable_names.get(&i).unwrap());
+                var_ids.insert(var_id);
+                vars.push(expr_id);
                 variable_names.remove(&i);
             } else {
                 vars.push(formula.add_var_aux_expr());
@@ -90,6 +93,6 @@ impl FormulaParser for SatFormulaParser {
         }
         debug_assert!(variable_names.is_empty());
 
-        parse_pair(pairs.next().unwrap(), &vars, formula)
+        (parse_pair(pairs.next().unwrap(), &vars, formula), var_ids)
     }
 }

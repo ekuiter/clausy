@@ -69,9 +69,15 @@
 <a href="#69" id="69">69</a>
 <a href="#70" id="70">70</a>
 <a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parsers for feature-model formula files.
 
-</span><span class="kw">use </span><span class="kw">crate</span>::core::formula::{Formula, Id};
+</span><span class="kw">use </span>std::collections::HashSet;
+
+<span class="kw">use </span><span class="kw">crate</span>::core::formula::{Formula, Id, VarId};
 
 <span class="kw">use </span><span class="self">self</span>::{io::IoFormulaParser, model::ModelFormulaParser, sat::SatFormulaParser};
 
@@ -90,15 +96,16 @@
     <span class="doccomment">/// Parses a feature-model formula file into an existing [Formula].
     ///
     /// Returns the [Id] of the root expression of the parsed formula.
+    /// Also returns a set with each [VarId] of a named sub-variable of the parsed formula.
     /// This function does not modify the sub-expressions of the given formula.
     /// That is, after parsing, the formula will hold the given feature-model formula in [Formula::exprs], but not refer to it.
     /// Thus, [Formula::set_root_expr] must be called explicitly with the returned [Id] to make use of the parsed formula.
-    </span><span class="kw">fn </span>parse_into&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>String, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; Id;
+    </span><span class="kw">fn </span>parse_into&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>String, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; (Id, HashSet&lt;VarId&gt;);
 
     <span class="doccomment">/// Parses a feature-model formula file into a new [Formula].
     </span><span class="kw">fn </span>parse_new&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>String) -&gt; Formula&lt;<span class="lifetime">&#39;a</span>&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>formula = Formula::new();
-        <span class="kw">let </span>root_id = <span class="self">self</span>.parse_into(file, <span class="kw-2">&amp;mut </span>formula);
+        <span class="kw">let </span>(root_id, <span class="kw">_</span>) = <span class="self">self</span>.parse_into(file, <span class="kw-2">&amp;mut </span>formula);
         formula.set_root_expr(root_id);
         formula
     }
@@ -108,7 +115,8 @@
 ///
 /// Only implemented for [Formula].
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">trait </span>FormulaParsee&lt;<span class="lifetime">&#39;a</span>&gt; {
-    <span class="kw">fn </span>parse(<span class="kw-2">&amp;mut </span><span class="self">self</span>, file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>String, parser: Box&lt;<span class="kw">dyn </span>FormulaParser&gt;) -&gt; Id;
+    <span class="doccomment">/// Parses a feature-model formula into this object.
+    </span><span class="kw">fn </span>parse(<span class="kw-2">&amp;mut </span><span class="self">self</span>, file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>String, parser: Box&lt;<span class="kw">dyn </span>FormulaParser&gt;) -&gt; (Id, HashSet&lt;VarId&gt;);
 }
 
 <span class="doccomment">/// Returns the appropriate parser for a file extension.
@@ -136,7 +144,7 @@
 
 <span class="doccomment">/// Parses a feature-model formula file into an existing formula.
 </span><span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; FormulaParsee&lt;<span class="lifetime">&#39;a</span>&gt; <span class="kw">for </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt; {
-    <span class="kw">fn </span>parse(<span class="kw-2">&amp;mut </span><span class="self">self</span>, file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>String, parser: Box&lt;<span class="kw">dyn </span>FormulaParser&gt;) -&gt; Id {
+    <span class="kw">fn </span>parse(<span class="kw-2">&amp;mut </span><span class="self">self</span>, file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>String, parser: Box&lt;<span class="kw">dyn </span>FormulaParser&gt;) -&gt; (Id, HashSet&lt;VarId&gt;) {
         parser.parse_into(file, <span class="self">self</span>)
     }
 }

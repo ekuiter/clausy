@@ -5,6 +5,7 @@ optional features (disable with #cfg, so binary can be optimized):
 - run NNF before other transformations, or don't run it before (interacts with Plaisted-Greenbaum and structural sharing, as to_nnf creates new sub-expressions)
 - let go of unused formulas with Rc or Arc (RefCell needed for internal mutability?) (if we use Rc, we must take care to always store references to "relevant" formulas like different revisions of feature models)
 - Plaisted-Greenbaum -> depending on whether equi-countability is preserved/necessary (possibly as a polarity-based variant that does not require NNF)
+- make building var_ids optional
 
 general:
 - multithreaded tree traversal / transformations where possible? or too much overhead / impossible to implement safely? would require abandoning several approaches (e.g., next_id). alternatively: implement multithreading by parallel transformation of separate formulas (e.g., constraints or entire models) and merging them afterwards.
@@ -16,9 +17,9 @@ general:
 - currently, .model files do not include unconstrained features and there is no mechanism to declare them
 - currently, re-pivoting with "1 print 2 print" interacts with auxiliary variables (could maybe be 'fixed' by only emitting Aux vars into DIMACS if they are actually mentioned in at least one clause?) also, when i mark features as dead when merging formulas, these dead features will get printed into any dimacs. this is probably not intended. maybe the set of natural variables has to be calculated dynamically when printing DIMACS?
 - think carefully when set_child_exprs is correct and when expr is correct - e.g., for NNF transformation, simply using set_child_exprs is invalid, as in -(a|b)&-(c&-(a|b)), we need at the end both (a|b) and (-a&-&b).
-- think about whether/when "a.sat to_tseitin b.sat to_tseitin +(1 -2)" is valid (does it require a subsequent tseitin/dist transformation, which is tractable? or must the entire formula be tseitin-transformed afterwards as in "a.sat b.sat to_tseitin +(1 -2)", losing the 'knowledge compilation' aspect to some degree?)
+- think about whether/when "a.sat to_tseitin b.sat to_tseitin +(1 -2)" is valid (does it require a subsequent tseitin/dist transformation, which is tractable? or must the entire formula be tseitin-transformed afterwards as in "a.sat b.sat to_tseitin +(1 -2)", losing the 'knowledge compilation' aspect to some degree? is this even correct - are the individual tseitin vars still determinate?) possibly extend .expr/.set_expr to look up already tseitin-abbreviated expressions (to make tseitin idempotent and allow a.model to_tseitin b.model to_tseitin *(-1 2)). eg, with a dict from expr id to aux var id. also, use def_and in sat_inline parser for adding dead variables, so if children have already been tseitin transformed, nothing needs to be done.
 - to improve performance, we may even run the tseitin transformation _while parsing the formula/while constructing it_, although this might require rewriting some code
-- for comparing formulas, one assumption is that variables with equal names are considered to be the same (no difference), so renaming cannot be detected obviously. unnamed (aux) variables are not regarded in the comparison (not added as dead variables anywhere), so they better be strictly defined by natural variables (guaranteed by tseitin). best if the input formulas do not include any aux variables.
+- for comparing formulas, one assumption is that variables with equal names are considered to be the same (no difference), so renaming cannot be detected obviously. unnamed (aux) variables are not regarded in the comparison (not added as dead variables anywhere), so they better be strictly defined by natural variables (guaranteed by tseitin). best if the input formulas do not include any aux variables. another way to see it is that we check whether two formulas are equivalent given a bijection of their variable names, and do not check if there is any bijection (which would be necessary to ignore renaming of features).
 - sell the tool via invariants/guarantees:
   - associativity (n-ary operators)
   - no idempotency, no commutativity
@@ -32,7 +33,6 @@ formula:
 - faster hash function? https://nnethercote.github.io/perf-book/hashing.html https://nnethercote.github.io/2021/12/08/a-brutally-effective-hash-function-in-rust.html as keys are unique, maybe use nohash_hasher?
 - for vectors, could use with_capacity to avoid re-allocations (profiling required)
 - traversal: the set visited_ids can get large for large formulas for both traversals. maybe it can be compacted in some way. (bit matrix? pre-sized vec<bool> with false as default, that is possible extended when new expressions are created?)
-- as an optimization, could combine pre- and postorder traversal to a single DFS that creates NNF on first and distributive CNF on last visit. also, this could be used to avoid calling make_shared after every preorder traversal.
 - subtle point regarding NNF: as NNF changes certain subexpressions, it might reduce structural sharing (e.g., on And(Not(Or(a, b)), Or(a, b))). thus, it is beneficial to not run NNF before Tseitin and implement a true polarity-based version of Plaisted-Greenbaum. this does not affect correctness, but probably conciseness of the formula
 - randomize clause order? (scrambler?)
 - sort children of exprs, this way we take commutativity out of the picture (a&b is equal to b&a) -> more structural sharing means easier comparison of models
@@ -49,8 +49,6 @@ https://cca.informatik.uni-freiburg.de/sat/ss23/05/
 
 what optimizations does z3 have? can we get faster/smaller formulas?
 
-one possible optimization: remove obvious tautologies/contradictions (e.g., replace Or(a,-a) with And()). however, this is not obvious to implement in linear time (need to find whether there is any pair of (non-)negated children IDs).
-
 one more: the negation operator Not could be completely avoided by encoding it in the sign of child IDs. this would save memory and reduce the number of lookups (might be particularly interesting for implementing polarity-based Plaisted-Greenbaum). however, this would also make the code much harder to read and probably requires introducing an auxiliary root again.
 
 profile #[inline(always)]
@@ -66,23 +64,6 @@ evaluate this:
 //         self.exprs_inv.remove(&old_hash);
 //     }
 //     self.exprs_inv.entry(new_hash).or_default().push(id);
-// }
-
-(for comparison with other formulas)
-/// Returns all named sub-variables of this formula.
-///
-/// Analogously to a sub-expression, a sub-variable is a variable in [Formula::vars] that appear below the auxiliary root expression.
-// fn named_vars(&mut self, first_id: Id) -> HashSet<Var<'a>> {
-//     let mut named_vars = HashSet::<Var<'a>>::new();
-//     self.preorder_rev(first_id, |formula, id| {
-//         if let Var(var_id) = formula.exprs[id] {
-//             let var_id: usize = var_id.try_into().unwrap();
-//             if let Var::Named(_) = formula.vars[var_id] {
-//                 named_vars.insert(formula.vars[var_id]);
-//             }
-//         }
-//     });
-//     named_vars // remember when using this set, take care of order to guarantee determinism
 // }
 
 - hybrid visitor that decides for the dist or tseitin visitor (one criterion: could multiply all len's to calculate a threshold for hybrid tseitin, as done in z3)

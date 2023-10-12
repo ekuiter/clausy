@@ -136,7 +136,7 @@
     <span class="kw">let </span><span class="kw-2">mut </span>formula = Formula::new();
     <span class="kw">let </span><span class="kw-2">mut </span>clauses = <span class="prelude-val">None</span>;
     <span class="kw">let </span><span class="kw-2">mut </span>parsed_files = HashMap::&lt;String, (String, <span class="prelude-ty">Option</span>&lt;String&gt;)&gt;::new();
-    <span class="kw">let </span><span class="kw-2">mut </span>parsed_ids = <span class="macro">vec!</span>[];
+    <span class="kw">let </span><span class="kw-2">mut </span>parsed_results = <span class="macro">vec!</span>[];
 
     <span class="kw">if </span>commands.is_empty() {
         commands.push(<span class="string">&quot;-&quot;</span>.to_string());
@@ -187,14 +187,14 @@
                 }
             }
             <span class="string">&quot;enumerate&quot; </span>=&gt; <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="macro">clauses!</span>(clauses, formula).enumerate()),
-            <span class="string">&quot;compare&quot; </span>=&gt; <span class="macro">todo!</span>(),
             <span class="kw">_ </span>=&gt; {
                 <span class="kw">if </span>file_exists(command) {
                     <span class="kw">let </span>(file, extension) = parsed_files.get(command).unwrap();
-                    parsed_ids.push(formula.parse(<span class="kw-2">&amp;</span>file, parser(extension.clone())));
-                    formula.set_root_expr(<span class="kw-2">*</span>parsed_ids.last().unwrap());
+                    parsed_results.push(formula.parse(<span class="kw-2">&amp;</span>file, parser(extension.clone())));
+                    <span class="kw">let </span>(root_id, <span class="kw">_</span>) = <span class="kw-2">*</span>parsed_results.last().unwrap();
+                    formula.set_root_expr(root_id);
                 } <span class="kw">else if </span>SatInlineFormulaParser::can_parse(command) {
-                    <span class="kw">let </span>root_id = SatInlineFormulaParser::new(parsed_ids.clone())
+                    <span class="kw">let </span>root_id = SatInlineFormulaParser::new(parsed_results.clone())
                         .parse_into(<span class="kw-2">&amp;</span>command, <span class="kw-2">&amp;mut </span>formula);
                     formula.set_root_expr(root_id);
                 } <span class="kw">else </span>{

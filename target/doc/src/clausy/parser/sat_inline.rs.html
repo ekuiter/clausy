@@ -68,23 +68,41 @@
 <a href="#68" id="68">68</a>
 <a href="#69" id="69">69</a>
 <a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parser for inline input in a .sat-like format.
 
-</span><span class="kw">use </span>pest::{iterators::Pair, Parser};
+</span><span class="kw">use </span>std::collections::HashSet;
+
+<span class="kw">use </span>pest::{iterators::Pair, Parser};
 <span class="kw">use </span>pest_derive::Parser;
 
-<span class="kw">use </span><span class="kw">crate</span>::core::formula::{Expr::<span class="kw-2">*</span>, Formula, Id};
+<span class="kw">use </span><span class="kw">crate</span>::core::formula::{Expr::<span class="kw-2">*</span>, Formula, Id, VarId};
 
 <span class="doccomment">/// Parses inline input in a .sat-like format.
 </span><span class="attr">#[derive(Parser)]
 #[grammar = <span class="string">&quot;parser/sat_inline.pest&quot;</span>]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>SatInlineFormulaParser {
-    parsed_ids: Vec&lt;Id&gt;
+    parsed_results: Vec&lt;(Id, HashSet&lt;VarId&gt;)&gt;,
 }
 
 <span class="kw">impl </span>SatInlineFormulaParser {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(parsed_ids: Vec&lt;Id&gt;) -&gt; <span class="self">Self </span>{
-        SatInlineFormulaParser { parsed_ids }
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(parsed_results: Vec&lt;(Id, HashSet&lt;VarId&gt;)&gt;) -&gt; <span class="self">Self </span>{
+        SatInlineFormulaParser { parsed_results }
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>can_parse(file: <span class="kw-2">&amp;</span>String) -&gt; bool {
@@ -93,18 +111,26 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_into(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>String, formula: <span class="kw-2">&amp;mut </span>Formula) -&gt; Id {
         <span class="kw">let </span><span class="kw-2">mut </span>pairs = SatInlineFormulaParser::parse(Rule::file, file).unwrap();
-    
-        parse_pair(pairs.next().unwrap(), <span class="kw-2">&amp;</span><span class="self">self</span>.parsed_ids, formula)
+
+        parse_pair(pairs.next().unwrap(), <span class="kw-2">&amp;</span><span class="self">self</span>.parsed_results, formula)
     }
 }
 
-<span class="kw">fn </span>parse_children(pair: Pair&lt;Rule&gt;, parsed_ids: <span class="kw-2">&amp;</span>[Id], formula: <span class="kw-2">&amp;mut </span>Formula) -&gt; Vec&lt;Id&gt; {
+<span class="kw">fn </span>parse_children(
+    pair: Pair&lt;Rule&gt;,
+    parsed_results: <span class="kw-2">&amp;</span>Vec&lt;(Id, HashSet&lt;VarId&gt;)&gt;,
+    formula: <span class="kw-2">&amp;mut </span>Formula,
+) -&gt; Vec&lt;Id&gt; {
     pair.into_inner()
-        .map(|pair| parse_pair(pair, parsed_ids, formula))
+        .map(|pair| parse_pair(pair, parsed_results, formula))
         .collect()
 }
 
-<span class="kw">fn </span>parse_pair(pair: Pair&lt;Rule&gt;, parsed_ids: <span class="kw-2">&amp;</span>[Id], formula: <span class="kw-2">&amp;mut </span>Formula) -&gt; Id {
+<span class="kw">fn </span>parse_pair(
+    pair: Pair&lt;Rule&gt;,
+    parsed_results: <span class="kw-2">&amp;</span>Vec&lt;(Id, HashSet&lt;VarId&gt;)&gt;,
+    formula: <span class="kw-2">&amp;mut </span>Formula,
+) -&gt; Id {
     <span class="kw">match </span>pair.as_rule() {
         Rule::var =&gt; {
             <span class="kw">let </span>arg: i32 = pair
@@ -116,25 +142,32 @@
                 .parse()
                 .unwrap();
             <span class="kw">let </span>idx: usize = arg.try_into().unwrap();
-            <span class="kw">let </span>id: Id = parsed_ids[idx - <span class="number">1</span>];
+            <span class="kw">let </span>(root_id, <span class="kw-2">ref </span>var_ids) = parsed_results[idx - <span class="number">1</span>];
+            <span class="kw">let </span><span class="kw-2">mut </span>ids = <span class="macro">vec!</span>[root_id];
+            ids.extend(formula.named_vars_except(var_ids).iter().map(|var_id| {
+                <span class="kw">let </span>expr = formula.expr(Var(<span class="kw-2">*</span>var_id));
+                formula.expr(Not(expr))
+            }));
+            <span class="kw">let </span>root_id = formula.expr(And(ids));
             <span class="kw">if </span>pair.as_str().starts_with(<span class="string">&quot;-&quot;</span>) {
-                formula.expr(Not(id))
+                formula.expr(Not(root_id))
             } <span class="kw">else </span>{
-                id
+                root_id
             }
         }
         Rule::not =&gt; {
-            <span class="kw">let </span>child_id = parse_pair(pair.into_inner().next().unwrap(), parsed_ids, formula);
+            <span class="kw">let </span>child_id = parse_pair(pair.into_inner().next().unwrap(), parsed_results, formula);
             formula.expr(Not(child_id))
         }
         Rule::and =&gt; {
-            <span class="kw">let </span>child_ids = parse_children(pair, parsed_ids, formula);
+            <span class="kw">let </span>child_ids = parse_children(pair, parsed_results, formula);
             formula.expr(And(child_ids))
         }
         Rule::or =&gt; {
-            <span class="kw">let </span>child_ids = parse_children(pair, parsed_ids, formula);
+            <span class="kw">let </span>child_ids = parse_children(pair, parsed_results, formula);
             formula.expr(Or(child_ids))
         }
         <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
     }
-}</code></pre></div></section></main></body></html>
+}
+</code></pre></div></section></main></body></html>

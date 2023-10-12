@@ -93,9 +93,12 @@
 <a href="#93" id="93">93</a>
 <a href="#94" id="94">94</a>
 <a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parser for DIMACS .sat files.
 
-</span><span class="kw">use </span>std::{collections::HashMap, vec};
+</span><span class="kw">use </span>std::{collections::{HashMap, HashSet}, vec};
 
 <span class="kw">use </span>pest::{iterators::Pair, Parser};
 <span class="kw">use </span>pest_derive::Parser;
@@ -150,9 +153,10 @@
 }
 
 <span class="kw">impl </span>FormulaParser <span class="kw">for </span>SatFormulaParser {
-    <span class="kw">fn </span>parse_into&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>String, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; Id {
+    <span class="kw">fn </span>parse_into&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>String, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; (Id, HashSet&lt;VarId&gt;) {
         <span class="kw">let </span><span class="kw-2">mut </span>pairs = SatFormulaParser::parse(Rule::file, file).unwrap();
 
+        <span class="kw">let </span><span class="kw-2">mut </span>var_ids = HashSet::&lt;VarId&gt;::new();
         <span class="kw">let </span><span class="kw-2">mut </span>variable_names = HashMap::&lt;VarId, <span class="kw-2">&amp;</span>str&gt;::new();
         <span class="kw">while let </span>Rule::comment = pairs.peek().unwrap().as_rule() {
             <span class="kw">let </span>pair = pairs.next().unwrap().into_inner().next().unwrap();
@@ -177,7 +181,9 @@
         <span class="kw">let </span><span class="kw-2">mut </span>vars: Vec&lt;Id&gt; = <span class="macro">vec!</span>[<span class="number">0</span>];
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">1</span>..=n {
             <span class="kw">if </span>variable_names.contains_key(<span class="kw-2">&amp;</span>i) {
-                vars.push(formula.var_expr(variable_names.get(<span class="kw-2">&amp;</span>i).unwrap()));
+                <span class="kw">let </span>(expr_id, var_id) = formula.var_expr_with_id(variable_names.get(<span class="kw-2">&amp;</span>i).unwrap());
+                var_ids.insert(var_id);
+                vars.push(expr_id);
                 variable_names.remove(<span class="kw-2">&amp;</span>i);
             } <span class="kw">else </span>{
                 vars.push(formula.add_var_aux_expr());
@@ -185,7 +191,7 @@
         }
         <span class="macro">debug_assert!</span>(variable_names.is_empty());
 
-        parse_pair(pairs.next().unwrap(), <span class="kw-2">&amp;</span>vars, formula)
+        (parse_pair(pairs.next().unwrap(), <span class="kw-2">&amp;</span>vars, formula), var_ids)
     }
 }
 </code></pre></div></section></main></body></html>
