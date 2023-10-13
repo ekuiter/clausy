@@ -8,6 +8,9 @@ use pest_derive::Parser;
 use crate::core::formula::{Expr::*, Formula, Id, VarId};
 
 /// Parses inline input in a .sat-like format.
+/// 
+/// In this format, identifiers refer to previously parsed inputs.
+/// Optionally, the parsed formula can add negative backbone variables to align differing sets of variables.
 #[derive(Parser)]
 #[grammar = "parser/sat_inline.pest"]
 pub(crate) struct SatInlineFormulaParser {
