@@ -15,7 +15,7 @@ docker build -t clausy .
 cat meta/test.sat | docker run -i clausy
 
 # option 2: build into bin/ directory
-./build.sh
+make
 bin/clausy meta/test.sat
 ```
 
@@ -40,13 +40,13 @@ echo '(!def(a)|def(b))' | bin/clausy -.model to_cnf_dist satisfy
 ! bin/clausy a.model b.model '+(*(-1 2) *(1 -2))' to_cnf_tseitin satisfy &>/dev/null
 
 # run tests
-./build.sh test
+make test
 
 # view documentation
-./build.sh doc
+make doc
 
 # view live documentation (for developers)
-./build.sh doc-live
+make doc-live
 ```
 
 ## License

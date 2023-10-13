@@ -8,5 +8,5 @@ RUN apt-get update && apt install -y \
 ENV PATH="/root/.cargo/bin:${PATH}"
 WORKDIR /home
 COPY . ./
-RUN ./build.sh
+RUN make
 ENTRYPOINT [ "bin/clausy" ]
