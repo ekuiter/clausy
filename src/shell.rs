@@ -87,7 +87,7 @@ pub fn main(mut commands: Vec<String>) {
                     let (root_id, _) = *parsed_results.last().unwrap();
                     formula.set_root_expr(root_id);
                 } else if SatInlineFormulaParser::can_parse(command) {
-                    let root_id = SatInlineFormulaParser::new(parsed_results.clone())
+                    let root_id = SatInlineFormulaParser::new(parsed_results.clone(), true)
                         .parse_into(&command, &mut formula);
                     formula.set_root_expr(root_id);
                 } else {
