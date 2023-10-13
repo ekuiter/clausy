@@ -186,7 +186,7 @@
                     <span class="macro">unreachable!</span>();
                 }
             }
-            <span class="string">&quot;enumerate&quot; </span>=&gt; <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="macro">clauses!</span>(clauses, formula).enumerate()),
+            <span class="string">&quot;enumerate&quot; </span>=&gt; <span class="macro">clauses!</span>(clauses, formula).enumerate(),
             <span class="kw">_ </span>=&gt; {
                 <span class="kw">if </span>file_exists(command) {
                     <span class="kw">let </span>(file, extension) = parsed_files.get(command).unwrap();

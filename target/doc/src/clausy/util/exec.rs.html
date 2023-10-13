@@ -132,15 +132,11 @@
 <a href="#132" id="132">132</a>
 <a href="#133" id="133">133</a>
 <a href="#134" id="134">134</a>
-<a href="#135" id="135">135</a>
-<a href="#136" id="136">136</a>
-<a href="#137" id="137">137</a>
-<a href="#138" id="138">138</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Utilities for executing external programs.
 
 </span><span class="kw">use </span>std::{
-    env, fs,
-    io::{Read, Write},
+    env,
+    io::{BufRead, BufReader, Read, Write},
     path::Path,
     process::{Command, Stdio},
 };
@@ -230,28 +226,24 @@
 ///
 /// Runs an external AllSAT solver, which is only suitable for formulas with few solutions.
 /// This does not currently output solutions for fully indeterminate (i.e., unconstrained) variables.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bc_minisat_all(dimacs: <span class="kw-2">&amp;</span>str) -&gt; Vec&lt;Vec&lt;VarId&gt;&gt; {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bc_minisat_all(dimacs: <span class="kw-2">&amp;</span>str) -&gt; (<span class="kw">impl </span>Iterator&lt;Item = Vec&lt;VarId&gt;&gt;, NamedTempFile) {
     <span class="kw">let </span><span class="kw-2">mut </span>tmp_in = NamedTempFile::new().unwrap();
-    <span class="kw">let </span>tmp_out = NamedTempFile::new().unwrap();
     <span class="macro">write!</span>(tmp_in, <span class="string">&quot;{}&quot;</span>, dimacs).ok();
-    Command::new(path(<span class="string">&quot;bc_minisat_all_static&quot;</span>))
+    <span class="kw">let </span>process = Command::new(path(<span class="string">&quot;bc_minisat_all_static&quot;</span>))
         .arg(tmp_in.path())
-        .arg(tmp_out.path())
-        .output()
-        .ok();
-    fs::read_to_string(tmp_out.path())
-        .unwrap()
-        .lines()
-        .filter(|line| !line.trim().is_empty())
-        .map(|line| line.split(<span class="string">&#39; &#39;</span>).collect::&lt;Vec&lt;<span class="kw-2">&amp;</span>str&gt;&gt;())
-        .map(|literals| {
-            literals
-                .iter()
-                .map(|literals| literals.parse().unwrap())
-                .filter(|literal| <span class="kw-2">*</span>literal != <span class="number">0</span>)
-                .collect()
-        })
-        .collect()
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    <span class="kw">let </span>iter = BufReader::new(process.stderr.unwrap()).lines().map(|line| {
+        line.unwrap()
+            .split(<span class="string">&#39; &#39;</span>)
+            .map(|literal| literal.parse().unwrap())
+            .filter(|literal| <span class="kw-2">*</span>literal != <span class="number">0</span>)
+            .collect::&lt;Vec&lt;VarId&gt;&gt;()
+    });
+    (iter, tmp_in)
 }
 
 <span class="doccomment">/// Converts a given feature-model file from one format into another.

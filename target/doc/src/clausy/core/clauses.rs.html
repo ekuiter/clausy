@@ -257,12 +257,12 @@
     }
 
     <span class="doccomment">/// Enumerates all solutions of this clause representation.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>enumerate(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
-        exec::bc_minisat_all(<span class="kw-2">&amp;</span><span class="self">self</span>.to_string())
-            .iter()
-            .map(|solution| <span class="self">self</span>.solution_to_string(solution))
-            .collect::&lt;Vec&lt;String&gt;&gt;()
-            .join(<span class="string">&quot;\n&quot;</span>)
+    ///
+    /// Prints solutions to standard output as soon as they are known, instead of returning them.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>enumerate(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="kw">let </span>(iter, tmp_in) = exec::bc_minisat_all(<span class="kw-2">&amp;</span><span class="self">self</span>.to_string());
+        iter.for_each(|solution| <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.solution_to_string(<span class="kw-2">&amp;</span>solution)));
+        drop(tmp_in);
     }
 
     <span class="doccomment">/// Counts the number of solutions of this clause representation.
