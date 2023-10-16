@@ -231,7 +231,7 @@ pub(crate) struct Formula {
 ///
 /// This struct is useful whenever we need to pass an expression around, but the containing formula is not available.
 /// Using this might be necessary when there is no `self` of type [Formula], for example whenever we want to [fmt::Display] an expression.
-pub(crate) struct ExprInFormula(pub(crate) &Formula, pub(crate) &Id);
+pub(crate) struct ExprInFormula<'a>(pub(crate) &'a Formula, pub(crate) &'a Id);
 
 /// Algorithms for constructing, mutating, and analyzing formulas.
 impl Formula {
@@ -806,7 +806,7 @@ impl fmt::Display for Var {
 }
 
 /// Displays an expression in a formula.
-impl fmt::Display for ExprInFormula {
+impl<'a> fmt::Display for ExprInFormula<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.0.format_expr(*self.1, f)
     }
