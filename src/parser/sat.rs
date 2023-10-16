@@ -14,13 +14,13 @@ use super::FormulaParser;
 #[grammar = "parser/sat.pest"]
 pub(crate) struct SatFormulaParser;
 
-fn parse_children<'a>(pair: Pair<'a, Rule>, vars: &[Id], formula: &mut Formula<'a>) -> Vec<Id> {
+fn parse_children(pair: Pair<Rule>, vars: &[Id], formula: &mut Formula) -> Vec<Id> {
     pair.into_inner()
         .map(|pair| parse_pair(pair, vars, formula))
         .collect()
 }
 
-fn parse_pair<'a>(pair: Pair<'a, Rule>, vars: &[Id], formula: &mut Formula<'a>) -> Id {
+fn parse_pair(pair: Pair<Rule>, vars: &[Id], formula: &mut Formula) -> Id {
     match pair.as_rule() {
         Rule::var => {
             let var: VarId = pair
@@ -55,7 +55,7 @@ fn parse_pair<'a>(pair: Pair<'a, Rule>, vars: &[Id], formula: &mut Formula<'a>) 
 }
 
 impl FormulaParser for SatFormulaParser {
-    fn parse_into<'a>(&self, file: &'a String, formula: &mut Formula<'a>) -> (Id, HashSet<VarId>) {
+    fn parse_into(&self, file: &str, formula: &mut Formula) -> (Id, HashSet<VarId>) {
         let mut pairs = SatFormulaParser::parse(Rule::file, file).unwrap();
 
         let mut var_ids = HashSet::<VarId>::new();
@@ -83,7 +83,7 @@ impl FormulaParser for SatFormulaParser {
         let mut vars: Vec<Id> = vec![0];
         for i in 1..=n {
             if variable_names.contains_key(&i) {
-                let (expr_id, var_id) = formula.var_expr_with_id(variable_names[&i]);
+                let (expr_id, var_id) = formula.var_expr_with_id(variable_names[&i].to_string());
                 var_ids.insert(var_id);
                 vars.push(expr_id);
                 variable_names.remove(&i);

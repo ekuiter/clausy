@@ -14,9 +14,9 @@ use super::FormulaParser;
 #[grammar = "parser/model.pest"]
 pub(crate) struct ModelFormulaParser;
 
-fn parse_children<'a>(
-    pair: Pair<'a, Rule>,
-    formula: &mut Formula<'a>,
+fn parse_children(
+    pair: Pair<Rule>,
+    formula: &mut Formula,
     var_ids: &mut HashSet<VarId>,
 ) -> Vec<Id> {
     pair.into_inner()
@@ -24,11 +24,11 @@ fn parse_children<'a>(
         .collect()
 }
 
-fn parse_pair<'a>(pair: Pair<'a, Rule>, formula: &mut Formula<'a>, var_ids: &mut HashSet<VarId>) -> Id {
+fn parse_pair(pair: Pair<Rule>, formula: &mut Formula, var_ids: &mut HashSet<VarId>) -> Id {
     match pair.as_rule() {
         Rule::var => {
             let (expr_id, var_id) =
-                formula.var_expr_with_id(pair.into_inner().next().unwrap().as_str().trim());
+                formula.var_expr_with_id(pair.into_inner().next().unwrap().as_str().trim().to_string());
             var_ids.insert(var_id);
             expr_id
         }
@@ -48,7 +48,7 @@ fn parse_pair<'a>(pair: Pair<'a, Rule>, formula: &mut Formula<'a>, var_ids: &mut
     }
 }
 
-fn parse_into<'a>(file: &'a str, formula: &mut Formula<'a>) -> (Id, HashSet<VarId>) {
+fn parse_into(file: &str, formula: &mut Formula) -> (Id, HashSet<VarId>) {
     let mut child_ids = Vec::<Id>::new();
     let mut var_ids = HashSet::<VarId>::new();
     for line in file.lines() {
@@ -66,13 +66,13 @@ fn parse_into<'a>(file: &'a str, formula: &mut Formula<'a>) -> (Id, HashSet<VarI
 }
 
 impl FormulaParser for ModelFormulaParser {
-    fn parse_into<'a>(&self, file: &'a String, formula: &mut Formula<'a>) -> (Id, HashSet<VarId>) {
+    fn parse_into(&self, file: &str, formula: &mut Formula) -> (Id, HashSet<VarId>) {
         parse_into(file, formula)
     }
 }
 
-impl<'a> From<&'a str> for Formula<'a> {
-    fn from(file: &'a str) -> Self {
+impl From<&str> for Formula {
+    fn from(file: &str) -> Self {
         let mut formula = Formula::new();
         let (root_id, _) = parse_into(file, &mut formula);
         formula.set_root_expr(root_id);

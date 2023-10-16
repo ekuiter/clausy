@@ -28,7 +28,7 @@ impl FormulaParser for IoFormulaParser {
         util::exec::io(&file, &self.extension, "sat", &[])
     }
 
-    fn parse_into<'b>(&self, file: &'b String, formula: &mut Formula<'b>) -> (Id, HashSet<VarId>) {
+    fn parse_into(&self, file: &str, formula: &mut Formula) -> (Id, HashSet<VarId>) {
         SatFormulaParser.parse_into(file, formula)
     }
 }

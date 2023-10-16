@@ -20,6 +20,13 @@ const PRINT_ID: bool = false;
 /// Auxiliary variables are required by some algorithms on formulas and can be created with [Var::Aux].
 const VAR_AUX_PREFIX: &str = "_aux_";
 
+/// Identifier type for variables.
+///
+/// Serves as an index into [Formula::vars].
+/// We also use this type to represent literals in [crate::core::clauses::Clauses], therefore we use a signed type.
+/// Also, we do not expect too many variables, so a 32-bit integer should suffice.
+pub(crate) type VarId = i32;
+
 /// Identifier type for expressions.
 ///
 /// Serves as an index into [Formula::exprs].
@@ -30,12 +37,21 @@ const VAR_AUX_PREFIX: &str = "_aux_";
 /// Thus, all sub-expressions are expressions, but not vice versa.
 pub(crate) type Id = usize;
 
-/// Identifier type for variables.
+/// A variable in a formula.
 ///
-/// Serves as an index into [Formula::vars].
-/// We also use this type to represent literals in [crate::core::clauses::Clauses], therefore we use a signed type.
-/// Also, we do not expect too many variables, so a 32-bit integer should suffice.
-pub(crate) type VarId = i32;
+/// Variables can either be named or auxiliary.
+/// Named variables refer to a string, which represents their name.
+/// Some algorithms on formulas (e.g., [Formula::to_cnf_tseitin]) require creating new, auxiliary variables.
+/// As these variables are anonymous and have no designated meaning in the feature-modeling domain, we assign them arbitrary numbers.
+/// To avoid creating unnecessary strings, we store these as native numbers.
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub(crate) enum Var {
+    /// A named variable.
+    Named(String),
+
+    /// An auxiliary variable.
+    Aux(u32),
+}
 
 /// An expression in a formula.
 ///
@@ -135,23 +151,6 @@ macro_rules! flatten_expr {
     };
 }
 
-/// A variable in a formula.
-///
-/// Variables can either be named or auxiliary.
-/// Named variables refer to a string, which represents their name.
-/// To avoid unnecessary copies, we use a reference that must outlive the [Formula] the variable is tied to (e.g., created by [mod@crate::parser]).
-/// Some algorithms on formulas (e.g., [Formula::to_cnf_tseitin]) require creating new, auxiliary variables.
-/// As these variables are anonymous and have no designated meaning in the feature-modeling domain, we assign them arbitrary numbers.
-/// To avoid creating unnecessary strings, we store these as native numbers.
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub(crate) enum Var<'a> {
-    /// A named variable.
-    Named(&'a str),
-
-    /// An auxiliary variable.
-    Aux(u32),
-}
-
 /// A feature-model formula.
 ///
 /// We represent a formula by storing its syntax tree; that is, each unique sub-expression that appears in it.
@@ -164,7 +163,7 @@ pub(crate) enum Var<'a> {
 /// We represent this graph as an adjacency list stored in [Formula::exprs].
 /// Note that due to performance reasons, structural sharing is not fully guaranteed by all algorithms (including parsers) until calling [Formula::canon_visitor].
 #[derive(Debug)]
-pub(crate) struct Formula<'a> {
+pub(crate) struct Formula {
     /// Stores all expressions in this formula.
     ///
     /// Serves as a fast lookup for an expression, given its identifier.
@@ -199,7 +198,7 @@ pub(crate) struct Formula<'a> {
     /// Consequently, feature-model slicing (variable forgetting) is currently not supported.
     /// Another difference to [Formula::exprs] is that named variables are not owned by this formula.
     /// Thus, we can borrow references to variable names from the parsed string and avoid cloning them.
-    pub(crate) vars: Vec<Var<'a>>,
+    pub(crate) vars: Vec<Var>,
 
     /// Maps variables to their identifiers.
     ///
@@ -207,7 +206,7 @@ pub(crate) struct Formula<'a> {
     /// However, the inverse lookup of variables is less complex:
     /// First, this formula does not own the variable names, which avoids the hash collisions discussed for [Formula::exprs_inv].
     /// Second, variables and their identifiers are never mutated after creation, so no additional [Vec] is needed.
-    vars_inv: HashMap<Var<'a>, VarId>,
+    vars_inv: HashMap<Var, VarId>,
 
     /// Specifies the root expression of this formula.
     ///
@@ -232,10 +231,10 @@ pub(crate) struct Formula<'a> {
 ///
 /// This struct is useful whenever we need to pass an expression around, but the containing formula is not available.
 /// Using this might be necessary when there is no `self` of type [Formula], for example whenever we want to [fmt::Display] an expression.
-pub(crate) struct ExprInFormula<'a>(pub(crate) &'a Formula<'a>, pub(crate) &'a Id);
+pub(crate) struct ExprInFormula(pub(crate) &Formula, pub(crate) &Id);
 
 /// Algorithms for constructing, mutating, and analyzing formulas.
-impl<'a> Formula<'a> {
+impl Formula {
     /// Creates a new, empty formula.
     ///
     /// The created formula is initially invalid (see [Formula::assert_valid]).
@@ -304,16 +303,16 @@ impl<'a> Formula<'a> {
     /// Adds a new variable to this formula, returning its identifier.
     ///
     /// Works analogously to [Formula::add_expr] (see [Formula::vars_inv]).
-    fn add_var(&mut self, var: Var<'a>) -> VarId {
+    fn add_var(&mut self, var: Var) -> VarId {
         let id = self.vars.len();
         let id_signed: i32 = id.try_into().unwrap();
-        self.vars.push(var);
-        self.vars_inv.insert(var.clone(), id_signed);
+        self.vars.push(var.clone());
+        self.vars_inv.insert(var, id_signed);
         id_signed
     }
 
     /// Adds a new named variable to this formula, returning its identifier.
-    fn add_var_named(&mut self, name: &'a str) -> VarId {
+    fn add_var_named(&mut self, name: String) -> VarId {
         self.add_var(Var::Named(name))
     }
 
@@ -326,22 +325,22 @@ impl<'a> Formula<'a> {
     /// Looks ups the identifier of a named variable in this formula.
     ///
     /// Works analogously to [Formula::get_expr] (see [Formula::vars_inv]).
-    fn get_var_named(&mut self, name: &str) -> Option<VarId> {
+    fn get_var_named(&mut self, name: String) -> Option<VarId> {
         Some(*self.vars_inv.get(&Var::Named(name))?)
     }
 
     /// Adds or looks up a named variable of this formula, returning its [Var] expression's identifier.
     ///
     /// This is the preferred way to obtain a [Var] expression's identifier (see [Formula::expr]).
-    pub(crate) fn var_expr(&mut self, var: &'a str) -> Id {
+    pub(crate) fn var_expr(&mut self, var: String) -> Id {
         let var_id = self
-            .get_var_named(var)
+            .get_var_named(var.clone())
             .unwrap_or_else(|| self.add_var_named(var));
         self.expr(Var(var_id))
     }
 
     /// Adds or looks up a named variable of this formula, returning its [Var] expression's and [Var]'s identifier.
-    pub(crate) fn var_expr_with_id(&mut self, var: &'a str) -> (Id, VarId) {
+    pub(crate) fn var_expr_with_id(&mut self, var: String) -> (Id, VarId) {
         let expr_id = self.var_expr(var);
         if let Var(var_id) = self.exprs[expr_id] {
             (expr_id, var_id)
@@ -797,7 +796,7 @@ impl<'a> Formula<'a> {
 }
 
 /// Displays a formula.
-impl<'a> fmt::Display for Var<'a> {
+impl fmt::Display for Var {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Var::Named(name) => write!(f, "{name}"),
@@ -807,14 +806,14 @@ impl<'a> fmt::Display for Var<'a> {
 }
 
 /// Displays an expression in a formula.
-impl<'a> fmt::Display for ExprInFormula<'a> {
+impl fmt::Display for ExprInFormula {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.0.format_expr(*self.1, f)
     }
 }
 
 /// Displays a formula.
-impl<'a> fmt::Display for Formula<'a> {
+impl fmt::Display for Formula {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         ExprInFormula(self, &self.get_root_expr()).fmt(f)
     }

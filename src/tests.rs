@@ -22,7 +22,7 @@ mod formula {
         #[should_panic]
         fn no_root() {
             let mut f = Formula::new();
-            let a = f.var_expr("a");
+            let a = f.var_expr("a".to_string());
             f.expr(Not(a));
             f.assert_valid();
         }
@@ -30,7 +30,7 @@ mod formula {
         #[test]
         fn valid() {
             let mut f = Formula::new();
-            let a = f.var_expr("a");
+            let a = f.var_expr("a".to_string());
             let not_a = f.expr(Not(a));
             f.set_root_expr(not_a);
             f.assert_valid();
@@ -43,7 +43,7 @@ mod formula {
         #[test]
         fn not_a() {
             let mut f = Formula::new();
-            let a = f.var_expr("a");
+            let a = f.var_expr("a".to_string());
             let not_a = f.expr(Not(a));
             f.set_root_expr(not_a);
             assert_eq!(
@@ -55,7 +55,7 @@ mod formula {
         #[test]
         fn not_not_a() {
             let mut f = Formula::new();
-            let a = f.var_expr("a");
+            let a = f.var_expr("a".to_string());
             let not_a = f.expr(Not(a));
             let not_not_a = f.expr(Not(not_a));
             f.set_root_expr(not_not_a);
@@ -65,7 +65,7 @@ mod formula {
         #[test]
         fn and_not_not_a() {
             let mut f = Formula::new();
-            let a = f.var_expr("a");
+            let a = f.var_expr("a".to_string());
             let not_a = f.expr(Not(a));
             let not_not_a = f.expr(Not(not_a));
             let and = f.expr(And(vec![not_not_a]));
@@ -79,9 +79,9 @@ mod formula {
         #[test]
         fn complex() {
             let mut f = Formula::new();
-            let a = f.var_expr("a");
-            let b = f.var_expr("b");
-            let c = f.var_expr("c");
+            let a = f.var_expr("a".to_string());
+            let b = f.var_expr("b".to_string());
+            let c = f.var_expr("c".to_string());
             let not_a = f.expr(Not(a));
             let not_b = f.expr(Not(b));
             let not_c = f.expr(Not(c));
@@ -131,8 +131,8 @@ mod formula {
         #[test]
         fn simple() {
             let mut f = Formula::new();
-            let a = f.var_expr("a");
-            let b = f.var_expr("b");
+            let a = f.var_expr("a".to_string());
+            let b = f.var_expr("b".to_string());
             let a_and_b = f.expr(And(vec![a, b]));
             let a_or_a_and_b = f.expr(Or(vec![a, a_and_b]));
             let a_and_a_or_a_and_b = f.expr(And(vec![a, a_or_a_and_b]));
@@ -149,9 +149,9 @@ mod formula {
         #[test]
         fn complex() {
             let mut f = Formula::new();
-            let a = f.var_expr("a");
-            let b = f.var_expr("b");
-            let c = f.var_expr("c");
+            let a = f.var_expr("a".to_string());
+            let b = f.var_expr("b".to_string());
+            let c = f.var_expr("c".to_string());
             let not_a = f.expr(Not(a));
             let not_b = f.expr(Not(b));
             let not_c = f.expr(Not(c));
@@ -185,7 +185,7 @@ mod formula {
                 .assert_valid()
                 .to_cnf_dist()
                 .assert_valid();
-            Clauses::from(&f).assert_count(&model, String::from("model"));
+            Clauses::from(&f).assert_count(&model, "model");
             let model = "(((!def(a)))&(((def(c)|!def(a)))|((def(a))&(def(c)|!(def(a)|def(b))))))";
             let f = Formula::from(model)
                 .assert_valid()
@@ -193,7 +193,7 @@ mod formula {
                 .assert_valid()
                 .to_cnf_dist()
                 .assert_valid();
-            Clauses::from(&f).assert_count(&model, String::from("model"));
+            Clauses::from(&f).assert_count(&model, "model");
         }
 
         #[test]
@@ -208,7 +208,7 @@ mod formula {
             let s = f.to_string();
             let f = f.assert_valid().to_cnf_dist().assert_valid();
             assert_eq!(s, f.to_string());
-            Clauses::from(&f).assert_count(&model, String::from("model"));
+            Clauses::from(&f).assert_count(&model, "model");
         }
 
         #[test]
@@ -220,7 +220,7 @@ mod formula {
                 .assert_valid()
                 .to_cnf_dist()
                 .assert_valid();
-            Clauses::from(&f).assert_count(&model, String::from("model"));
+            Clauses::from(&f).assert_count(&model, "model");
         }
     }
 }
@@ -239,7 +239,7 @@ mod cnf {
             .assert_valid();
         let cnf = Clauses::from(&f);
         assert_eq!(cnf.to_string().lines().count(), 14);
-        cnf.assert_count(&model, String::from("model"));
+        cnf.assert_count(&model, "model");
     }
 }
 

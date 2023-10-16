@@ -10,7 +10,7 @@ use crate::{
 /// A [Formula] in its clause representation.
 ///
 /// That is, this data structure enforces a conjunctive normal form.
-pub(crate) struct Clauses<'a> {
+pub(crate) struct Clauses {
     /// The clauses of this clause representation.
     ///
     /// A clause is a [Vec] of literals, each given as an absolute-value index into [Clauses::vars].
@@ -20,11 +20,11 @@ pub(crate) struct Clauses<'a> {
     /// The variables of this clause representation.
     ///
     /// This list is indexed into by the absolute values stored in [Clauses::clauses].
-    vars: Vec<Var<'a>>,
+    vars: Vec<Var>,
 }
 
 /// Algorithms for representing a [Formula] as [Clauses].
-impl<'a> Clauses<'a> {
+impl Clauses {
     /// Returns the sub-expressions of a formula as clauses.
     ///
     /// We require that the formula already is in conjunctive normal form (see [Formula::to_cnf_dist]).
@@ -113,20 +113,20 @@ impl<'a> Clauses<'a> {
     /// Counts the number of solutions of a feature-model file using FeatureIDE.
     ///
     /// The file extension must be given so FeatureIDE can detect the correct format.
-    fn count_featureide(file: &str, extension: String) -> String {
-        exec::d4(&exec::io(file, &extension, "dimacs", &[]))
+    fn count_featureide(file: &str, extension: &str) -> String {
+        exec::d4(&exec::io(file, extension, "dimacs", &[]))
     }
 
     /// Panics if this clause representation has a different model count than that of FeatureIDE.
     ///
     /// Useful for checking the correctness of count-preserving algorithms (e.g., [Formula::to_cnf_tseitin]).
-    pub(crate) fn assert_count(&self, file: &str, extension: String) {
+    pub(crate) fn assert_count(&self, file: &str, extension: &str) {
         assert_eq!(self.count(), Self::count_featureide(file, extension));
     }
 }
 
-impl<'a> From<&Formula<'a>> for Clauses<'a> {
-    fn from(formula: &Formula<'a>) -> Self {
+impl From<&Formula> for Clauses {
+    fn from(formula: &Formula) -> Self {
         Self {
             clauses: Self::clauses(&formula),
             vars: formula.vars.clone(),
@@ -134,7 +134,7 @@ impl<'a> From<&Formula<'a>> for Clauses<'a> {
     }
 }
 
-impl<'a> fmt::Display for Clauses<'a> {
+impl fmt::Display for Clauses {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (i, var) in self.vars.iter().enumerate() {
             if i == 0 {

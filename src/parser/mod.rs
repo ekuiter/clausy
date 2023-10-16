@@ -25,10 +25,10 @@ pub(crate) trait FormulaParser {
     /// This function does not modify the sub-expressions of the given formula.
     /// That is, after parsing, the formula will hold the given feature-model formula in [Formula::exprs], but not refer to it.
     /// Thus, [Formula::set_root_expr] must be called explicitly with the returned [Id] to make use of the parsed formula.
-    fn parse_into<'a>(&self, file: &'a String, formula: &mut Formula<'a>) -> (Id, HashSet<VarId>);
+    fn parse_into(&self, file: &str, formula: &mut Formula) -> (Id, HashSet<VarId>);
 
     /// Parses a feature-model formula file into a new [Formula].
-    fn parse_new<'a>(&self, file: &'a String) -> Formula<'a> {
+    fn parse_new(&self, file: &str) -> Formula {
         let mut formula = Formula::new();
         let (root_id, _) = self.parse_into(file, &mut formula);
         formula.set_root_expr(root_id);
@@ -39,9 +39,9 @@ pub(crate) trait FormulaParser {
 /// An object that can parse a feature-model formula file into itself.
 ///
 /// Only implemented for [Formula].
-pub(crate) trait FormulaParsee<'a> {
+pub(crate) trait FormulaParsee {
     /// Parses a feature-model formula into this object.
-    fn parse(&mut self, file: &'a String, parser: Box<dyn FormulaParser>) -> (Id, HashSet<VarId>);
+    fn parse(&mut self, file: &str, parser: Box<dyn FormulaParser>) -> (Id, HashSet<VarId>);
 }
 
 /// Returns the appropriate parser for a file extension.
@@ -57,19 +57,19 @@ pub(crate) fn parser(extension: Option<String>) -> Box<dyn FormulaParser> {
 }
 
 /// Creates a feature-model formula from a feature-model formula file and parser.
-impl<'a, T> From<(&'a String, T)> for Formula<'a>
+impl<T> From<(&str, T)> for Formula
 where
     T: FormulaParser,
 {
-    fn from(file_and_parser: (&'a String, T)) -> Self {
+    fn from(file_and_parser: (&str, T)) -> Self {
         let (file, parser) = file_and_parser;
         parser.parse_new(file)
     }
 }
 
 /// Parses a feature-model formula file into an existing formula.
-impl<'a> FormulaParsee<'a> for Formula<'a> {
-    fn parse(&mut self, file: &'a String, parser: Box<dyn FormulaParser>) -> (Id, HashSet<VarId>) {
+impl FormulaParsee for Formula {
+    fn parse(&mut self, file: &str, parser: Box<dyn FormulaParser>) -> (Id, HashSet<VarId>) {
         parser.parse_into(file, self)
     }
 }

@@ -76,8 +76,7 @@ pub fn main(mut commands: Vec<String>) {
             "assert_count" => {
                 if parsed_files.len() == 1 {
                     let (file, extension) = parsed_files.values().next().unwrap();
-                    clauses!(clauses, formula)
-                        .assert_count(file, extension.as_ref().unwrap().clone());
+                    clauses!(clauses, formula).assert_count(file, &extension.as_ref().unwrap());
                 } else {
                     unreachable!();
                 }
@@ -99,13 +98,13 @@ pub fn main(mut commands: Vec<String>) {
                     .iter()
                     .map(|var_id| {
                         let var_id: usize = var_id.unsigned_abs().try_into().unwrap();
-                        if let Var::Named(name) = formula.vars[var_id] {
-                            name
+                        if let Var::Named(name) = &formula.vars[var_id] {
+                            name.clone()
                         } else {
                             unreachable!()
                         }
                     })
-                    .collect::<Vec<&str>>();
+                    .collect::<Vec<String>>();
                 println!("both formulas have {} common variables", common_vars.len());
 
                 let mut get_not_root_id = |root_id, other_var_ids, name| {
@@ -132,6 +131,7 @@ pub fn main(mut commands: Vec<String>) {
                 let not_root_id_b = get_not_root_id(*root_id_b, var_ids_a, "b");
 
                 let (file, extension) = &parsed_files[&parsed_file_names[0]];
+                let common_vars = common_vars.iter().map(|s| &**s).collect::<Vec<&str>>();
                 let slice_a = exec::io(file, extension.as_ref().unwrap(), "sat", &common_vars);
                 let (root_id_slice_a, var_ids_slice_a) =
                     formula.parse(&slice_a, parser(Some("sat".to_string())));
