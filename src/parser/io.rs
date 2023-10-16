@@ -25,7 +25,7 @@ impl IoFormulaParser {
 
 impl FormulaParser for IoFormulaParser {
     fn preprocess(&self, file: String) -> String {
-        util::exec::io(&file, &self.extension, "sat")
+        util::exec::io(&file, &self.extension, "sat", &[])
     }
 
     fn parse_into<'b>(&self, file: &'b String, formula: &mut Formula<'b>) -> (Id, HashSet<VarId>) {

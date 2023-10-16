@@ -72,7 +72,7 @@ public class SatFormat extends AFeatureModelFormat {
 		try {
 			final IFeature root = FeatureUtils.getRoot(featureModel);
 			final List<Node> nodes = new LinkedList<>();
-			if (root != null) {
+			if (root != null && !root.getName().equals("NewRootFeature")) {
 				nodes.add(new Literal(NodeCreator.getVariable(root.getName(), featureModel)));
 				Method method = NodeCreator.class.getDeclaredMethod("createNodes", Collection.class, IFeature.class, IFeatureModel.class, boolean.class, Map.class);
 				method.setAccessible(true);

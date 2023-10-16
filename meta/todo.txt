@@ -41,6 +41,7 @@ formula:
 - sort children of exprs, this way we take commutativity out of the picture (a&b is equal to b&a) -> more structural sharing means easier comparison of models
 - set removed/added variables to be dead so comparison becomes proper (do this in parse_into or somewhere else?)
 - to save space, do not print aux variables (print optionally)? or pass an option for that (with configurable prefix?) print into dimacs header which transformation was used / what this file can be used for / which original formula it encodes? also, for satisfy and enumerate, possibly hide aux variables.
+- remove hardcoded "NewRootFeature" from io.jar, which is only used for ignoring synthetic roots during slicing
 
 during parsing, before calling .expr/.var, resize the .exprs and .vars vector capacities to the estimated size, so their lookup is faster. (possibly use pest tags to do that.)
 

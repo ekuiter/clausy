@@ -83,7 +83,7 @@ impl FormulaParser for SatFormulaParser {
         let mut vars: Vec<Id> = vec![0];
         for i in 1..=n {
             if variable_names.contains_key(&i) {
-                let (expr_id, var_id) = formula.var_expr_with_id(variable_names.get(&i).unwrap());
+                let (expr_id, var_id) = formula.var_expr_with_id(variable_names[&i]);
                 var_ids.insert(var_id);
                 vars.push(expr_id);
                 variable_names.remove(&i);

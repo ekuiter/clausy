@@ -8,15 +8,22 @@ import de.ovgu.featureide.fm.core.io.manager.FeatureModelIO;
 import de.ovgu.featureide.fm.core.io.manager.FeatureModelManager;
 import de.ovgu.featureide.fm.core.io.uvl.UVLFeatureModelFormat;
 import de.ovgu.featureide.fm.core.io.xml.XmlFeatureModelFormat;
+import de.ovgu.featureide.fm.core.job.LongRunningMethod;
+import de.ovgu.featureide.fm.core.job.LongRunningWrapper;
+import de.ovgu.featureide.fm.core.job.SliceFeatureModel;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Scanner;
+import java.util.stream.Collectors;
 
 public class Main {
     public static void main(String[] args) {
-        if (args.length > 2)
-            throw new RuntimeException("usage: java -jar io.jar [file|-] [uvl|xml|model|cnf|dimacs|sat]");
+        if (args.length > 3)
+            throw new RuntimeException("usage: java -jar io.jar [file|-] [uvl|xml|model|cnf|dimacs|sat] [feature,...]");
 
         LibraryManager.registerLibrary(FMCoreLibrary.getInstance());
         FMFormatManager.getInstance().addExtension(new ModelFormat());
@@ -39,8 +46,21 @@ public class Main {
         if (featureModel == null)
             throw new RuntimeException("failed to load feature model");
 
-        IFeatureModelFormat format = new ModelFormat();
-        if (args.length == 2) {
+        if (args.length == 3) {
+            Collection<String> features = Arrays.stream(args[2].split(","))
+                    .filter(s -> !s.trim().isEmpty())
+                    .collect(Collectors.toSet());
+            if (!features.isEmpty()) {
+                final LongRunningMethod<IFeatureModel> method = new SliceFeatureModel(featureModel, features, true, false);
+                featureModel = LongRunningWrapper.runMethod(method);
+                if (featureModel.getStructure().getRoot().getChildren().size() == 1) {
+                    featureModel.getStructure().replaceRoot(featureModel.getStructure().getRoot().removeLastChild());
+                }
+            }
+        }
+
+        IFeatureModelFormat format = new SatFormat();
+        if (args.length >= 2) {
             String formatString = args[1];
             switch (formatString) {
                 case "uvl":
