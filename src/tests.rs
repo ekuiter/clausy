@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::core::{
     clauses::Clauses,
-    formula::{Expr::*, Formula},
+    formula::{Expr::*, Arena},
 };
 
 mod formula {
@@ -15,13 +15,13 @@ mod formula {
         #[test]
         #[should_panic]
         fn empty() {
-            Formula::new().assert_valid();
+            Arena::new().assert_valid();
         }
 
         #[test]
         #[should_panic]
         fn no_root() {
-            let mut f = Formula::new();
+            let mut f = Arena::new();
             let a = f.var_expr("a".to_string());
             f.expr(Not(a));
             f.assert_valid();
@@ -29,7 +29,7 @@ mod formula {
 
         #[test]
         fn valid() {
-            let mut f = Formula::new();
+            let mut f = Arena::new();
             let a = f.var_expr("a".to_string());
             let not_a = f.expr(Not(a));
             f.set_root_expr(not_a);
@@ -42,7 +42,7 @@ mod formula {
 
         #[test]
         fn not_a() {
-            let mut f = Formula::new();
+            let mut f = Arena::new();
             let a = f.var_expr("a".to_string());
             let not_a = f.expr(Not(a));
             f.set_root_expr(not_a);
@@ -54,7 +54,7 @@ mod formula {
 
         #[test]
         fn not_not_a() {
-            let mut f = Formula::new();
+            let mut f = Arena::new();
             let a = f.var_expr("a".to_string());
             let not_a = f.expr(Not(a));
             let not_not_a = f.expr(Not(not_a));
@@ -64,7 +64,7 @@ mod formula {
 
         #[test]
         fn and_not_not_a() {
-            let mut f = Formula::new();
+            let mut f = Arena::new();
             let a = f.var_expr("a".to_string());
             let not_a = f.expr(Not(a));
             let not_not_a = f.expr(Not(not_a));
@@ -78,7 +78,7 @@ mod formula {
 
         #[test]
         fn complex() {
-            let mut f = Formula::new();
+            let mut f = Arena::new();
             let a = f.var_expr("a".to_string());
             let b = f.var_expr("b".to_string());
             let c = f.var_expr("c".to_string());
@@ -106,7 +106,7 @@ mod formula {
 
         #[test]
         fn idempotent() {
-            let f = Formula::from(
+            let f = Arena::from(
                 "(((!def(a)))&(((def(c)|!def(a)))|((def(a))&(def(c)|!(def(a)|def(b))))))",
             )
             .assert_valid()
@@ -118,7 +118,7 @@ mod formula {
 
         #[test]
         fn shared() {
-            Formula::from("((((!(def(a))&def(a)))&(!(!(def(a))&def(a))))&((!(!(def(a))&def(a)))&(!((def(a))&def(a)))))")
+            Arena::from("((((!(def(a))&def(a)))&(!(!(def(a))&def(a))))&((!(!(def(a))&def(a)))&(!((def(a))&def(a)))))")
             .assert_valid()
             .to_nnf()
             .assert_valid();
@@ -130,7 +130,7 @@ mod formula {
 
         #[test]
         fn simple() {
-            let mut f = Formula::new();
+            let mut f = Arena::new();
             let a = f.var_expr("a".to_string());
             let b = f.var_expr("b".to_string());
             let a_and_b = f.expr(And(vec![a, b]));
@@ -148,7 +148,7 @@ mod formula {
 
         #[test]
         fn complex() {
-            let mut f = Formula::new();
+            let mut f = Arena::new();
             let a = f.var_expr("a".to_string());
             let b = f.var_expr("b".to_string());
             let c = f.var_expr("c".to_string());
@@ -179,7 +179,7 @@ mod formula {
         #[test]
         fn shared_expr() {
             let model = "((def(a)|!def(a))&(def(a)|!(def(a)|def(a))))";
-            let f = Formula::from(model)
+            let f = Arena::from(model)
                 .assert_valid()
                 .to_nnf()
                 .assert_valid()
@@ -187,7 +187,7 @@ mod formula {
                 .assert_valid();
             Clauses::from(&f).assert_count(&model, "model");
             let model = "(((!def(a)))&(((def(c)|!def(a)))|((def(a))&(def(c)|!(def(a)|def(b))))))";
-            let f = Formula::from(model)
+            let f = Arena::from(model)
                 .assert_valid()
                 .to_nnf()
                 .assert_valid()
@@ -199,7 +199,7 @@ mod formula {
         #[test]
         fn idempotent() {
             let model = "(((!def(a)))&(((def(c)|!def(a)))|((def(a))&(def(c)|!(def(a)|def(b))))))";
-            let f = Formula::from(model)
+            let f = Arena::from(model)
                 .assert_valid()
                 .to_nnf()
                 .assert_valid()
@@ -214,7 +214,7 @@ mod formula {
         #[test]
         fn shared() {
             let model = "((((!(def(a))&def(a)))&(!(!(def(a))&def(a))))&((!(!(def(a))&def(a)))&(!((def(a))&def(a)))))";
-            let f = Formula::from(model)
+            let f = Arena::from(model)
                 .assert_valid()
                 .to_nnf()
                 .assert_valid()
@@ -231,7 +231,7 @@ mod cnf {
     #[test]
     fn simple() {
         let model = "((def(x)|def(y))&def(ab)&!def(n)&(def(abc)&!(def(x)|def(y))&def(bb)))";
-        let f = Formula::from(model)
+        let f = Arena::from(model)
             .assert_valid()
             .to_nnf()
             .assert_valid()
@@ -254,7 +254,7 @@ mod parser {
             def( ab )
             !def(n)
             (def( abc)& !(def(x)|def(y))   & def( bb ))";
-        let f = Formula::from(model).assert_valid();
+        let f = Arena::from(model).assert_valid();
         assert_eq!(
             f.to_string(),
             "And(Or(x, y), ab, Not(n), And(abc, Not(Or(x, y)), bb))"

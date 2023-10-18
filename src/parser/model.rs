@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
 
-use crate::core::formula::{Expr::*, Formula, Id, VarId};
+use crate::core::formula::{Expr::*, Arena, Id, VarId, Formula};
 
 use super::FormulaParser;
 
@@ -16,39 +16,39 @@ pub(crate) struct ModelFormulaParser;
 
 fn parse_children(
     pair: Pair<Rule>,
-    formula: &mut Formula,
+    arena: &mut Arena,
     var_ids: &mut HashSet<VarId>,
 ) -> Vec<Id> {
     pair.into_inner()
-        .map(|pair| parse_pair(pair, formula, var_ids))
+        .map(|pair| parse_pair(pair, arena, var_ids))
         .collect()
 }
 
-fn parse_pair(pair: Pair<Rule>, formula: &mut Formula, var_ids: &mut HashSet<VarId>) -> Id {
+fn parse_pair(pair: Pair<Rule>, arena: &mut Arena, var_ids: &mut HashSet<VarId>) -> Id {
     match pair.as_rule() {
         Rule::var => {
             let (expr_id, var_id) =
-                formula.var_expr_with_id(pair.into_inner().next().unwrap().as_str().trim().to_string());
+                arena.var_expr_with_id(pair.into_inner().next().unwrap().as_str().trim().to_string());
             var_ids.insert(var_id);
             expr_id
         }
         Rule::not => {
-            let child_id = parse_pair(pair.into_inner().next().unwrap(), formula, var_ids);
-            formula.expr(Not(child_id))
+            let child_id = parse_pair(pair.into_inner().next().unwrap(), arena, var_ids);
+            arena.expr(Not(child_id))
         }
         Rule::and => {
-            let child_ids = parse_children(pair, formula, var_ids);
-            formula.expr(And(child_ids))
+            let child_ids = parse_children(pair, arena, var_ids);
+            arena.expr(And(child_ids))
         }
         Rule::or => {
-            let child_ids = parse_children(pair, formula, var_ids);
-            formula.expr(Or(child_ids))
+            let child_ids = parse_children(pair, arena, var_ids);
+            arena.expr(Or(child_ids))
         }
         _ => unreachable!(),
     }
 }
 
-fn parse_into(file: &str, formula: &mut Formula) -> (Id, HashSet<VarId>) {
+fn parse_into(file: &str, arena: &mut Arena) -> Formula {
     let mut child_ids = Vec::<Id>::new();
     let mut var_ids = HashSet::<VarId>::new();
     for line in file.lines() {
@@ -59,23 +59,15 @@ fn parse_into(file: &str, formula: &mut Formula) -> (Id, HashSet<VarId>) {
 
         match pair.as_rule() {
             Rule::EOI => (),
-            _ => child_ids.push(parse_pair(pair, formula, &mut var_ids)),
+            _ => child_ids.push(parse_pair(pair, arena, &mut var_ids)),
         }
     }
-    (formula.expr(And(child_ids)), var_ids)
+    let root_id = arena.expr(And(child_ids));
+    Formula::new(root_id, var_ids)
 }
 
 impl FormulaParser for ModelFormulaParser {
-    fn parse_into(&self, file: &str, formula: &mut Formula) -> (Id, HashSet<VarId>) {
-        parse_into(file, formula)
-    }
-}
-
-impl From<&str> for Formula {
-    fn from(file: &str) -> Self {
-        let mut formula = Formula::new();
-        let (root_id, _) = parse_into(file, &mut formula);
-        formula.set_root_expr(root_id);
-        formula
+    fn parse_into(&self, file: &str, arena: &mut Arena) -> Formula {
+        parse_into(file, arena)
     }
 }

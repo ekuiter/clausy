@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 
 use crate::{
-    core::formula::{Formula, Id, VarId},
+    core::formula::{Arena, Id, VarId, Formula},
     util,
 };
 
@@ -28,7 +28,7 @@ impl FormulaParser for IoFormulaParser {
         util::exec::io(&file, &self.extension, "sat", &[])
     }
 
-    fn parse_into(&self, file: &str, formula: &mut Formula) -> (Id, HashSet<VarId>) {
-        SatFormulaParser.parse_into(file, formula)
+    fn parse_into(&self, file: &str, arena: &mut Arena) -> Formula {
+        SatFormulaParser.parse_into(file, arena)
     }
 }

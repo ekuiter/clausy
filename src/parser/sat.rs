@@ -5,7 +5,7 @@ use std::{collections::{HashMap, HashSet}, vec};
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
 
-use crate::core::formula::{Expr::*, Formula, Id, VarId};
+use crate::core::formula::{Expr::*, Arena, Id, VarId, Formula};
 
 use super::FormulaParser;
 
@@ -14,13 +14,13 @@ use super::FormulaParser;
 #[grammar = "parser/sat.pest"]
 pub(crate) struct SatFormulaParser;
 
-fn parse_children(pair: Pair<Rule>, vars: &[Id], formula: &mut Formula) -> Vec<Id> {
+fn parse_children(pair: Pair<Rule>, vars: &[Id], arena: &mut Arena) -> Vec<Id> {
     pair.into_inner()
-        .map(|pair| parse_pair(pair, vars, formula))
+        .map(|pair| parse_pair(pair, vars, arena))
         .collect()
 }
 
-fn parse_pair(pair: Pair<Rule>, vars: &[Id], formula: &mut Formula) -> Id {
+fn parse_pair(pair: Pair<Rule>, vars: &[Id], arena: &mut Arena) -> Id {
     match pair.as_rule() {
         Rule::var => {
             let var: VarId = pair
@@ -33,29 +33,29 @@ fn parse_pair(pair: Pair<Rule>, vars: &[Id], formula: &mut Formula) -> Id {
                 .unwrap();
             let var: usize = var.try_into().unwrap();
             if pair.as_str().starts_with("-") {
-                formula.expr(Not(vars[var]))
+                arena.expr(Not(vars[var]))
             } else {
                 vars[var]
             }
         }
         Rule::not => {
-            let child_id = parse_pair(pair.into_inner().next().unwrap(), vars, formula);
-            formula.expr(Not(child_id))
+            let child_id = parse_pair(pair.into_inner().next().unwrap(), vars, arena);
+            arena.expr(Not(child_id))
         }
         Rule::and => {
-            let child_ids = parse_children(pair, vars, formula);
-            formula.expr(And(child_ids))
+            let child_ids = parse_children(pair, vars, arena);
+            arena.expr(And(child_ids))
         }
         Rule::or => {
-            let child_ids = parse_children(pair, vars, formula);
-            formula.expr(Or(child_ids))
+            let child_ids = parse_children(pair, vars, arena);
+            arena.expr(Or(child_ids))
         }
         _ => unreachable!(),
     }
 }
 
 impl FormulaParser for SatFormulaParser {
-    fn parse_into(&self, file: &str, formula: &mut Formula) -> (Id, HashSet<VarId>) {
+    fn parse_into(&self, file: &str, arena: &mut Arena) -> Formula {
         let mut pairs = SatFormulaParser::parse(Rule::file, file).unwrap();
 
         let mut var_ids = HashSet::<VarId>::new();
@@ -83,16 +83,19 @@ impl FormulaParser for SatFormulaParser {
         let mut vars: Vec<Id> = vec![0];
         for i in 1..=n {
             if variable_names.contains_key(&i) {
-                let (expr_id, var_id) = formula.var_expr_with_id(variable_names[&i].to_string());
+                let (expr_id, var_id) = arena.var_expr_with_id(variable_names[&i].to_string());
                 var_ids.insert(var_id);
                 vars.push(expr_id);
                 variable_names.remove(&i);
             } else {
-                vars.push(formula.add_var_aux_expr());
+                let (var_id, expr_id) = arena.add_var_aux_expr();
+                var_ids.insert(var_id);
+                vars.push(expr_id);
             }
         }
         debug_assert!(variable_names.is_empty());
 
-        (parse_pair(pairs.next().unwrap(), &vars, formula), var_ids)
+        let root_id = parse_pair(pairs.next().unwrap(), &vars, arena);
+        Formula::new(root_id, var_ids)
     }
 }

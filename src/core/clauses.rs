@@ -1,11 +1,13 @@
 //! Clause representation of a feature-model formula.
 
-use std::{fmt, slice};
+use std::{fmt, slice, collections::HashMap};
 
 use crate::{
-    core::formula::{Expr::*, Formula, Id, Var, VarId},
+    core::formula::{Arena, Expr::*, Id, Var, VarId},
     util::exec,
 };
+
+use super::formula::{Formula, FormulaContext};
 
 /// A [Formula] in its clause representation.
 ///
@@ -21,6 +23,8 @@ pub(crate) struct Clauses {
     ///
     /// This list is indexed into by the absolute values stored in [Clauses::clauses].
     vars: Vec<Var>,
+
+    var_remap: HashMap<VarId, VarId>,
 }
 
 /// Algorithms for representing a [Formula] as [Clauses].
@@ -28,13 +32,13 @@ impl Clauses {
     /// Returns the sub-expressions of a formula as clauses.
     ///
     /// We require that the formula already is in conjunctive normal form (see [Formula::to_cnf_dist]).
-    fn clauses(formula: &Formula) -> Vec<Vec<VarId>> {
+    fn clauses(formula: &FormulaContext, var_remap: &HashMap<VarId, VarId>) -> Vec<Vec<VarId>> {
         let mut clauses = Vec::<Vec<VarId>>::new();
 
-        let add_literal = |id, clause: &mut Vec<VarId>| match formula.exprs[id] {
-            Var(var_id) => clause.push(var_id),
-            Not(child_id) => match formula.exprs[child_id] {
-                Var(var_id) => clause.push(-var_id),
+        let add_literal = |id, clause: &mut Vec<VarId>| match formula.arena.exprs[id] {
+            Var(var_id) => clause.push(var_remap[&var_id]),
+            Not(child_id) => match formula.arena.exprs[child_id] {
+                Var(var_id) => clause.push(-var_remap[&var_id]),
                 _ => unreachable!(),
             },
             _ => unreachable!(),
@@ -48,12 +52,12 @@ impl Clauses {
             clauses.push(clause);
         };
 
-        match &formula.exprs[formula.get_root_expr()] {
-            Var(_) | Not(_) => add_clause(slice::from_ref(&formula.get_root_expr())),
+        match &formula.arena.exprs[formula.formula.get_root_expr()] {
+            Var(_) | Not(_) => add_clause(slice::from_ref(&formula.formula.get_root_expr())),
             Or(child_ids) => add_clause(child_ids),
             And(child_ids) => {
                 for child_id in child_ids {
-                    match &formula.exprs[*child_id] {
+                    match &formula.arena.exprs[*child_id] {
                         Var(_) | Not(_) => add_clause(slice::from_ref(child_id)),
                         Or(child_ids) => add_clause(&child_ids),
                         _ => unreachable!(),
@@ -125,11 +129,18 @@ impl Clauses {
     }
 }
 
-impl From<&Formula> for Clauses {
-    fn from(formula: &Formula) -> Self {
+impl<'a> From<FormulaContext<'a>> for Clauses {
+    fn from(formula: FormulaContext) -> Self {
+        let mut vars = vec![];
+        let mut var_remap = HashMap::<VarId, VarId>::new();
+        formula.formula.vars(formula.arena).into_iter().for_each(|(var_id, var)| {
+            var_remap.insert(var_id, vars.len().try_into().unwrap());
+            vars.push(var.clone());
+        });
         Self {
-            clauses: Self::clauses(&formula),
-            vars: formula.vars.clone(),
+            clauses: Self::clauses(&formula, &var_remap),
+            vars,
+            var_remap,
         }
     }
 }
@@ -137,21 +148,18 @@ impl From<&Formula> for Clauses {
 impl fmt::Display for Clauses {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (i, var) in self.vars.iter().enumerate() {
-            if i == 0 {
-                continue;
-            }
             if let Var::Named(name) = var {
                 debug_assert!(!name.is_empty());
             }
-            write!(f, "c {i} {var}\n")?;
+            write!(f, "c {} {var}\n", i + 1)?;
         }
-        write!(f, "p cnf {} {}\n", self.vars.len() - 1, self.clauses.len())?;
+        write!(f, "p cnf {} {}\n", self.vars.len(), self.clauses.len())?;
         for clause in &self.clauses {
             for literal in clause {
-                debug_assert_ne!(*literal, 0);
                 let var: usize = literal.unsigned_abs().try_into().unwrap();
+                debug_assert_ne!(var + 1, 0);
                 debug_assert!(var < self.vars.len());
-                write!(f, "{literal} ")?;
+                write!(f, "{} ", literal + 1)?;
             }
             write!(f, "0\n")?;
         }
