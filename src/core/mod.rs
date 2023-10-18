@@ -1,4 +1,7 @@
 //! Core data structures and algorithms on feature-model formulas.
 
+pub(crate) mod arena;
 pub(crate) mod clauses;
+pub(crate) mod expr;
 pub(crate) mod formula;
+pub(crate) mod var;

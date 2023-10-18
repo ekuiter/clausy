@@ -3,7 +3,8 @@
 #![allow(unused_imports)]
 use crate::core::{
     clauses::Clauses,
-    formula::{Expr::*, Arena},
+    expr::{Expr::*},
+    arena::Arena,
 };
 
 mod formula {

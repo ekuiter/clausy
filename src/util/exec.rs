@@ -9,7 +9,7 @@ use std::{
 
 use tempfile::NamedTempFile;
 
-use crate::core::formula::VarId;
+use crate::core::var::VarId;
 
 /// Returns the path of a bundled external program.
 ///

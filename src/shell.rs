@@ -3,12 +3,11 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::core::clauses::Clauses;
-use crate::core::formula::{Expr::*, Formula, Id, Var, VarId};
 use crate::parser::sat_inline::SatInlineFormulaParser;
 
 use crate::util::exec;
 use crate::{
-    core::formula::Arena,
+    core::{arena::Arena, formula::Formula, expr::{Expr::*, Id}, var::{Var, VarId}},
     parser::{parser, FormulaParsee},
     util::{file_exists, read_file},
 };

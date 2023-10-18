@@ -5,7 +5,12 @@ use std::{collections::{HashMap, HashSet}, vec};
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
 
-use crate::core::formula::{Expr::*, Arena, Id, VarId, Formula};
+use crate::core::{
+    arena::Arena,
+    expr::{Expr::*, Id},
+    formula::Formula,
+    var::VarId,
+};
 
 use super::FormulaParser;
 

@@ -1,8 +1,7 @@
 //! Parsers for feature-model formula files.
 
-use std::collections::HashSet;
-
-use crate::core::formula::{Arena, Id, VarId, Formula};
+use crate::core::arena::Arena;
+use crate::core::formula::Formula;
 
 use self::{io::IoFormulaParser, model::ModelFormulaParser, sat::SatFormulaParser};
 

@@ -3,11 +3,11 @@
 use std::{fmt, slice, collections::HashMap};
 
 use crate::{
-    core::formula::{Arena, Expr::*, Id, Var, VarId},
+    core::{expr::{Expr::*, Id}, var::{Var, VarId}},
     util::exec,
 };
 
-use super::formula::{Formula, FormulaContext};
+use super::formula::FormulaContext;
 
 /// A [Formula] in its clause representation.
 ///

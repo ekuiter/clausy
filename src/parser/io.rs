@@ -1,9 +1,8 @@
 //! Parser for any file format accepted by FeatureIDE.
 
-use std::collections::HashSet;
 
 use crate::{
-    core::formula::{Arena, Id, VarId, Formula},
+    core::{arena::Arena, formula::Formula},
     util,
 };
 

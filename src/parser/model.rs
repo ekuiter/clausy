@@ -5,7 +5,12 @@ use std::collections::HashSet;
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
 
-use crate::core::formula::{Expr::*, Arena, Id, VarId, Formula};
+use crate::core::{
+    arena::Arena,
+    expr::{Expr::*, Id},
+    formula::Formula,
+    var::VarId,
+};
 
 use super::FormulaParser;
 
@@ -14,11 +19,7 @@ use super::FormulaParser;
 #[grammar = "parser/model.pest"]
 pub(crate) struct ModelFormulaParser;
 
-fn parse_children(
-    pair: Pair<Rule>,
-    arena: &mut Arena,
-    var_ids: &mut HashSet<VarId>,
-) -> Vec<Id> {
+fn parse_children(pair: Pair<Rule>, arena: &mut Arena, var_ids: &mut HashSet<VarId>) -> Vec<Id> {
     pair.into_inner()
         .map(|pair| parse_pair(pair, arena, var_ids))
         .collect()
@@ -27,8 +28,14 @@ fn parse_children(
 fn parse_pair(pair: Pair<Rule>, arena: &mut Arena, var_ids: &mut HashSet<VarId>) -> Id {
     match pair.as_rule() {
         Rule::var => {
-            let (expr_id, var_id) =
-                arena.var_expr_with_id(pair.into_inner().next().unwrap().as_str().trim().to_string());
+            let (expr_id, var_id) = arena.var_expr_with_id(
+                pair.into_inner()
+                    .next()
+                    .unwrap()
+                    .as_str()
+                    .trim()
+                    .to_string(),
+            );
             var_ids.insert(var_id);
             expr_id
         }
