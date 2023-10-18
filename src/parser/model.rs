@@ -7,7 +7,7 @@ use pest_derive::Parser;
 
 use crate::core::{
     arena::Arena,
-    expr::{Expr::*, Id},
+    expr::{Expr::*, ExprId},
     formula::Formula,
     var::VarId,
 };
@@ -19,13 +19,13 @@ use super::FormulaParser;
 #[grammar = "parser/model.pest"]
 pub(crate) struct ModelFormulaParser;
 
-fn parse_children(pair: Pair<Rule>, arena: &mut Arena, var_ids: &mut HashSet<VarId>) -> Vec<Id> {
+fn parse_children(pair: Pair<Rule>, arena: &mut Arena, var_ids: &mut HashSet<VarId>) -> Vec<ExprId> {
     pair.into_inner()
         .map(|pair| parse_pair(pair, arena, var_ids))
         .collect()
 }
 
-fn parse_pair(pair: Pair<Rule>, arena: &mut Arena, var_ids: &mut HashSet<VarId>) -> Id {
+fn parse_pair(pair: Pair<Rule>, arena: &mut Arena, var_ids: &mut HashSet<VarId>) -> ExprId {
     match pair.as_rule() {
         Rule::var => {
             let (expr_id, var_id) = arena.var_expr_with_id(
@@ -56,7 +56,7 @@ fn parse_pair(pair: Pair<Rule>, arena: &mut Arena, var_ids: &mut HashSet<VarId>)
 }
 
 fn parse_into(file: &str, arena: &mut Arena) -> Formula {
-    let mut child_ids = Vec::<Id>::new();
+    let mut child_ids = Vec::<ExprId>::new();
     let mut var_ids = HashSet::<VarId>::new();
     for line in file.lines() {
         let pair = ModelFormulaParser::parse(Rule::line, line)

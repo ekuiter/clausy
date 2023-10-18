@@ -7,7 +7,7 @@ use crate::parser::sat_inline::SatInlineFormulaParser;
 
 use crate::util::exec;
 use crate::{
-    core::{arena::Arena, formula::Formula, expr::{Expr::*, Id}, var::{Var, VarId}},
+    core::{arena::Arena, formula::Formula, expr::{Expr::*, ExprId}, var::{Var, VarId}},
     parser::{parser, FormulaParsee},
     util::{file_exists, read_file},
 };

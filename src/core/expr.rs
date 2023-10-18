@@ -22,7 +22,7 @@ use super::var::VarId;
 /// However, it is not necessarily contained in the syntax tree of said formula (e.g., when it was transformed into another expression).
 /// A sub-expression, on the other hand, is a propositional term associated with a [Formula] that actually appears in its syntax tree.
 /// Thus, all sub-expressions are expressions, but not vice versa.
-pub(crate) type Id = usize;
+pub(crate) type ExprId = usize;
 
 /// An expression in a formula.
 ///
@@ -39,13 +39,13 @@ pub(crate) enum Expr {
     Var(VarId),
 
     /// A negation of an expression.
-    Not(Id),
+    Not(ExprId),
 
     /// A conjunction of an expression.
-    And(Vec<Id>),
+    And(Vec<ExprId>),
 
     /// A disjunction of an expression.
-    Or(Vec<Id>),
+    Or(Vec<ExprId>),
 }
 
 /// Operations on expressions that are independent of its containing formula.
@@ -63,7 +63,7 @@ impl Expr {
     ///
     /// We return nothing for [Var] expressions, which have no expression identifiers as children (only a variable identifier).
     /// As [Var] expressions are leaves of a formula's syntax tree, this function is useful when traversing that tree.
-    pub(super) fn children(&self) -> &[Id] {
+    pub(super) fn children(&self) -> &[ExprId] {
         match self {
             Var(_) => &[],
             Not(child_id) => slice::from_ref(child_id),

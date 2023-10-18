@@ -7,7 +7,7 @@ use pest_derive::Parser;
 
 use crate::core::{
     arena::Arena,
-    expr::{Expr::*, Id},
+    expr::{Expr::*, ExprId},
     formula::Formula,
     var::VarId,
 };
@@ -19,13 +19,13 @@ use super::FormulaParser;
 #[grammar = "parser/sat.pest"]
 pub(crate) struct SatFormulaParser;
 
-fn parse_children(pair: Pair<Rule>, vars: &[Id], arena: &mut Arena) -> Vec<Id> {
+fn parse_children(pair: Pair<Rule>, vars: &[ExprId], arena: &mut Arena) -> Vec<ExprId> {
     pair.into_inner()
         .map(|pair| parse_pair(pair, vars, arena))
         .collect()
 }
 
-fn parse_pair(pair: Pair<Rule>, vars: &[Id], arena: &mut Arena) -> Id {
+fn parse_pair(pair: Pair<Rule>, vars: &[ExprId], arena: &mut Arena) -> ExprId {
     match pair.as_rule() {
         Rule::var => {
             let var: VarId = pair
@@ -85,7 +85,7 @@ impl FormulaParser for SatFormulaParser {
             .as_str()
             .parse()
             .unwrap();
-        let mut vars: Vec<Id> = vec![0];
+        let mut vars: Vec<ExprId> = vec![0];
         for i in 1..=n {
             if variable_names.contains_key(&i) {
                 let (expr_id, var_id) = arena.var_expr_with_id(variable_names[&i].to_string());

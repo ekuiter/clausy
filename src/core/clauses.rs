@@ -3,7 +3,7 @@
 use std::{fmt, slice, collections::HashMap};
 
 use crate::{
-    core::{expr::{Expr::*, Id}, var::{Var, VarId}},
+    core::{expr::{Expr::*, ExprId}, var::{Var, VarId}},
     util::exec,
 };
 
@@ -44,7 +44,7 @@ impl Clauses {
             _ => unreachable!(),
         };
 
-        let mut add_clause = |child_ids: &[Id]| {
+        let mut add_clause = |child_ids: &[ExprId]| {
             let mut clause = Vec::<VarId>::new();
             for child_id in child_ids {
                 add_literal(*child_id, &mut clause);

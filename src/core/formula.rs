@@ -12,7 +12,7 @@ use Expr::*;
 
 use crate::shell::{PRINT_ID, VAR_AUX_PREFIX};
 
-use super::{arena::Arena, expr::{Expr, Id}, var::{Var, VarId}};
+use super::{arena::Arena, expr::{Expr, ExprId}, var::{Var, VarId}};
 
 /// An expression that is explicitly paired with the formula it is tied to.
 ///
@@ -25,13 +25,13 @@ pub(crate) struct Formula {
     /// The corresponding expression is the root of this formula's syntax tree and thus the starting point for most algorithms.
     /// We consider all expressions below this expression (including itself) to be sub-expressions.
     /// There might be other (non-sub-)expressions that are currently not relevant to this formula.
-    root_id: Id,
+    root_id: ExprId,
 
     own_vars: HashSet<VarId>,
 }
 
 impl Formula {
-    pub(crate) fn new(root_id: Id, own_vars: HashSet<VarId>) -> Self {
+    pub(crate) fn new(root_id: ExprId, own_vars: HashSet<VarId>) -> Self {
         Self { root_id, own_vars }
     }
 
@@ -48,7 +48,7 @@ impl Formula {
     }
 
     /// Returns the root expression of this formula.
-    pub(crate) fn get_root_expr(&self) -> Id {
+    pub(crate) fn get_root_expr(&self) -> ExprId {
         self.root_id
     }
 
@@ -57,7 +57,7 @@ impl Formula {
     ///
     /// For a formula to be valid, the root expression has to be set at least once.
     /// It may also be updated subsequently to focus on other expressions of the formula or build more complex expressions.
-    fn set_root_expr(&mut self, root_id: Id) {
+    fn set_root_expr(&mut self, root_id: ExprId) {
         self.root_id = root_id;
     }
 
@@ -66,15 +66,15 @@ impl Formula {
     /// If the root expression is mutated with [Formula::set_expr], structural sharing might be violated.
     /// Because [Formula::set_expr] can only address this issue for children,
     /// we need not explicitly address the only expression that is not a child itself - the root expression.
-    pub(super) fn reset_root_expr(arena: &Arena, root_id: &mut Id) {
+    pub(super) fn reset_root_expr(arena: &Arena, root_id: &mut ExprId) {
         *root_id = arena.get_expr(&arena.exprs[*root_id]).unwrap();
     }
 
     /// Returns the identifiers of all sub-expressions of this formula.
     ///
     /// If in canonical form, each identifier is guaranteed to appear only once.
-    pub(crate) fn sub_exprs(&mut self, arena: &mut Arena) -> Vec<Id> {
-        let mut sub_exprs = Vec::<Id>::new();
+    pub(crate) fn sub_exprs(&mut self, arena: &mut Arena) -> Vec<ExprId> {
+        let mut sub_exprs = Vec::<ExprId>::new();
         arena.preorder_rev(&mut self.root_id, |_, id| sub_exprs.push(id));
         sub_exprs
     }

@@ -12,7 +12,7 @@ use Expr::*;
 
 use crate::shell::{PRINT_ID, VAR_AUX_PREFIX};
 
-use super::{expr::{Expr, Id},var::{Var, VarId}, formula::Formula};
+use super::{expr::{Expr, ExprId},var::{Var, VarId}, formula::Formula};
 
 /// Simplifies an expression in this formula to an equivalent one.
 ///
@@ -102,7 +102,7 @@ pub(crate) struct Arena {
     /// By this design, [Formula::exprs_inv] indeed maps any sub-expression (precisely: its hash) to its unique identifier
     /// (precisely: the first identifier whose expression is equal to the given sub-expression).
     /// This information can be used to enforce structural sharing by calling [Formula::canon_visitor].
-    exprs_inv: HashMap<u64, Vec<Id>>,
+    exprs_inv: HashMap<u64, Vec<ExprId>>,
 
     /// Stores all variables in this formula.
     ///
@@ -131,7 +131,7 @@ pub(crate) struct Arena {
     /// Stores new expressions created by an algorithm but not yet included in the syntax tree.
     ///
     /// Used by [Formula::to_cnf_tseitin] for holding on to definitional expressions.
-    pub(super) new_exprs: Option<Vec<Id>>,
+    pub(super) new_exprs: Option<Vec<ExprId>>,
 }
 
 /// Algorithms for constructing, mutating, and analyzing formulas.
@@ -168,7 +168,7 @@ impl Arena {
     /// Appends the given expression to [Formula::exprs] and enables its lookup via [Formula::exprs_inv].
     /// Requires that no expression equal to the given expression is already in this formula.
     /// Thus, the created identifier will become the expression's canonical identifier (see [Formula::exprs_inv]).
-    fn add_expr(&mut self, expr: Expr) -> Id {
+    fn add_expr(&mut self, expr: Expr) -> ExprId {
         let id = self.exprs.len();
         let hash = expr.calc_hash();
         self.exprs.push(expr);
@@ -180,7 +180,7 @@ impl Arena {
     ///
     /// The canonical identifier for a given expression is the first one that is associated with its hash
     /// and whose expression is also equal to the given expression (see [Formula::exprs_inv]).
-    pub(super) fn get_expr(&self, expr: &Expr) -> Option<Id> {
+    pub(super) fn get_expr(&self, expr: &Expr) -> Option<ExprId> {
         self.exprs_inv
             .get(&expr.calc_hash())?
             .iter()
@@ -194,7 +194,7 @@ impl Arena {
     /// This is the preferred way to obtain an expression's identifier, as it ensures structural sharing.
     /// That is, the expression is only added to this formula if it does not already exist.
     /// Before we add the expression, we simplify it, which is a cheap operation (in contrast to [Formula::flatten_expr]).
-    pub(crate) fn expr(&mut self, mut expr: Expr) -> Id {
+    pub(crate) fn expr(&mut self, mut expr: Expr) -> ExprId {
         self.simp_expr(&mut expr);
         self.get_expr(&expr).unwrap_or_else(|| self.add_expr(expr))
     }
@@ -231,7 +231,7 @@ impl Arena {
     /// Adds or looks up a named variable of this formula, returning its [Var] expression's identifier.
     ///
     /// This is the preferred way to obtain a [Var] expression's identifier (see [Formula::expr]).
-    pub(crate) fn var_expr(&mut self, var: String) -> Id {
+    pub(crate) fn var_expr(&mut self, var: String) -> ExprId {
         let var_id = self
             .get_var_named(var.clone())
             .unwrap_or_else(|| self.add_var_named(var));
@@ -239,7 +239,7 @@ impl Arena {
     }
 
     /// Adds or looks up a named variable of this formula, returning its [Var] expression's and [Var]'s identifier.
-    pub(crate) fn var_expr_with_id(&mut self, var: String) -> (Id, VarId) {
+    pub(crate) fn var_expr_with_id(&mut self, var: String) -> (ExprId, VarId) {
         let expr_id = self.var_expr(var);
         if let Var(var_id) = self.exprs[expr_id] {
             (expr_id, var_id)
@@ -249,7 +249,7 @@ impl Arena {
     }
 
     /// Adds a new auxiliary variable to this formula, returning its identifier and its [Var] expression's identifier.
-    pub(crate) fn add_var_aux_expr(&mut self) -> (VarId, Id) {
+    pub(crate) fn add_var_aux_expr(&mut self) -> (VarId, ExprId) {
         let var_id = self.add_var_aux();
         (var_id, self.expr(Var(var_id)))
     }
@@ -299,7 +299,7 @@ impl Arena {
     /// In the second case, the expression already exists and already has a canonical identifier.
     /// Still, we can append the identifier anyway, as only the first identifier will be considered.
     /// In terms of correctness, appending the identifier suffices, although we may optimize by cleaning up [Formula::exprs_inv].
-    fn inval_expr(&mut self, id: Id) {
+    fn inval_expr(&mut self, id: ExprId) {
         self.exprs_inv
             .entry(self.exprs[id].calc_hash())
             .or_default()
@@ -321,7 +321,7 @@ impl Arena {
     /// Because this function cleans up violations of children, it must be called after, not before children have been mutated.
     /// Thus, it does not preserve structural sharing when used in [Formula::preorder_rev], only in [Formula::postorder_rev].
     /// Besides guaranteeing structural sharing, we perform flattening and simplification on the expression, which usually produces smaller formulas.
-    fn set_expr(&mut self, id: Id, mut expr: Expr) {
+    fn set_expr(&mut self, id: ExprId, mut expr: Expr) {
         if let Var(_) = self.exprs[id] {
             return;
         }
@@ -343,7 +343,7 @@ impl Arena {
     /// Returns expressions that negate the given expressions.
     ///
     /// The returned expression identifiers are either created or looked up (see [Formula::expr]).
-    fn negate_exprs(&mut self, mut ids: Vec<Id>) -> Vec<Id> {
+    fn negate_exprs(&mut self, mut ids: Vec<ExprId>) -> Vec<ExprId> {
         for id in &mut ids {
             *id = self.expr(Not(*id));
         }
@@ -374,13 +374,13 @@ impl Arena {
     /// Used by [fmt::Display] to print (parts of) a formula.
     /// Implements a recursive preorder traversal.
     /// For an iterative reversed preorder traversal, see [Formula::preorder_rev].
-    pub(super) fn format_expr(&self, id: Id, f: &mut fmt::Formatter) -> fmt::Result {
+    pub(super) fn format_expr(&self, id: ExprId, f: &mut fmt::Formatter) -> fmt::Result {
         let printed_id = if PRINT_ID {
             format!("@{id}")
         } else {
             String::from("")
         };
-        let mut write_helper = |kind: &str, child_ids: &[Id]| {
+        let mut write_helper = |kind: &str, child_ids: &[ExprId]| {
             write!(f, "{kind}{printed_id}(")?;
             for (i, id) in child_ids.iter().enumerate() {
                 if i > 0 {
@@ -409,9 +409,9 @@ impl Arena {
     /// It will not be called several times on the same sub-expression (if this formula is in canonical form).
     /// However, we can also not guarantee it to be called on all sub-expressions - as it might change the very set of sub-expressions.
     /// For improved performance, the traversal is reversed, so children are traversed right-to-left.
-    pub(super) fn preorder_rev(&mut self, root_id: &mut Id, mut visitor: impl FnMut(&mut Self, Id) -> ()) {
+    pub(super) fn preorder_rev(&mut self, root_id: &mut ExprId, mut visitor: impl FnMut(&mut Self, ExprId) -> ()) {
         let mut remaining_ids = vec![*root_id];
-        let mut visited_ids = HashSet::<Id>::new();
+        let mut visited_ids = HashSet::<ExprId>::new();
         while !remaining_ids.is_empty() {
             let id = remaining_ids.pop().unwrap();
             if !visited_ids.contains(&id) {
@@ -427,10 +427,10 @@ impl Arena {
     ///
     /// Conceptually, this is similar to [Formula::preorder_rev], but sub-expressions are visited bottom-up instead of top-down.
     /// Also, this traversal can be used to ensure structural sharing if the visitor is correctly implemented (see [Formula::canon_visitor]).
-    pub(super) fn postorder_rev(&mut self, root_id: &mut Id, mut visitor: impl FnMut(&mut Self, Id) -> ()) {
+    pub(super) fn postorder_rev(&mut self, root_id: &mut ExprId, mut visitor: impl FnMut(&mut Self, ExprId) -> ()) {
         let mut remaining_ids = vec![*root_id];
-        let mut seen_ids = HashSet::<Id>::new();
-        let mut visited_ids = HashSet::<Id>::new();
+        let mut seen_ids = HashSet::<ExprId>::new();
+        let mut visited_ids = HashSet::<ExprId>::new();
         while !remaining_ids.is_empty() {
             let id = remaining_ids.last().unwrap();
             let child_ids = self.exprs[*id].children();
@@ -456,13 +456,13 @@ impl Arena {
     /// However, the leaves (i.e., [Var] expressions) are only visited once (with the postorder visitor).
     pub(super) fn prepostorder_rev(
         &mut self,
-        root_id: &mut Id,
-        mut pre_visitor: impl FnMut(&mut Self, Id) -> (),
-        mut post_visitor: impl FnMut(&mut Self, Id) -> (),
+        root_id: &mut ExprId,
+        mut pre_visitor: impl FnMut(&mut Self, ExprId) -> (),
+        mut post_visitor: impl FnMut(&mut Self, ExprId) -> (),
     ) {
         let mut remaining_ids = vec![*root_id];
-        let mut seen_ids: HashSet<usize> = HashSet::<Id>::new();
-        let mut visited_ids = HashSet::<Id>::new();
+        let mut seen_ids: HashSet<usize> = HashSet::<ExprId>::new();
+        let mut visited_ids = HashSet::<ExprId>::new();
         while !remaining_ids.is_empty() {
             let id = remaining_ids.last().unwrap();
             if !self.exprs[*id].children().is_empty()
@@ -485,12 +485,12 @@ impl Arena {
     }
 
     /// Transforms an expression into canonical form (see [Formula::to_canon]).
-    pub(super) fn canon_visitor(&mut self, id: Id) {
+    pub(super) fn canon_visitor(&mut self, id: ExprId) {
         self.set_expr(id, self.exprs[id].clone());
     }
 
     /// Transforms an expression into negation normal form by applying De Morgan's laws (see [Formula::to_nnf]).
-    pub(super) fn nnf_visitor(&mut self, id: Id) {
+    pub(super) fn nnf_visitor(&mut self, id: ExprId) {
         match &self.exprs[id] {
             Var(_) | And(_) | Or(_) => (),
             Not(child_id) => match &self.exprs[*child_id] {
@@ -509,12 +509,12 @@ impl Arena {
     }
 
     /// Transforms an expression into canonical conjunctive normal form by applying distributivity laws (see [Formula::to_cnf_dist]).
-    pub(super) fn cnf_dist_visitor(&mut self, id: Id) {
+    pub(super) fn cnf_dist_visitor(&mut self, id: ExprId) {
         match &self.exprs[id] {
             Var(_) | Not(_) => (),
             And(_) => self.set_expr(id, self.exprs[id].clone()),
             Or(child_ids) => {
-                let mut new_clauses: Vec<Vec<Id>> = vec![vec![]];
+                let mut new_clauses: Vec<Vec<ExprId>> = vec![vec![]];
                 for child_id in child_ids {
                     let clause_ids = match &self.exprs[*child_id] {
                         Var(_) | Not(_) | Or(_) => slice::from_ref(child_id),
@@ -551,10 +551,10 @@ impl Arena {
     /// That is, we create a new auxiliary variable and clauses that let it imply all conjuncts and let it be implied by the conjunction.
     /// As an optimization, we do not create a [Var] expression for the new variable, as we are replacing an existing expression.
     /// We add the clauses defining the new variable to [Formula::new_exprs].
-    fn def_and(&mut self, var_expr_id: Id, ids: &[Id]) -> VarId {
+    fn def_and(&mut self, var_expr_id: ExprId, ids: &[ExprId]) -> VarId {
         let var_id = self.add_var_aux();
         let not_var_expr_id = self.expr(Not(var_expr_id));
-        let mut clauses = Vec::<Id>::new();
+        let mut clauses = Vec::<ExprId>::new();
         clauses.extend(
             ids.iter()
                 .map(|id| self.expr(Or(vec![not_var_expr_id, *id]))),
@@ -571,7 +571,7 @@ impl Arena {
     ///
     /// That is, we create a new auxiliary variable and clauses that let it imply the disjunction and let it be implied by all disjuncts.
     /// Works analogously to [Formula::def_and].
-    fn def_or(&mut self, var_expr_id: Id, ids: &[Id]) -> VarId {
+    fn def_or(&mut self, var_expr_id: ExprId, ids: &[ExprId]) -> VarId {
         let var_id = self.add_var_aux();
         let not_var_expr_id = self.expr(Not(var_expr_id));
         let mut clause = vec![not_var_expr_id];
@@ -587,7 +587,7 @@ impl Arena {
     }
 
     /// Transforms an expression into canonical conjunctive normal form by introducing auxiliary variables (see [Formula::to_cnf_tseitin]).
-    pub(super) fn cnf_tseitin_visitor(&mut self, id: Id) {
+    pub(super) fn cnf_tseitin_visitor(&mut self, id: ExprId) {
         match &self.exprs[id] {
             Var(_) | Not(_) => (),
             And(child_ids) => {
