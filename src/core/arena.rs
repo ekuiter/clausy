@@ -29,7 +29,7 @@ macro_rules! simp_expr {
             *$expr = $formula.exprs[$child_ids[0]].clone();
         } else if $child_ids
             .windows(2)
-            .flat_map(<&[Id; 2]>::try_from)
+            .flat_map(<&[ExprId; 2]>::try_from)
             .find(
                 |&&[child_a_id, child_b_id]| match $formula.exprs[child_a_id] {
                     Not(_) => false,
