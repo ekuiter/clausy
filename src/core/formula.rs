@@ -3,7 +3,7 @@
 use super::{
     arena::Arena,
     expr::{Expr::*, ExprId},
-    formula_ref::FormulaRef,
+    formula_ref::{FormulaRef},
     var::{Var, VarId},
 };
 use std::collections::HashSet;
@@ -42,13 +42,22 @@ impl Formula {
         }
     }
 
-    /// Returns a reference to this formula in the context of its arena.
+    /// Returns a shared reference to this formula in the context of its arena.
     pub(crate) fn as_ref<'a>(&'a self, arena: &'a Arena) -> FormulaRef {
         FormulaRef {
-            formula: self,
             arena,
+            formula: self,
         }
     }
+
+    // todo
+    // /// Returns a mutable reference to this formula in the context of its arena.
+    // pub(crate) fn as_mut<'a>(&'a mut self, arena: &'a mut Arena) -> FormulaMutRef {
+    //     FormulaMutRef {
+    //         arena,
+    //         formula: self,
+    //     }
+    // }
 
     /// Returns the root expression of this formula.
     pub(crate) fn get_root_expr(&self) -> ExprId {
