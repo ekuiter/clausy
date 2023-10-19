@@ -18,7 +18,7 @@ use std::{
 /// For example, this transforms a given expression `Or(b, And(a, Not(a), a), b)` into `b`.
 /// Implemented as a macro for repeated use in [Arena::simp_expr].
 macro_rules! simp_expr {
-    ($arena:expr, $expr:expr, $child_ids:expr, $constructor:ident) => {{
+    ($arena: expr, $expr: expr, $child_ids: expr, $constructor: ident) => {{
         $child_ids.sort_unstable_by_key(|child_id| match $arena.exprs[*child_id] {
             Not(grandchild_id) => grandchild_id * 2 + 1,
             _ => *child_id * 2,
@@ -50,7 +50,7 @@ macro_rules! simp_expr {
 /// That is, this transforms a given expression `And(And(a), Or(b, c))` into `And(a, Or(b, c))`.
 /// Implemented as a macro for repeated use in [Arena::flatten_expr].
 macro_rules! flatten_expr {
-    ($arena:expr, $expr:expr, $child_ids:expr, $constructor:ident) => {
+    ($arena: expr, $expr: expr, $child_ids: expr, $constructor: ident) => {
         *$child_ids = $child_ids
             .iter()
             .map(|child_id| match &$arena.exprs[*child_id] {

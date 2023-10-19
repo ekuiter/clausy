@@ -50,15 +50,6 @@ impl Formula {
         }
     }
 
-    // todo
-    // /// Returns a mutable reference to this formula in the context of its arena.
-    // pub(crate) fn as_mut<'a>(&'a mut self, arena: &'a mut Arena) -> FormulaMutRef {
-    //     FormulaMutRef {
-    //         arena,
-    //         formula: self,
-    //     }
-    // }
-
     /// Returns the root expression of this formula.
     pub(crate) fn get_root_expr(&self) -> ExprId {
         self.root_id
