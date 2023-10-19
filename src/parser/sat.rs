@@ -17,7 +17,7 @@ use super::FormulaParser;
 /// Parses feature-model formula files in the .sat format.
 #[derive(Parser)]
 #[grammar = "parser/sat.pest"]
-pub(crate) struct SatFormulaParser;
+pub(super) struct SatFormulaParser;
 
 fn parse_children(pair: Pair<Rule>, vars: &[ExprId], arena: &mut Arena) -> Vec<ExprId> {
     pair.into_inner()

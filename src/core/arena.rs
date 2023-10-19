@@ -82,7 +82,7 @@ pub(crate) struct Arena {
     /// Conceptually, this is analogous to [Arena::exprs].
     /// Accordingly, the set of variables referenced by a given [Formula] constitutes its sub-variables (see [Formula::sub_var_ids]).
     /// Variable-forgetting operations, such as feature-model slicing, are possible by adapting this set.
-    pub(crate) vars: Vec<Var>,
+    pub(super) vars: Vec<Var>,
 
     /// Maps variables to their identifiers.
     ///
@@ -100,7 +100,7 @@ pub(crate) struct Arena {
     /// We refer to all expressions that appear below the root expression of a [Formula] as its sub-expressions (including the root expression).
     /// By not ever removing any expressions, we keep all non-sub-expressions indefinitely.
     /// This potentially requires a lot of memory, but avoids explicit reference counting or garbage collection.
-    pub(crate) exprs: Vec<Expr>,
+    pub(super) exprs: Vec<Expr>,
 
     /// Maps expressions to their identifiers.
     ///
@@ -168,7 +168,7 @@ impl Arena {
     }
 
     /// Adds a new auxiliary variable to this arena, returning its identifier.
-    pub(crate) fn add_var_aux(&mut self) -> VarId {
+    pub(super) fn add_var_aux(&mut self) -> VarId {
         self.var_aux_id += 1;
         self.add_var(Var::Aux(self.var_aux_id))
     }
