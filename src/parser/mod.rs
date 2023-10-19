@@ -1,9 +1,8 @@
 //! Parsers for feature-model formula files.
 
+use self::{io::IoFormulaParser, model::ModelFormulaParser, sat::SatFormulaParser};
 use crate::core::arena::Arena;
 use crate::core::formula::Formula;
-
-use self::{io::IoFormulaParser, model::ModelFormulaParser, sat::SatFormulaParser};
 
 mod io;
 mod model;

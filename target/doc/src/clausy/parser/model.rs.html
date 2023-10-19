@@ -79,24 +79,18 @@
 <a href="#79" id="79">79</a>
 <a href="#80" id="80">80</a>
 <a href="#81" id="81">81</a>
-<a href="#82" id="82">82</a>
-<a href="#83" id="83">83</a>
-<a href="#84" id="84">84</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parser for KConfigReader .model files.
 
-</span><span class="kw">use </span>std::collections::HashSet;
-
-<span class="kw">use </span>pest::{iterators::Pair, Parser};
-<span class="kw">use </span>pest_derive::Parser;
-
+</span><span class="kw">use </span><span class="kw">super</span>::FormulaParser;
 <span class="kw">use </span><span class="kw">crate</span>::core::{
     arena::Arena,
     expr::{Expr::<span class="kw-2">*</span>, ExprId},
     formula::Formula,
     var::VarId,
 };
-
-<span class="kw">use </span><span class="kw">super</span>::FormulaParser;
+<span class="kw">use </span>pest::{iterators::Pair, Parser};
+<span class="kw">use </span>pest_derive::Parser;
+<span class="kw">use </span>std::collections::HashSet;
 
 <span class="doccomment">/// Parses feature-model formula files in the .model format.
 </span><span class="attr">#[derive(Parser)]

@@ -1,7 +1,5 @@
 //! Imperative shell for operating on feature-model formulas.
 
-use std::collections::{HashMap, HashSet};
-
 use crate::core::clauses::Clauses;
 use crate::parser::sat_inline::SatInlineFormulaParser;
 use crate::util::exec;
@@ -15,6 +13,7 @@ use crate::{
     parser::{parser, FormulaParsee},
     util::{file_exists, read_file},
 };
+use std::collections::{HashMap, HashSet};
 
 /// Whether to print identifiers of expressions.
 ///

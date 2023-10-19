@@ -1,6 +1,7 @@
 //! Unit tests.
 
 #![allow(unused_imports)]
+
 use crate::core::{arena::Arena, clauses::Clauses, expr::Expr::*};
 
 mod formula {

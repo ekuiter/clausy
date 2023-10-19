@@ -69,13 +69,11 @@
 <a href="#69" id="69">69</a>
 <a href="#70" id="70">70</a>
 <a href="#71" id="71">71</a>
-<a href="#72" id="72">72</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parsers for feature-model formula files.
 
-</span><span class="kw">use </span><span class="kw">crate</span>::core::arena::Arena;
+</span><span class="kw">use </span><span class="self">self</span>::{io::IoFormulaParser, model::ModelFormulaParser, sat::SatFormulaParser};
+<span class="kw">use </span><span class="kw">crate</span>::core::arena::Arena;
 <span class="kw">use </span><span class="kw">crate</span>::core::formula::Formula;
-
-<span class="kw">use </span><span class="self">self</span>::{io::IoFormulaParser, model::ModelFormulaParser, sat::SatFormulaParser};
 
 <span class="kw">mod </span>io;
 <span class="kw">mod </span>model;

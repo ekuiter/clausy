@@ -1,16 +1,15 @@
 //! Parser for inline input in a .sat-like format.
 
-use std::collections::HashSet;
-
-use pest::{iterators::Pair, Parser};
-use pest_derive::Parser;
-
 use crate::core::{
     arena::Arena,
     expr::{Expr::*, ExprId},
     formula::Formula,
     var::VarId,
 };
+use pest::{iterators::Pair, Parser};
+use pest_derive::Parser;
+use std::collections::HashSet;
+
 /// Parses inline input in a .sat-like format.
 ///
 /// In this format, identifiers refer to previously parsed inputs.

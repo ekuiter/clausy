@@ -104,27 +104,21 @@
 <a href="#104" id="104">104</a>
 <a href="#105" id="105">105</a>
 <a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a>
-<a href="#108" id="108">108</a>
-<a href="#109" id="109">109</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parser for DIMACS .sat files.
 
-</span><span class="kw">use </span>std::{
-    collections::{HashMap, HashSet},
-    vec,
-};
-
-<span class="kw">use </span>pest::{iterators::Pair, Parser};
-<span class="kw">use </span>pest_derive::Parser;
-
+</span><span class="kw">use </span><span class="kw">super</span>::FormulaParser;
 <span class="kw">use </span><span class="kw">crate</span>::core::{
     arena::Arena,
     expr::{Expr::<span class="kw-2">*</span>, ExprId},
     formula::Formula,
     var::VarId,
 };
-
-<span class="kw">use </span><span class="kw">super</span>::FormulaParser;
+<span class="kw">use </span>pest::{iterators::Pair, Parser};
+<span class="kw">use </span>pest_derive::Parser;
+<span class="kw">use </span>std::{
+    collections::{HashMap, HashSet},
+    vec,
+};
 
 <span class="doccomment">/// Parses feature-model formula files in the .sat format.
 </span><span class="attr">#[derive(Parser)]

@@ -1,21 +1,18 @@
 //! Parser for DIMACS .sat files.
 
-use std::{
-    collections::{HashMap, HashSet},
-    vec,
-};
-
-use pest::{iterators::Pair, Parser};
-use pest_derive::Parser;
-
+use super::FormulaParser;
 use crate::core::{
     arena::Arena,
     expr::{Expr::*, ExprId},
     formula::Formula,
     var::VarId,
 };
-
-use super::FormulaParser;
+use pest::{iterators::Pair, Parser};
+use pest_derive::Parser;
+use std::{
+    collections::{HashMap, HashSet},
+    vec,
+};
 
 /// Parses feature-model formula files in the .sat format.
 #[derive(Parser)]

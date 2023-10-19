@@ -99,20 +99,18 @@
 <a href="#99" id="99">99</a>
 <a href="#100" id="100">100</a>
 <a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parser for inline input in a .sat-like format.
 
-</span><span class="kw">use </span>std::collections::HashSet;
-
-<span class="kw">use </span>pest::{iterators::Pair, Parser};
-<span class="kw">use </span>pest_derive::Parser;
-
-<span class="kw">use </span><span class="kw">crate</span>::core::{
+</span><span class="kw">use </span><span class="kw">crate</span>::core::{
     arena::Arena,
     expr::{Expr::<span class="kw-2">*</span>, ExprId},
     formula::Formula,
     var::VarId,
 };
+<span class="kw">use </span>pest::{iterators::Pair, Parser};
+<span class="kw">use </span>pest_derive::Parser;
+<span class="kw">use </span>std::collections::HashSet;
+
 <span class="doccomment">/// Parses inline input in a .sat-like format.
 ///
 /// In this format, identifiers refer to previously parsed inputs.

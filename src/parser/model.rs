@@ -1,18 +1,15 @@
 //! Parser for KConfigReader .model files.
 
-use std::collections::HashSet;
-
-use pest::{iterators::Pair, Parser};
-use pest_derive::Parser;
-
+use super::FormulaParser;
 use crate::core::{
     arena::Arena,
     expr::{Expr::*, ExprId},
     formula::Formula,
     var::VarId,
 };
-
-use super::FormulaParser;
+use pest::{iterators::Pair, Parser};
+use pest_derive::Parser;
+use std::collections::HashSet;
 
 /// Parses feature-model formula files in the .model format.
 #[derive(Parser)]

@@ -1,15 +1,13 @@
 //! Utilities for executing external programs.
 
+use crate::core::var::VarId;
 use std::{
     env,
     io::{BufRead, BufReader, Read, Write},
     path::Path,
     process::{Command, Stdio},
 };
-
 use tempfile::NamedTempFile;
-
-use crate::core::var::VarId;
 
 /// Returns the path of a bundled external program.
 ///
