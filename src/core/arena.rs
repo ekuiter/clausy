@@ -138,13 +138,12 @@ pub(crate) struct Arena {
 impl Arena {
     /// Creates a new, empty arena.
     ///
-    /// The auxiliary variable with number 0 has no meaningful sign and can therefore not be used.
     /// This simplifies the representation of literals in [crate::core::clauses::Clauses], which can be negative.
     pub(crate) fn new() -> Self {
         Self {
-            vars: vec![Var::Aux(0)],
+            vars: vec![],
             vars_inv: HashMap::new(),
-            exprs: vec![Var(0)],
+            exprs: vec![],
             exprs_inv: HashMap::new(),
             var_aux_id: 0,
             new_exprs: None,
@@ -214,7 +213,7 @@ impl Arena {
             .enumerate()
             .flat_map(|(var_id, var)| {
                 let var_id: VarId = var_id.try_into().unwrap();
-                if var_id > 0 && predicate(var_id, var) {
+                if predicate(var_id, var) {
                     Some((var_id, var.clone()))
                 } else {
                     None
@@ -385,6 +384,13 @@ impl Arena {
             And(child_ids) => write_helper("And", child_ids),
             Or(child_ids) => write_helper("Or", child_ids),
         }
+    }
+
+    /// Returns a formula with the given root expression.
+    /// 
+    /// The created formula references all variables of this arena, use [Formula::new] for more fine-grained sub-variables.
+    pub(crate) fn as_formula<'a>(&'a self, root_id: ExprId) -> Formula {
+        Formula::new((1..self.vars.len().try_into().unwrap()).collect(), root_id)
     }
 
     /// Visits all sub-expressions of a given root expression using a reverse preorder traversal.

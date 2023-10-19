@@ -66,9 +66,8 @@ pub fn main(mut commands: Vec<String>) {
                 };
             }
             "print_sub_exprs" => {
-                //let x = &mut formulas[formulas.len() - 1];
-                for id in formulas.last_mut().unwrap().sub_exprs(&mut arena) {
-                    // todo sub_formulas? println!("{}", Formula(&arena, &id));
+                for id in formula!(formulas).sub_exprs(&mut arena) {
+                    println!("{}", arena.as_formula(id).as_ref(&arena));
                 }
             }
             "to_canon" => formula!(formulas).to_canon(&mut arena),

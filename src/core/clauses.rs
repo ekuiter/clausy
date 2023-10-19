@@ -115,7 +115,7 @@ impl Clauses {
 
 impl<'a> From<FormulaRef<'a>> for Clauses {
     fn from(formula_ref: FormulaRef) -> Self {
-        let mut vars = vec![];
+        let mut vars = vec![Var::Aux(0)];
         let mut var_remap = HashMap::<VarId, VarId>::new();
         formula_ref
             .formula
@@ -135,18 +135,21 @@ impl<'a> From<FormulaRef<'a>> for Clauses {
 impl fmt::Display for Clauses {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (i, var) in self.vars.iter().enumerate() {
+            if i == 0 {
+                continue;
+            }
             if let Var::Named(name) = var {
                 debug_assert!(!name.is_empty());
             }
-            write!(f, "c {} {var}\n", i + 1)?;
+            write!(f, "c {} {var}\n", i)?;
         }
-        write!(f, "p cnf {} {}\n", self.vars.len(), self.clauses.len())?;
+        write!(f, "p cnf {} {}\n", self.vars.len() - 1, self.clauses.len())?;
         for clause in &self.clauses {
             for literal in clause {
                 let var: usize = literal.unsigned_abs().try_into().unwrap();
-                debug_assert_ne!(var + 1, 0);
+                debug_assert_ne!(var, 0);
                 debug_assert!(var < self.vars.len());
-                write!(f, "{} ", literal + 1)?;
+                write!(f, "{} ", literal)?;
             }
             write!(f, "0\n")?;
         }
