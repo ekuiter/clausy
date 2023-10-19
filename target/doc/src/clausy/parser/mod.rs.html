@@ -70,7 +70,6 @@
 <a href="#70" id="70">70</a>
 <a href="#71" id="71">71</a>
 <a href="#72" id="72">72</a>
-<a href="#73" id="73">73</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parsers for feature-model formula files.
 
 </span><span class="kw">use </span><span class="kw">crate</span>::core::arena::Arena;
@@ -92,11 +91,11 @@
 
     <span class="doccomment">/// Parses a feature-model formula file into an existing [Formula].
     ///
-    /// Returns the [ExprId] of the root expression of the parsed formula.
-    /// Also returns a set with each [VarId] of a named sub-variable of the parsed formula.
+    /// Returns the [crate::core::expr::ExprId] of the root expression of the parsed formula.
+    /// Also returns a set with each [crate::core::var::VarId] of a named sub-variable of the parsed formula.
     /// This function does not modify the sub-expressions of the given formula.
     /// That is, after parsing, the formula will hold the given feature-model formula in [Arena::exprs], but not refer to it.
-    /// Thus, [Arena::set_root_expr] must be called explicitly with the returned [ExprId] to make use of the parsed formula.
+    /// Thus, [Formula::set_root_expr] must be called explicitly with the returned [crate::core::expr::ExprId] to make use of the parsed formula.
     </span><span class="kw">fn </span>parse_into(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str, arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; Formula;
 
     <span class="comment">// /// Parses a feature-model formula file into a new [Formula].
@@ -138,7 +137,6 @@
 //     }
 // }
 
-</span><span class="doccomment">/// Parses a feature-model formula file into an existing formula.
 </span><span class="kw">impl </span>FormulaParsee <span class="kw">for </span>Arena {
     <span class="kw">fn </span>parse(<span class="kw-2">&amp;mut </span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str, parser: Box&lt;<span class="kw">dyn </span>FormulaParser&gt;) -&gt; Formula {
         parser.parse_into(file, <span class="self">self</span>)

@@ -3,7 +3,7 @@
 use super::{
     arena::Arena,
     expr::{Expr::*, ExprId},
-    formula_ref::{FormulaRef},
+    formula_ref::FormulaRef,
     var::{Var, VarId},
 };
 use std::collections::HashSet;

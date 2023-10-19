@@ -201,10 +201,14 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::core::clauses::Clauses;
 <span class="kw">use </span><span class="kw">crate</span>::parser::sat_inline::SatInlineFormulaParser;
-
 <span class="kw">use </span><span class="kw">crate</span>::util::exec;
 <span class="kw">use crate</span>::{
-    core::{arena::Arena, formula::Formula, expr::{Expr::<span class="kw-2">*</span>, ExprId}, var::{Var, VarId}},
+    core::{
+        arena::Arena,
+        expr::{Expr::<span class="kw-2">*</span>, ExprId},
+        formula::Formula,
+        var::{Var, VarId},
+    },
     parser::{parser, FormulaParsee},
     util::{file_exists, read_file},
 };
@@ -212,12 +216,12 @@
 <span class="doccomment">/// Whether to print identifiers of expressions.
 ///
 /// Useful for debugging, but should generally be disabled, as this is expected by [crate::tests].
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>PRINT_ID: bool = <span class="bool-val">false</span>; <span class="comment">// todo: make configurable
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">const </span>PRINT_ID: bool = <span class="bool-val">false</span>; <span class="comment">// todo: make configurable
 
 </span><span class="doccomment">/// Prefix for auxiliary variables.
 ///
 /// Auxiliary variables are required by some algorithms on formulas and can be created with [Var::Aux].
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>VAR_AUX_PREFIX: <span class="kw-2">&amp;</span>str = <span class="string">&quot;_aux_&quot;</span>; <span class="comment">// todo: make configurable (also whether aux vars should even be listed)
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">const </span>VAR_AUX_PREFIX: <span class="kw-2">&amp;</span>str = <span class="string">&quot;_aux_&quot;</span>; <span class="comment">// todo: make configurable (also whether aux vars should even be listed)
 
 </span><span class="macro">macro_rules! </span>formula {
     (<span class="macro-nonterminal">$formulas</span>:expr) =&gt; {
@@ -229,7 +233,7 @@
 </span><span class="macro">macro_rules! </span>clauses {
     (<span class="macro-nonterminal">$clauses</span>:expr, <span class="macro-nonterminal">$arena</span>:expr, <span class="macro-nonterminal">$formulas</span>:expr) =&gt; {{
         <span class="kw">if </span><span class="macro-nonterminal">$clauses</span>.is_none() {
-            <span class="macro-nonterminal">$clauses </span>= <span class="prelude-val">Some</span>(Clauses::from(<span class="macro">formula!</span>(<span class="macro-nonterminal">$formulas</span>).in_arena(<span class="kw-2">&amp;</span><span class="macro-nonterminal">$arena</span>)));
+            <span class="macro-nonterminal">$clauses </span>= <span class="prelude-val">Some</span>(Clauses::from(<span class="macro">formula!</span>(<span class="macro-nonterminal">$formulas</span>).as_ref(<span class="kw-2">&amp;</span><span class="macro-nonterminal">$arena</span>)));
         }
         <span class="macro-nonterminal">$clauses</span>.as_ref().unwrap()
     }};
@@ -260,20 +264,19 @@
                 <span class="kw">if </span>clauses.is_some() {
                     <span class="macro">print!</span>(<span class="string">&quot;{}&quot;</span>, clauses.as_ref().unwrap());
                 } <span class="kw">else </span>{
-                    <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="macro">formula!</span>(formulas).in_arena(<span class="kw-2">&amp;</span>arena));
+                    <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="macro">formula!</span>(formulas).as_ref(<span class="kw-2">&amp;</span>arena));
                 };
             }
             <span class="string">&quot;print_sub_exprs&quot; </span>=&gt; {
-                <span class="comment">//let x = &amp;mut formulas[formulas.len() - 1];
-                </span><span class="kw">for </span>id <span class="kw">in </span>formulas.last_mut().unwrap().sub_exprs(<span class="kw-2">&amp;mut </span>arena) {
-                    <span class="comment">// todo sub_formulas? println!(&quot;{}&quot;, Formula(&amp;arena, &amp;id));
-                </span>}
+                <span class="kw">for </span>id <span class="kw">in </span><span class="macro">formula!</span>(formulas).sub_exprs(<span class="kw-2">&amp;mut </span>arena) {
+                    <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, arena.as_formula(id).as_ref(<span class="kw-2">&amp;</span>arena));
+                }
             }
             <span class="string">&quot;to_canon&quot; </span>=&gt; <span class="macro">formula!</span>(formulas).to_canon(<span class="kw-2">&amp;mut </span>arena),
             <span class="string">&quot;to_nnf&quot; </span>=&gt; <span class="macro">formula!</span>(formulas).to_nnf(<span class="kw-2">&amp;mut </span>arena),
             <span class="string">&quot;to_cnf_dist&quot; </span>=&gt; <span class="macro">formula!</span>(formulas).to_cnf_dist(<span class="kw-2">&amp;mut </span>arena),
             <span class="string">&quot;to_cnf_tseitin&quot; </span>=&gt; <span class="macro">formula!</span>(formulas).to_cnf_tseitin(<span class="kw-2">&amp;mut </span>arena),
-            <span class="string">&quot;to_clauses&quot; </span>=&gt; clauses = <span class="prelude-val">Some</span>(Clauses::from(<span class="macro">formula!</span>(formulas).in_arena(<span class="kw-2">&amp;mut </span>arena))),
+            <span class="string">&quot;to_clauses&quot; </span>=&gt; clauses = <span class="prelude-val">Some</span>(Clauses::from(<span class="macro">formula!</span>(formulas).as_ref(<span class="kw-2">&amp;mut </span>arena))),
             <span class="string">&quot;satisfy&quot; </span>=&gt; <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="macro">clauses!</span>(clauses, arena, formulas).satisfy().unwrap()),
             <span class="string">&quot;count&quot; </span>=&gt; <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="macro">clauses!</span>(clauses, arena, formulas).count()),
             <span class="string">&quot;assert_count&quot; </span>=&gt; {
@@ -384,10 +387,7 @@
         <span class="attr">#[cfg(debug_assertions)]
         </span>{
             <span class="kw">if </span>formulas.last().is_some() {
-                formulas.last_mut().unwrap().assert_valid();
-            }
-            <span class="kw">if </span>clauses.is_some() {
-                clauses.as_ref().unwrap().assert_valid();
+                formulas.last_mut().unwrap().assert_canon(<span class="kw-2">&amp;mut </span>arena);
             }
         }
     }

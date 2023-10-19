@@ -1,6 +1,5 @@
 //! Parser for any file format accepted by FeatureIDE.
 
-
 use crate::{
     core::{arena::Arena, formula::Formula},
     util,

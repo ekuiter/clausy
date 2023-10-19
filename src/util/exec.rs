@@ -115,7 +115,12 @@ pub(crate) fn bc_minisat_all(dimacs: &str) -> (impl Iterator<Item = Vec<VarId>>,
 /// Converts a given feature-model file from one format into another.
 ///
 /// Runs the tool FeatureIDE using the Java runtime environment.
-pub(crate) fn io(input: &str, input_format: &str, output_format: &str, features: &[&str]) -> String {
+pub(crate) fn io(
+    input: &str,
+    input_format: &str,
+    output_format: &str,
+    features: &[&str],
+) -> String {
     let process = Command::new("java")
         .arg("-jar")
         .arg(path("io.jar"))

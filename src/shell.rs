@@ -6,7 +6,12 @@ use crate::core::clauses::Clauses;
 use crate::parser::sat_inline::SatInlineFormulaParser;
 use crate::util::exec;
 use crate::{
-    core::{arena::Arena, formula::Formula, expr::{Expr::*, ExprId}, var::{Var, VarId}},
+    core::{
+        arena::Arena,
+        expr::{Expr::*, ExprId},
+        formula::Formula,
+        var::{Var, VarId},
+    },
     parser::{parser, FormulaParsee},
     util::{file_exists, read_file},
 };

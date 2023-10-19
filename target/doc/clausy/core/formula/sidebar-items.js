@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Formula","FormulaContext"]};
+window.SIDEBAR_ITEMS = {"struct":["Formula"]};

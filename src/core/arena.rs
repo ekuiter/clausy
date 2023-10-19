@@ -1,7 +1,5 @@
 //! Defines an arena of variables and expressions.
 
-// todo #![allow(rustdoc::private_intra_doc_links)]
-
 use super::{
     expr::{Expr, Expr::*, ExprId},
     formula::Formula,
@@ -69,7 +67,7 @@ macro_rules! flatten_expr {
 /// To allow reuse of expressions and variables across similar formulas, we store them in a shared
 /// [arena](https://en.wikipedia.org/wiki/Region-based_memory_management) referenced by each [Formula].
 /// In a canonical [Formula], sub-expressions are uniquely stored, so no sub-expression appears twice with distinct identifiers (structural sharing).
-/// This allows for concise representation and facilitates some algorithms (e.g., [Arena::to_cnf_tseitin]).
+/// This allows for concise representation and facilitates some algorithms (e.g., [Formula::to_cnf_tseitin]).
 /// However, it also comes with the downside that each sub-expression has potentially many parents.
 /// Thus, owners of sub-expressions are not easily trackable (see [Arena::exprs] on garbage collection).
 /// Consequently, we cannot access any parents when mutating sub-expressions, only children.
@@ -77,7 +75,7 @@ macro_rules! flatten_expr {
 /// We represent this graph as an adjacency list stored in [Arena::exprs].
 /// Note that, for performance reasons, structural sharing is not guaranteed by all algorithms (including parsers) until calling [Arena::canon_visitor].
 pub(crate) struct Arena {
-     /// Stores all variables in this arena.
+    /// Stores all variables in this arena.
     ///
     /// Conceptually, this is analogous to [Arena::exprs].
     /// Accordingly, the set of variables referenced by a given [Formula] constitutes its sub-variables (see [Formula::sub_var_ids]).
@@ -387,7 +385,7 @@ impl Arena {
     }
 
     /// Returns a formula with the given root expression.
-    /// 
+    ///
     /// The created formula references all variables of this arena, use [Formula::new] for more fine-grained sub-variables.
     pub(crate) fn as_formula<'a>(&'a self, root_id: ExprId) -> Formula {
         Formula::new((1..self.vars.len().try_into().unwrap()).collect(), root_id)

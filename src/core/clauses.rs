@@ -8,7 +8,7 @@ use super::{
 use crate::util::exec;
 use std::{collections::HashMap, fmt, slice};
 
-/// A [Formula] in its clause representation.
+/// A [super::formula::Formula] in its clause representation.
 ///
 /// That is, this data structure enforces conjunctive normal form.
 pub(crate) struct Clauses {
@@ -27,7 +27,7 @@ pub(crate) struct Clauses {
 impl Clauses {
     /// Returns the sub-expressions of a formula as clauses.
     ///
-    /// We require that the formula already is in conjunctive normal form (see [Formula::to_cnf_dist]).
+    /// We require that the formula already is in conjunctive normal form (see [super::formula::Formula::to_cnf_dist]).
     /// If there is no clause, the represented formula is a tautology.
     /// If there is an empty clause, the represented formula is a contradiction.
     fn clauses(formula_ref: &FormulaRef, var_remap: &HashMap<VarId, VarId>) -> Vec<Vec<VarId>> {
@@ -107,7 +107,7 @@ impl Clauses {
 
     /// Panics if this clause representation has a different model count than that of FeatureIDE.
     ///
-    /// Useful for checking the correctness of count-preserving algorithms (e.g., [Arena::to_cnf_tseitin]).
+    /// Useful for checking the correctness of count-preserving algorithms (e.g., [super::formula::Formula::to_cnf_tseitin]).
     pub(crate) fn assert_count(&self, file: &str, extension: &str) {
         assert_eq!(self.count(), Self::count_featureide(file, extension));
     }

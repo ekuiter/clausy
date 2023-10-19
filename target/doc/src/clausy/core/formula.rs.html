@@ -152,62 +152,55 @@
 <a href="#152" id="152">152</a>
 <a href="#153" id="153">153</a>
 <a href="#154" id="154">154</a>
-<a href="#155" id="155">155</a>
-<a href="#156" id="156">156</a>
-<a href="#157" id="157">157</a>
-<a href="#158" id="158">158</a>
-<a href="#159" id="159">159</a>
-<a href="#160" id="160">160</a>
-<a href="#161" id="161">161</a>
-<a href="#162" id="162">162</a>
-<a href="#163" id="163">163</a>
-<a href="#164" id="164">164</a>
-</pre></div><pre class="rust"><code><span class="doccomment">//! Data structures and algorithms for feature-model formulas.
+</pre></div><pre class="rust"><code><span class="doccomment">//! Defines a feature-model formula.
 
-</span><span class="attr">#![allow(unused_imports, rustdoc::private_intra_doc_links)]
-
-</span><span class="kw">use </span>std::{
-    collections::{hash_map::DefaultHasher, HashMap, HashSet},
-    fmt,
-    hash::{Hash, Hasher},
-    slice,
+</span><span class="kw">use super</span>::{
+    arena::Arena,
+    expr::{Expr::<span class="kw-2">*</span>, ExprId},
+    formula_ref::FormulaRef,
+    var::{Var, VarId},
 };
-<span class="kw">use </span>Expr::<span class="kw-2">*</span>;
+<span class="kw">use </span>std::collections::HashSet;
 
-<span class="kw">use </span><span class="kw">crate</span>::shell::{PRINT_ID, VAR_AUX_PREFIX};
-
-<span class="kw">use super</span>::{arena::Arena, expr::{Expr, ExprId}, var::{Var, VarId}};
-
-<span class="doccomment">/// An expression that is explicitly paired with the formula it is tied to.
+<span class="doccomment">/// A feature-model formula.
 ///
-/// This struct is useful whenever we need to pass an expression around, but the containing formula is not available.
-/// Using this might be necessary when there is no `self` of type [Formula], for example whenever we want to [fmt::Display] an expression.
+/// A [Formula] is a view onto part of an [Arena], which contains the actual implementation of most algorithms on formulas.
+/// As such, a formula is given by the set of variables (defining its universe of solutions) as well as
+/// the root expression of its syntax tree (constraining said variables).
+/// We must store the variables to ensure correct results for certain feature-model analyses (e.g., model counting and slicing).
+/// A formula is only a view and always implicitly tied to an [Arena].
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Formula {
+    <span class="doccomment">/// Specifies the sub-variables of this formula.
+    ///
+    /// Each identifiers serves as an index into [Arena::vars].
+    /// All variables in the syntax tree of this formula must occur in this set, but it may contain more (unconstrained) variables.
+    </span>sub_var_ids: HashSet&lt;VarId&gt;,
+
     <span class="doccomment">/// Specifies the root expression of this formula.
     ///
-    /// Serves as an index into [Formula::exprs].
+    /// Serves as an index into [Arena::exprs].
     /// The corresponding expression is the root of this formula&#39;s syntax tree and thus the starting point for most algorithms.
     /// We consider all expressions below this expression (including itself) to be sub-expressions.
     /// There might be other (non-sub-)expressions that are currently not relevant to this formula.
     </span>root_id: ExprId,
-
-    own_vars: HashSet&lt;VarId&gt;,
 }
 
 <span class="kw">impl </span>Formula {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(root_id: ExprId, own_vars: HashSet&lt;VarId&gt;) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ root_id, own_vars }
+    <span class="doccomment">/// Creates a new formula.
+    ///
+    /// The sub-variable and root expression identifiers must be valid in the context of some given [Arena].
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(sub_var_ids: HashSet&lt;VarId&gt;, root_id: ExprId) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            sub_var_ids,
+            root_id,
+        }
     }
 
-    <span class="attr">#[cfg(debug_assertions)]
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_valid(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="macro">debug_assert!</span>(<span class="self">self</span>.root_id &gt; <span class="number">0 </span>&amp;&amp; !<span class="self">self</span>.own_vars.is_empty());
-    }
-
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>in_arena&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>, arena: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Arena) -&gt; FormulaContext {
-        FormulaContext {
-            formula: <span class="self">self</span>,
+    <span class="doccomment">/// Returns a shared reference to this formula in the context of its arena.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_ref&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>, arena: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Arena) -&gt; FormulaRef {
+        FormulaRef {
             arena,
+            formula: <span class="self">self</span>,
         }
     }
 
@@ -216,22 +209,25 @@
         <span class="self">self</span>.root_id
     }
 
-    <span class="comment">// todo: make this struct immutable (drop a formula to create a new one)
-    </span><span class="doccomment">/// Sets the root expression of this formula.
+    <span class="doccomment">/// Sets the root expression of this formula.
     ///
-    /// For a formula to be valid, the root expression has to be set at least once.
-    /// It may also be updated subsequently to focus on other expressions of the formula or build more complex expressions.
+    /// The root expression may be updated to focus on other expressions of the referenced [Arena] or to build more complex expressions.
     </span><span class="kw">fn </span>set_root_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, root_id: ExprId) {
         <span class="self">self</span>.root_id = root_id;
     }
 
-    <span class="doccomment">/// Resets the root expression, if necessary.
+    <span class="doccomment">/// Resets the root expression of this formula, if necessary.
     ///
-    /// If the root expression is mutated with [Formula::set_expr], structural sharing might be violated.
-    /// Because [Formula::set_expr] can only address this issue for children,
-    /// we need not explicitly address the only expression that is not a child itself - the root expression.
+    /// If the root expression is mutated with [Arena::set_expr], structural sharing might be violated.
+    /// Because [Arena::set_expr] can only address this issue for children,
+    /// we need to explicitly address the only expression that is not a child itself - the root expression.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>reset_root_expr(arena: <span class="kw-2">&amp;</span>Arena, root_id: <span class="kw-2">&amp;mut </span>ExprId) {
         <span class="kw-2">*</span>root_id = arena.get_expr(<span class="kw-2">&amp;</span>arena.exprs[<span class="kw-2">*</span>root_id]).unwrap();
+    }
+
+    <span class="doccomment">/// Returns all sub-variables of this formula and their identifiers.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>sub_vars(<span class="kw-2">&amp;</span><span class="self">self</span>, arena: <span class="kw-2">&amp;</span>Arena) -&gt; Vec&lt;(VarId, Var)&gt; {
+        arena.vars(|var_id, <span class="kw">_</span>| <span class="self">self</span>.sub_var_ids.contains(<span class="kw-2">&amp;</span>var_id))
     }
 
     <span class="doccomment">/// Returns the identifiers of all sub-expressions of this formula.
@@ -243,28 +239,24 @@
         sub_exprs
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>vars(<span class="kw-2">&amp;</span><span class="self">self</span>, arena: <span class="kw-2">&amp;</span>Arena) -&gt; Vec&lt;(VarId, Var)&gt; {
-        arena.filter_vars(|var_id, <span class="kw">_</span>| <span class="self">self</span>.own_vars.contains(<span class="kw-2">&amp;</span>var_id))
-    }
-
     <span class="doccomment">/// Panics if structural sharing is violated in this formula.
     ///
-    /// That is, we assert that every sub-expr0ession&#39;s identifier is indeed the canonical one.
-    /// Does not currently check for commutativity, idempotency, or unary expressions.
+    /// That is, we assert that every sub-expression&#39;s identifier is indeed the canonical one.
+    /// Does not currently check for other properties of canonicity (see [Formula::to_canon]).
     </span><span class="attr">#[cfg(debug_assertions)]
-    </span><span class="kw">fn </span>assert_canon(<span class="kw-2">&amp;mut </span><span class="self">self</span>, arena: <span class="kw-2">&amp;mut </span>Arena) {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_canon(<span class="kw-2">&amp;mut </span><span class="self">self</span>, arena: <span class="kw-2">&amp;mut </span>Arena) {
         arena.preorder_rev(<span class="kw-2">&amp;mut </span><span class="self">self</span>.root_id, |arena, id| {
             <span class="macro">debug_assert_eq!</span>(arena.get_expr(<span class="kw-2">&amp;</span>arena.exprs[id]).unwrap(), id)
         });
     }
 
-    <span class="doccomment">/// Transforms this formula into canonical form (see [Formula::canon_visitor]).
+    <span class="doccomment">/// Transforms this formula into canonical form (see [Arena::canon_visitor]).
     ///
     /// The resulting formula is logically equivalent to the original formula.
     /// This function is useful when an algorithm assumes or profits from canonical form, or for simplifying a formula after parsing.
     /// In canonical form, several useful guarantees hold:
     /// First, no sub-expression occurs twice in the syntax tree with different identifiers (structural sharing).
-    /// Second, equality of sub-expressions is up to commutativity, idempotency, and unary expressions.
+    /// Second, equality of sub-expressions is up to commutativity, idempotency, and unary expressions, and those expressions are simplified.
     /// Third, no `And` expression is below an `And` expression (and analogously for `Or`).
     /// Fourth, no `Not` expression is below a `Not` expression.
     /// To ensure these guarantees, this visitor must be called in a postorder traversal, preorder does not work.
@@ -272,16 +264,16 @@
         arena.postorder_rev(<span class="kw-2">&amp;mut </span><span class="self">self</span>.root_id, Arena::canon_visitor);
     }
 
-    <span class="doccomment">/// Transforms this formula into canonical negation normal form by applying De Morgan&#39;s laws (see [Formula::nnf_visitor]).
+    <span class="doccomment">/// Transforms this formula into canonical negation normal form by applying De Morgan&#39;s laws (see [Arena::nnf_visitor]).
     ///
     /// The resulting formula is logically equivalent to the original formula.
     /// We do this by traversing the formula top-down, meanwhile, we push negations towards the leaves (i.e., [Var] expressions).
-    /// Double negations cannot be encountered, as they have already been removed by [Formula::simp_expr].
+    /// Double negations cannot be encountered, as they have already been removed by [Arena::simp_expr].
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_nnf(<span class="kw-2">&amp;mut </span><span class="self">self</span>, arena: <span class="kw-2">&amp;mut </span>Arena) {
         arena.prepostorder_rev(<span class="kw-2">&amp;mut </span><span class="self">self</span>.root_id, Arena::nnf_visitor, Arena::canon_visitor);
     }
 
-    <span class="doccomment">/// Transforms this formula into canonical conjunctive normal form by applying distributivity laws (see [Formula::cnf_dist_visitor]).
+    <span class="doccomment">/// Transforms this formula into canonical conjunctive normal form by applying distributivity laws (see [Arena::cnf_dist_visitor]).
     ///
     /// The resulting formula is logically equivalent to the original formula.
     /// We do this by traversing the formula bottom-up and pushing [Or] expressions below [And] expressions via multiplication.
@@ -294,36 +286,24 @@
         );
     }
 
-    <span class="doccomment">/// Transforms this formula into canonical conjunctive normal form by introducing auxiliary variables (see [Formula::cnf_tseitin_visitor]).
+    <span class="doccomment">/// Transforms this formula into canonical conjunctive normal form by introducing auxiliary variables (see [Arena::cnf_tseitin_visitor]).
     ///
-    /// The resulting formula is equivalent to the original formula in terms of its named variables (i.e., satisfiability and model count are preserved).
+    /// The resulting formula is equivalent to the original formula projected onto its named variables (i.e., satisfiability and model count are preserved).
     /// If this formula is in canonical form (see [Formula::to_canon]), we introduce exactly one auxiliary variable per (complex) sub-expression.
-    /// Thus, every sub-expression will be &quot;abbreviated&quot; with an auxiliary variable, including the root expression, which facilitates negation.
+    /// Thus, every sub-expression will be &quot;abbreviated&quot; with an auxiliary variable, including the root expression, which facilitates algebraic operations.
     /// Also, no sub-expression will be abbreviated twice, so the number of auxiliary variables is equal to the number of sub-expressions.
     /// If this formula is not in canonical form, more auxiliary variables might be introduced.
-    /// Note that we only abbreviate complex sub-expressions (i.e., [And] and [Or] expressions).
+    /// Note that we only abbreviate complex sub-expressions (i.e., [And] and [Or] expressions), as [Var] and [Not] expressions do not profit from abbrevation.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_cnf_tseitin(<span class="kw-2">&amp;mut </span><span class="self">self</span>, arena: <span class="kw-2">&amp;mut </span>Arena) {
         arena.new_vars = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[]);
         arena.new_exprs = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[]);
         arena.postorder_rev(<span class="kw-2">&amp;mut </span><span class="self">self</span>.root_id, Arena::cnf_tseitin_visitor);
-        <span class="self">self</span>.own_vars.extend(arena.new_vars.take().unwrap());
+        <span class="self">self</span>.sub_var_ids.extend(arena.new_vars.take().unwrap());
         <span class="kw">let </span>root_id = <span class="self">self</span>.get_root_expr();
         arena.new_exprs.as_mut().unwrap().push(root_id);
         <span class="kw">let </span>new_expr = And(arena.new_exprs.take().unwrap());
         <span class="kw">let </span>root_id = arena.expr(new_expr);
         <span class="self">self</span>.set_root_expr(root_id);
-    }
-}
-
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>FormulaContext&lt;<span class="lifetime">&#39;a</span>&gt; {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) formula: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Formula,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) arena: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Arena,
-}
-
-<span class="doccomment">/// Displays an expression in a formula.
-</span><span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; fmt::Display <span class="kw">for </span>FormulaContext&lt;<span class="lifetime">&#39;a</span>&gt; {
-    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
-        <span class="self">self</span>.arena.format_expr(<span class="self">self</span>.formula.root_id, f)
     }
 }
 </code></pre></div></section></main></body></html>

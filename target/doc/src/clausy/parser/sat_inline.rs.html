@@ -100,9 +100,6 @@
 <a href="#100" id="100">100</a>
 <a href="#101" id="101">101</a>
 <a href="#102" id="102">102</a>
-<a href="#103" id="103">103</a>
-<a href="#104" id="104">104</a>
-<a href="#105" id="105">105</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parser for inline input in a .sat-like format.
 
 </span><span class="kw">use </span>std::collections::HashSet;
@@ -142,7 +139,7 @@
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_into(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>String, arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; Formula {
         <span class="kw">let </span><span class="kw-2">mut </span>pairs = SatInlineFormulaParser::parse(Rule::file, file).unwrap();
         <span class="kw">let </span>root_id = <span class="self">self</span>.parse_pair(pairs.next().unwrap(), arena);
-        Formula::new(root_id, HashSet::new()) <span class="comment">// todo: merge variables of used formulas
+        Formula::new(HashSet::new(), root_id) <span class="comment">// todo: merge variables of used formulas
     </span>}
 
     <span class="kw">fn </span>parse_children(<span class="kw-2">&amp;</span><span class="self">self</span>, pair: Pair&lt;Rule&gt;, arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; Vec&lt;ExprId&gt; {
@@ -168,18 +165,15 @@
                 <span class="kw">if </span><span class="self">self</span>.add_backbone_vars {
                     <span class="kw">let </span><span class="kw-2">mut </span>ids = <span class="macro">vec!</span>[root_id];
                     <span class="kw">let </span>var_ids = formula
-                        .vars(arena)
+                        .sub_vars(arena)
                         .iter()
                         .map(|(var_id, <span class="kw">_</span>)| <span class="kw-2">*</span>var_id)
                         .collect::&lt;HashSet&lt;VarId&gt;&gt;();
                     ids.extend(
                         arena
-                            .filter_vars(|var_id, <span class="kw">_</span>| !var_ids.contains(<span class="kw-2">&amp;</span>var_id))
+                            .vars(|var_id, <span class="kw">_</span>| !var_ids.contains(<span class="kw-2">&amp;</span>var_id))
                             .into_iter()
-                            .map(|(var_id, <span class="kw">_</span>)| var_id)
-                            .collect::&lt;Vec&lt;VarId&gt;&gt;() <span class="comment">// todo: either do not return &amp; in filter or collect here
-                            </span>.into_iter()
-                            .map(|var_id| {
+                            .map(|(var_id, <span class="kw">_</span>)| {
                                 <span class="kw">let </span>expr = arena.expr(Var(var_id));
                                 arena.expr(Not(expr))
                             }),

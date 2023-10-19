@@ -34,7 +34,6 @@
 <a href="#34" id="34">34</a>
 <a href="#35" id="35">35</a>
 <a href="#36" id="36">36</a>
-<a href="#37" id="37">37</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Defines variables in an arena.
 
 </span><span class="kw">use </span><span class="kw">crate</span>::shell::VAR_AUX_PREFIX;
@@ -42,7 +41,7 @@
 
 <span class="doccomment">/// Identifier type for variables.
 ///
-/// Serves as an index into [Arena::vars].
+/// Serves as an index into [super::arena::Arena::vars].
 /// We also use this type to represent literals in [crate::core::clauses::Clauses], therefore we use a signed type.
 /// Also, we do not expect too many variables, so a 32-bit integer should suffice.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>VarId = i32;
@@ -51,7 +50,7 @@
 ///
 /// Variables can either be named or auxiliary.
 /// Named variables refer to a string, which represents their name.
-/// Some algorithms on formulas (e.g., [Arena::to_cnf_tseitin]) require creating new, auxiliary variables.
+/// Some algorithms on formulas (e.g., [super::formula::Formula::to_cnf_tseitin]) require creating new, auxiliary variables.
 /// As these variables are anonymous and have no designated meaning in the feature-modeling domain, we assign them arbitrary numbers.
 /// To avoid creating unnecessary strings, we store these as native numbers.
 </span><span class="attr">#[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -63,8 +62,7 @@
     </span>Aux(u32),
 }
 
-<span class="doccomment">/// Displays a variable.
-</span><span class="kw">impl </span>fmt::Display <span class="kw">for </span>Var {
+<span class="kw">impl </span>fmt::Display <span class="kw">for </span>Var {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
             Var::Named(name) =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;{name}&quot;</span>),

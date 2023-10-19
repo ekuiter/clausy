@@ -104,9 +104,15 @@
 <a href="#104" id="104">104</a>
 <a href="#105" id="105">105</a>
 <a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parser for DIMACS .sat files.
 
-</span><span class="kw">use </span>std::{collections::{HashMap, HashSet}, vec};
+</span><span class="kw">use </span>std::{
+    collections::{HashMap, HashSet},
+    vec,
+};
 
 <span class="kw">use </span>pest::{iterators::Pair, Parser};
 <span class="kw">use </span>pest_derive::Parser;
@@ -123,7 +129,7 @@
 <span class="doccomment">/// Parses feature-model formula files in the .sat format.
 </span><span class="attr">#[derive(Parser)]
 #[grammar = <span class="string">&quot;parser/sat.pest&quot;</span>]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>SatFormulaParser;
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>SatFormulaParser;
 
 <span class="kw">fn </span>parse_children(pair: Pair&lt;Rule&gt;, vars: <span class="kw-2">&amp;</span>[ExprId], arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; Vec&lt;ExprId&gt; {
     pair.into_inner()
@@ -169,7 +175,7 @@
     <span class="kw">fn </span>parse_into(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str, arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; Formula {
         <span class="kw">let </span><span class="kw-2">mut </span>pairs = SatFormulaParser::parse(Rule::file, file).unwrap();
 
-        <span class="kw">let </span><span class="kw-2">mut </span>var_ids = HashSet::&lt;VarId&gt;::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>sub_var_ids = HashSet::&lt;VarId&gt;::new();
         <span class="kw">let </span><span class="kw-2">mut </span>variable_names = HashMap::&lt;VarId, <span class="kw-2">&amp;</span>str&gt;::new();
         <span class="kw">while let </span>Rule::comment = pairs.peek().unwrap().as_rule() {
             <span class="kw">let </span>pair = pairs.next().unwrap().into_inner().next().unwrap();
@@ -195,19 +201,19 @@
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">1</span>..=n {
             <span class="kw">if </span>variable_names.contains_key(<span class="kw-2">&amp;</span>i) {
                 <span class="kw">let </span>(expr_id, var_id) = arena.var_expr_with_id(variable_names[<span class="kw-2">&amp;</span>i].to_string());
-                var_ids.insert(var_id);
+                sub_var_ids.insert(var_id);
                 vars.push(expr_id);
                 variable_names.remove(<span class="kw-2">&amp;</span>i);
             } <span class="kw">else </span>{
                 <span class="kw">let </span>(var_id, expr_id) = arena.add_var_aux_expr();
-                var_ids.insert(var_id);
+                sub_var_ids.insert(var_id);
                 vars.push(expr_id);
             }
         }
         <span class="macro">debug_assert!</span>(variable_names.is_empty());
 
         <span class="kw">let </span>root_id = parse_pair(pairs.next().unwrap(), <span class="kw-2">&amp;</span>vars, arena);
-        Formula::new(root_id, var_ids)
+        Formula::new(sub_var_ids, root_id)
     }
 }
 </code></pre></div></section></main></body></html>

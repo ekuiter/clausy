@@ -1,11 +1,7 @@
 //! Unit tests.
 
 #![allow(unused_imports)]
-use crate::core::{
-    clauses::Clauses,
-    expr::{Expr::*},
-    arena::Arena,
-};
+use crate::core::{arena::Arena, clauses::Clauses, expr::Expr::*};
 
 mod formula {
     use super::*;
@@ -71,10 +67,7 @@ mod formula {
             let not_not_a = f.expr(Not(not_a));
             let and = f.expr(And(vec![not_not_a]));
             f.set_root_expr(and);
-            assert_eq!(
-                f.assert_valid().to_nnf().assert_valid().to_string(),
-                "a"
-            );
+            assert_eq!(f.assert_valid().to_nnf().assert_valid().to_string(), "a");
         }
 
         #[test]

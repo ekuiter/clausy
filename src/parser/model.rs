@@ -19,7 +19,11 @@ use super::FormulaParser;
 #[grammar = "parser/model.pest"]
 pub(crate) struct ModelFormulaParser;
 
-fn parse_children(pair: Pair<Rule>, arena: &mut Arena, var_ids: &mut HashSet<VarId>) -> Vec<ExprId> {
+fn parse_children(
+    pair: Pair<Rule>,
+    arena: &mut Arena,
+    var_ids: &mut HashSet<VarId>,
+) -> Vec<ExprId> {
     pair.into_inner()
         .map(|pair| parse_pair(pair, arena, var_ids))
         .collect()

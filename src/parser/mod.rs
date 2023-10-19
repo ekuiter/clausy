@@ -19,11 +19,11 @@ pub(crate) trait FormulaParser {
 
     /// Parses a feature-model formula file into an existing [Formula].
     ///
-    /// Returns the [ExprId] of the root expression of the parsed formula.
-    /// Also returns a set with each [VarId] of a named sub-variable of the parsed formula.
+    /// Returns the [crate::core::expr::ExprId] of the root expression of the parsed formula.
+    /// Also returns a set with each [crate::core::var::VarId] of a named sub-variable of the parsed formula.
     /// This function does not modify the sub-expressions of the given formula.
     /// That is, after parsing, the formula will hold the given feature-model formula in [Arena::exprs], but not refer to it.
-    /// Thus, [Arena::set_root_expr] must be called explicitly with the returned [ExprId] to make use of the parsed formula.
+    /// Thus, [Formula::set_root_expr] must be called explicitly with the returned [crate::core::expr::ExprId] to make use of the parsed formula.
     fn parse_into(&self, file: &str, arena: &mut Arena) -> Formula;
 
     // /// Parses a feature-model formula file into a new [Formula].

@@ -599,44 +599,39 @@
 <a href="#599" id="599">599</a>
 <a href="#600" id="600">600</a>
 <a href="#601" id="601">601</a>
-<a href="#602" id="602">602</a>
-<a href="#603" id="603">603</a>
-</pre></div><pre class="rust"><code><span class="doccomment">//! Data structures and algorithms for feature-model formulas.
+</pre></div><pre class="rust"><code><span class="doccomment">//! Defines an arena of variables and expressions.
 
-</span><span class="attr">#![allow(unused_imports, rustdoc::private_intra_doc_links)]
-
-</span><span class="kw">use </span>std::{
-    collections::{hash_map::DefaultHasher, HashMap, HashSet},
-    fmt,
-    hash::{Hash, Hasher},
-    slice,
+</span><span class="kw">use super</span>::{
+    expr::{Expr, Expr::<span class="kw-2">*</span>, ExprId},
+    formula::Formula,
+    var::{Var, VarId},
 };
-<span class="kw">use </span>Expr::<span class="kw-2">*</span>;
+<span class="kw">use </span><span class="kw">crate</span>::shell::PRINT_ID;
+<span class="kw">use </span>std::{
+    collections::{HashMap, HashSet},
+    fmt, slice,
+};
 
-<span class="kw">use </span><span class="kw">crate</span>::shell::{PRINT_ID, VAR_AUX_PREFIX};
-
-<span class="kw">use super</span>::{expr::{Expr, ExprId},var::{Var, VarId}, formula::Formula};
-
-<span class="doccomment">/// Simplifies an expression in this formula to an equivalent one.
+<span class="doccomment">/// Simplifies an expression in an arena to an equivalent one.
 ///
 /// For example, this transforms a given expression `Or(b, And(a, Not(a), a), b)` into `b`.
 /// Implemented as a macro for repeated use in [Arena::simp_expr].
 </span><span class="macro">macro_rules! </span>simp_expr {
-    (<span class="macro-nonterminal">$formula</span>:expr, <span class="macro-nonterminal">$expr</span>:expr, <span class="macro-nonterminal">$child_ids</span>:expr, <span class="macro-nonterminal">$constructor</span>:ident) =&gt; {{
-        <span class="macro-nonterminal">$child_ids</span>.sort_unstable_by_key(|child_id| <span class="kw">match </span><span class="macro-nonterminal">$formula</span>.exprs[<span class="kw-2">*</span>child_id] {
+    (<span class="macro-nonterminal">$arena</span>: expr, <span class="macro-nonterminal">$expr</span>: expr, <span class="macro-nonterminal">$child_ids</span>: expr, <span class="macro-nonterminal">$constructor</span>: ident) =&gt; {{
+        <span class="macro-nonterminal">$child_ids</span>.sort_unstable_by_key(|child_id| <span class="kw">match </span><span class="macro-nonterminal">$arena</span>.exprs[<span class="kw-2">*</span>child_id] {
             Not(grandchild_id) =&gt; grandchild_id * <span class="number">2 </span>+ <span class="number">1</span>,
             <span class="kw">_ </span>=&gt; <span class="kw-2">*</span>child_id * <span class="number">2</span>,
         });
         <span class="macro-nonterminal">$child_ids</span>.dedup();
         <span class="kw">if </span><span class="macro-nonterminal">$child_ids</span>.len() == <span class="number">1 </span>{
-            <span class="kw-2">*</span><span class="macro-nonterminal">$expr </span>= <span class="macro-nonterminal">$formula</span>.exprs[<span class="macro-nonterminal">$child_ids</span>[<span class="number">0</span>]].clone();
+            <span class="kw-2">*</span><span class="macro-nonterminal">$expr </span>= <span class="macro-nonterminal">$arena</span>.exprs[<span class="macro-nonterminal">$child_ids</span>[<span class="number">0</span>]].clone();
         } <span class="kw">else if </span><span class="macro-nonterminal">$child_ids
             </span>.windows(<span class="number">2</span>)
             .flat_map(&lt;<span class="kw-2">&amp;</span>[ExprId; <span class="number">2</span>]&gt;::try_from)
             .find(
-                |&amp;&amp;[child_a_id, child_b_id]| <span class="kw">match </span><span class="macro-nonterminal">$formula</span>.exprs[child_a_id] {
+                |&amp;&amp;[child_a_id, child_b_id]| <span class="kw">match </span><span class="macro-nonterminal">$arena</span>.exprs[child_a_id] {
                     Not(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
-                    <span class="kw">_ </span>=&gt; <span class="kw">match </span><span class="macro-nonterminal">$formula</span>.exprs[child_b_id] {
+                    <span class="kw">_ </span>=&gt; <span class="kw">match </span><span class="macro-nonterminal">$arena</span>.exprs[child_b_id] {
                         Not(grandchild_b_id) =&gt; child_a_id == grandchild_b_id,
                         <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
                     },
@@ -654,10 +649,10 @@
 /// That is, this transforms a given expression `And(And(a), Or(b, c))` into `And(a, Or(b, c))`.
 /// Implemented as a macro for repeated use in [Arena::flatten_expr].
 </span><span class="macro">macro_rules! </span>flatten_expr {
-    (<span class="macro-nonterminal">$formula</span>:expr, <span class="macro-nonterminal">$expr</span>:expr, <span class="macro-nonterminal">$child_ids</span>:expr, <span class="macro-nonterminal">$constructor</span>:ident) =&gt; {
+    (<span class="macro-nonterminal">$arena</span>: expr, <span class="macro-nonterminal">$expr</span>: expr, <span class="macro-nonterminal">$child_ids</span>: expr, <span class="macro-nonterminal">$constructor</span>: ident) =&gt; {
         <span class="kw-2">*</span><span class="macro-nonterminal">$child_ids </span>= <span class="macro-nonterminal">$child_ids
             </span>.iter()
-            .map(|child_id| <span class="kw">match </span><span class="kw-2">&amp;</span><span class="macro-nonterminal">$formula</span>.exprs[<span class="kw-2">*</span>child_id] {
+            .map(|child_id| <span class="kw">match </span><span class="kw-2">&amp;</span><span class="macro-nonterminal">$arena</span>.exprs[<span class="kw-2">*</span>child_id] {
                 <span class="macro-nonterminal">$constructor</span>(grandchild_ids) =&gt; grandchild_ids,
                 <span class="kw">_ </span>=&gt; slice::from_ref(child_id),
             })
@@ -667,28 +662,44 @@
     };
 }
 
-<span class="doccomment">/// A feature-model formula.
+<span class="doccomment">/// An arena of variables and expressions.
 ///
-/// We represent a formula by storing its syntax tree; that is, each unique sub-expression that appears in it.
-/// In canonical form, sub-expressions are uniquely stored, so no sub-expression appears twice with distinct identifiers (structural sharing).
-/// This allows for concise representation and facilitates some algorithms (e.g., [Arena::to_cnf_tseitin]).
+/// We aim to represent any [Formula] by storing its syntax tree; that is, each unique sub-expression that appears in it.
+/// To allow reuse of expressions and variables across similar formulas, we store them in a shared
+/// [arena](https://en.wikipedia.org/wiki/Region-based_memory_management) referenced by each [Formula].
+/// In a canonical [Formula], sub-expressions are uniquely stored, so no sub-expression appears twice with distinct identifiers (structural sharing).
+/// This allows for concise representation and facilitates some algorithms (e.g., [Formula::to_cnf_tseitin]).
 /// However, it also comes with the downside that each sub-expression has potentially many parents.
 /// Thus, owners of sub-expressions are not easily trackable (see [Arena::exprs] on garbage collection).
 /// Consequently, we cannot access any parents when mutating sub-expressions, only children.
-/// Due to the structural-sharing, we effectively treat the syntax tree as a directed acyclic graph.
+/// Due to structural sharing, we effectively treat the syntax tree as a directed acyclic graph.
 /// We represent this graph as an adjacency list stored in [Arena::exprs].
-/// Note that due to performance reasons, structural sharing is not fully guaranteed by all algorithms (including parsers) until calling [Arena::canon_visitor].
-</span><span class="attr">#[derive(Debug)]
+/// Note that, for performance reasons, structural sharing is not guaranteed by all algorithms (including parsers) until calling [Arena::canon_visitor].
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Arena {
-    <span class="doccomment">/// Stores all expressions in this formula.
+    <span class="doccomment">/// Stores all variables in this arena.
+    ///
+    /// Conceptually, this is analogous to [Arena::exprs].
+    /// Accordingly, the set of variables referenced by a given [Formula] constitutes its sub-variables (see [Formula::sub_var_ids]).
+    /// Variable-forgetting operations, such as feature-model slicing, are possible by adapting this set.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) vars: Vec&lt;Var&gt;,
+
+    <span class="doccomment">/// Maps variables to their identifiers.
+    ///
+    /// Conceptually, this is analogous to [Arena::exprs_inv].
+    /// However, we simplify the inverse lookup of variables by cloning variables.
+    /// This needs more memory, but (a) we do not expect many variables and (b) this avoids the hash collisions discussed for [Arena::exprs_inv].
+    /// Also, variables and their identifiers are never mutated after creation, so we need no additional [Vec] for updates.
+    </span>vars_inv: HashMap&lt;Var, VarId&gt;,
+
+    <span class="doccomment">/// Stores all expressions in this arena.
     ///
     /// Serves as a fast lookup for an expression, given its identifier.
     /// Expressions are stored in the order of their creation, so new expressions are appended with [Vec::push].
     /// Also, while algorithms may update expressions in-place, no expression is ever removed.
-    /// We refer to all expressions that appear below the root expression as sub-expressions (including the root expression).
+    /// We refer to all expressions that appear below the root expression of a [Formula] as its sub-expressions (including the root expression).
     /// By not ever removing any expressions, we keep all non-sub-expressions indefinitely.
     /// This potentially requires a lot of memory, but avoids explicit reference counting or garbage collection.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) exprs: Vec&lt;Expr&gt;,
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) exprs: Vec&lt;Expr&gt;,
 
     <span class="doccomment">/// Maps expressions to their identifiers.
     ///
@@ -707,69 +718,113 @@
     /// This information can be used to enforce structural sharing by calling [Arena::canon_visitor].
     </span>exprs_inv: HashMap&lt;u64, Vec&lt;ExprId&gt;&gt;,
 
-    <span class="doccomment">/// Stores all variables in this formula.
-    ///
-    /// Conceptually, this is analogous to [Arena::exprs].
-    /// However, there is no distinction analogous to sub-expressions and expressions, as variables need not be removed.
-    /// Consequently, feature-model slicing (variable forgetting) is currently not supported.
-    /// Another difference to [Arena::exprs] is that named variables are not owned by this formula.
-    /// Thus, we can borrow references to variable names from the parsed string and avoid cloning them.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) vars: Vec&lt;Var&gt;,
-
-    <span class="doccomment">/// Maps variables to their identifiers.
-    ///
-    /// Conceptually, this is analogous to [Arena::exprs_inv].
-    /// However, the inverse lookup of variables is less complex:
-    /// First, we duplicate the variable names, which needs twice the memory but avoids the hash collisions discussed for [Arena::exprs_inv].
-    /// Second, variables and their identifiers are never mutated after creation, so no additional [Vec] is needed.
-    </span>vars_inv: HashMap&lt;Var, VarId&gt;,
-
     <span class="doccomment">/// Specifies the identifier of the most recently added auxiliary variable.
     ///
-    /// Ensures that new auxiliary variables (created with [Var::Aux]) are uniquely identified in the context of this formula.
+    /// Ensures that new auxiliary variables (created with [Var::Aux]) are uniquely identified in the context of this arena.
     </span>var_aux_id: u32,
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) new_vars: <span class="prelude-ty">Option</span>&lt;Vec&lt;VarId&gt;&gt;,
-
-    <span class="doccomment">/// Stores new expressions created by an algorithm but not yet included in the syntax tree.
+    <span class="doccomment">/// Temporarily stores new variables created that are not yet included in any [Formula]&#39;s syntax tree.
     ///
-    /// Used by [Arena::to_cnf_tseitin] for holding on to definitional expressions.
+    /// Used by [Arena::cnf_tseitin_visitor] for holding on to auxiliary variables.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) new_vars: <span class="prelude-ty">Option</span>&lt;Vec&lt;VarId&gt;&gt;,
+
+    <span class="doccomment">/// Temporarily stores new expressions that are not yet included in any [Formula]&#39;s syntax tree.
+    ///
+    /// Used by [Arena::cnf_tseitin_visitor] for holding on to definitional expressions.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) new_exprs: <span class="prelude-ty">Option</span>&lt;Vec&lt;ExprId&gt;&gt;,
 }
 
-<span class="doccomment">/// Algorithms for constructing, mutating, and analyzing formulas.
-</span><span class="kw">impl </span>Arena {
-    <span class="doccomment">/// Creates a new, empty formula.
+<span class="kw">impl </span>Arena {
+    <span class="doccomment">/// Creates a new, empty arena.
     ///
-    /// The created formula is initially invalid (see [Arena::assert_valid]).
-    /// The auxiliary variable with number 0 has no meaningful sign and can therefore not be used.
     /// This simplifies the representation of literals in [crate::core::clauses::Clauses], which can be negative.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
-            exprs: <span class="macro">vec!</span>[Var(<span class="number">0</span>)],
-            exprs_inv: HashMap::new(),
-            vars: <span class="macro">vec!</span>[Var::Aux(<span class="number">0</span>)],
+            vars: <span class="macro">vec!</span>[],
             vars_inv: HashMap::new(),
+            exprs: <span class="macro">vec!</span>[],
+            exprs_inv: HashMap::new(),
             var_aux_id: <span class="number">0</span>,
             new_exprs: <span class="prelude-val">None</span>,
             new_vars: <span class="prelude-val">None</span>,
         }
     }
 
-    <span class="doccomment">/// Panics if this formula is invalid.
+    <span class="doccomment">/// Adds a new variable to this arena, returning its identifier.
     ///
-    /// A formula is valid if it has at least one variable (added with [Arena::var_expr]) and a root expression (set with [Arena::set_root_expr]).
-    /// In addition, structural sharing must not be violated (see [Arena::canon_visitor]).
-    /// All assertions are optional and therefore not included in `cargo build --release`.
-    </span><span class="attr">#[cfg(debug_assertions)]
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_valid(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="macro">debug_assert!</span>(<span class="self">self</span>.exprs.len() &gt; <span class="number">1 </span>&amp;&amp; <span class="self">self</span>.vars.len() &gt; <span class="number">1</span>);
+    /// Works analogously to [Arena::add_expr] (see [Arena::vars_inv]).
+    </span><span class="kw">fn </span>add_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var: Var) -&gt; VarId {
+        <span class="kw">let </span>id = <span class="self">self</span>.vars.len();
+        <span class="kw">let </span>id_signed: i32 = id.try_into().unwrap();
+        <span class="self">self</span>.vars.push(var.clone());
+        <span class="self">self</span>.vars_inv.insert(var, id_signed);
+        id_signed
     }
 
-    <span class="doccomment">/// Adds a new expression to this formula, returning its new identifier.
+    <span class="doccomment">/// Adds a new named variable to this arena, returning its identifier.
+    </span><span class="kw">fn </span>add_var_named(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: String) -&gt; VarId {
+        <span class="self">self</span>.add_var(Var::Named(name))
+    }
+
+    <span class="doccomment">/// Adds a new auxiliary variable to this arena, returning its identifier.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>add_var_aux(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; VarId {
+        <span class="self">self</span>.var_aux_id += <span class="number">1</span>;
+        <span class="self">self</span>.add_var(Var::Aux(<span class="self">self</span>.var_aux_id))
+    }
+
+    <span class="doccomment">/// Looks ups the identifier of a named variable in this arena.
+    ///
+    /// Works analogously to [Arena::get_expr] (see [Arena::vars_inv]).
+    </span><span class="kw">fn </span>get_var_named(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: String) -&gt; <span class="prelude-ty">Option</span>&lt;VarId&gt; {
+        <span class="prelude-val">Some</span>(<span class="kw-2">*</span><span class="self">self</span>.vars_inv.get(<span class="kw-2">&amp;</span>Var::Named(name))<span class="question-mark">?</span>)
+    }
+
+    <span class="doccomment">/// Adds or looks up a named variable in this arena, returning its [Var] expression&#39;s identifier.
+    ///
+    /// This is the preferred way to obtain a [Var] expression&#39;s identifier (see [Arena::expr]).
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>var_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var: String) -&gt; ExprId {
+        <span class="kw">let </span>var_id = <span class="self">self
+            </span>.get_var_named(var.clone())
+            .unwrap_or_else(|| <span class="self">self</span>.add_var_named(var));
+        <span class="self">self</span>.expr(Var(var_id))
+    }
+
+    <span class="doccomment">/// Adds or looks up a named variable in this arena, returning its [Var] expression&#39;s and [Var]&#39;s identifier.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>var_expr_with_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var: String) -&gt; (ExprId, VarId) {
+        <span class="kw">let </span>expr_id = <span class="self">self</span>.var_expr(var);
+        <span class="kw">if let </span>Var(var_id) = <span class="self">self</span>.exprs[expr_id] {
+            (expr_id, var_id)
+        } <span class="kw">else </span>{
+            <span class="macro">unreachable!</span>()
+        }
+    }
+
+    <span class="doccomment">/// Adds a new auxiliary variable to this arena, returning its identifier and its [Var] expression&#39;s identifier.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_var_aux_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; (VarId, ExprId) {
+        <span class="kw">let </span>var_id = <span class="self">self</span>.add_var_aux();
+        (var_id, <span class="self">self</span>.expr(Var(var_id)))
+    }
+
+    <span class="doccomment">/// Returns all variables and their identifiers in this arena that match a given predicate.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>vars(<span class="kw-2">&amp;</span><span class="self">self</span>, predicate: <span class="kw">impl </span>Fn(VarId, <span class="kw-2">&amp;</span>Var) -&gt; bool) -&gt; Vec&lt;(VarId, Var)&gt; {
+        <span class="self">self</span>.vars
+            .iter()
+            .enumerate()
+            .flat_map(|(var_id, var)| {
+                <span class="kw">let </span>var_id: VarId = var_id.try_into().unwrap();
+                <span class="kw">if </span>predicate(var_id, var) {
+                    <span class="prelude-val">Some</span>((var_id, var.clone()))
+                } <span class="kw">else </span>{
+                    <span class="prelude-val">None
+                </span>}
+            })
+            .collect()
+    }
+
+    <span class="doccomment">/// Adds a new expression to this arena, returning its new identifier.
     ///
     /// Appends the given expression to [Arena::exprs] and enables its lookup via [Arena::exprs_inv].
-    /// Requires that no expression equal to the given expression is already in this formula.
+    /// Requires that no expression equal to the given expression is already in this arena.
     /// Thus, the created identifier will become the expression&#39;s canonical identifier (see [Arena::exprs_inv]).
     </span><span class="kw">fn </span>add_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: Expr) -&gt; ExprId {
         <span class="kw">let </span>id = <span class="self">self</span>.exprs.len();
@@ -779,7 +834,7 @@
         id
     }
 
-    <span class="doccomment">/// Looks ups the identifier for an expression of this formula.
+    <span class="doccomment">/// Looks ups the identifier for an expression in this arena.
     ///
     /// The canonical identifier for a given expression is the first one that is associated with its hash
     /// and whose expression is also equal to the given expression (see [Arena::exprs_inv]).
@@ -792,72 +847,17 @@
             .next()
     }
 
-    <span class="doccomment">/// Adds or looks up an expression of this formula, returning its identifier.
+    <span class="doccomment">/// Adds or looks up an expression in this arena, returning its identifier.
     ///
     /// This is the preferred way to obtain an expression&#39;s identifier, as it ensures structural sharing.
-    /// That is, the expression is only added to this formula if it does not already exist.
+    /// That is, the expression is only added to this arena if it does not already exist.
     /// Before we add the expression, we simplify it, which is a cheap operation (in contrast to [Arena::flatten_expr]).
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>expr: Expr) -&gt; ExprId {
         <span class="self">self</span>.simp_expr(<span class="kw-2">&amp;mut </span>expr);
         <span class="self">self</span>.get_expr(<span class="kw-2">&amp;</span>expr).unwrap_or_else(|| <span class="self">self</span>.add_expr(expr))
     }
 
-    <span class="doccomment">/// Adds a new variable to this formula, returning its identifier.
-    ///
-    /// Works analogously to [Arena::add_expr] (see [Arena::vars_inv]).
-    </span><span class="kw">fn </span>add_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var: Var) -&gt; VarId {
-        <span class="kw">let </span>id = <span class="self">self</span>.vars.len();
-        <span class="kw">let </span>id_signed: i32 = id.try_into().unwrap();
-        <span class="self">self</span>.vars.push(var.clone());
-        <span class="self">self</span>.vars_inv.insert(var, id_signed);
-        id_signed
-    }
-
-    <span class="doccomment">/// Adds a new named variable to this formula, returning its identifier.
-    </span><span class="kw">fn </span>add_var_named(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: String) -&gt; VarId {
-        <span class="self">self</span>.add_var(Var::Named(name))
-    }
-
-    <span class="doccomment">/// Adds a new auxiliary variable to this formula, returning its identifier.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_var_aux(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; VarId {
-        <span class="self">self</span>.var_aux_id += <span class="number">1</span>;
-        <span class="self">self</span>.add_var(Var::Aux(<span class="self">self</span>.var_aux_id))
-    }
-
-    <span class="doccomment">/// Looks ups the identifier of a named variable in this formula.
-    ///
-    /// Works analogously to [Arena::get_expr] (see [Arena::vars_inv]).
-    </span><span class="kw">fn </span>get_var_named(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: String) -&gt; <span class="prelude-ty">Option</span>&lt;VarId&gt; {
-        <span class="prelude-val">Some</span>(<span class="kw-2">*</span><span class="self">self</span>.vars_inv.get(<span class="kw-2">&amp;</span>Var::Named(name))<span class="question-mark">?</span>)
-    }
-
-    <span class="doccomment">/// Adds or looks up a named variable of this formula, returning its [Var] expression&#39;s identifier.
-    ///
-    /// This is the preferred way to obtain a [Var] expression&#39;s identifier (see [Arena::expr]).
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>var_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var: String) -&gt; ExprId {
-        <span class="kw">let </span>var_id = <span class="self">self
-            </span>.get_var_named(var.clone())
-            .unwrap_or_else(|| <span class="self">self</span>.add_var_named(var));
-        <span class="self">self</span>.expr(Var(var_id))
-    }
-
-    <span class="doccomment">/// Adds or looks up a named variable of this formula, returning its [Var] expression&#39;s and [Var]&#39;s identifier.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>var_expr_with_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var: String) -&gt; (ExprId, VarId) {
-        <span class="kw">let </span>expr_id = <span class="self">self</span>.var_expr(var);
-        <span class="kw">if let </span>Var(var_id) = <span class="self">self</span>.exprs[expr_id] {
-            (expr_id, var_id)
-        } <span class="kw">else </span>{
-            <span class="macro">unreachable!</span>()
-        }
-    }
-
-    <span class="doccomment">/// Adds a new auxiliary variable to this formula, returning its identifier and its [Var] expression&#39;s identifier.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_var_aux_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; (VarId, ExprId) {
-        <span class="kw">let </span>var_id = <span class="self">self</span>.add_var_aux();
-        (var_id, <span class="self">self</span>.expr(Var(var_id)))
-    }
-
-    <span class="doccomment">/// Simplifies an expression in this formula to an equivalent one.
+    <span class="doccomment">/// Simplifies an expression in this arena to an equivalent one.
     ///
     /// First, we sort the expression&#39;s children, thus equality is up to commutativity.
     /// Second, we remove duplicate children of the expressions, thus equality is up to idempotency.
@@ -865,7 +865,7 @@
     /// Fourth, we remove double negations (i.e., `Not(Not(x))` is simplified to `x`).
     /// Fifth, we remove obvious tautologies and contradictions (i.e., `And(a, Not(a))` is simplified to `Or()`).
     /// Because we clone expressions, this function may violate structural sharing (see [Arena::canon_visitor]).
-    /// As this is a cheap and useful operation to make the formula smaller, we already call it in the parsing stage.
+    /// As this is a cheap and useful operation to make the arena smaller, we already call it in the parsing stage.
     </span><span class="kw">fn </span>simp_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;mut </span>Expr) {
         <span class="kw">match </span>expr {
             Var(<span class="kw">_</span>) =&gt; (),
@@ -883,7 +883,7 @@
     <span class="doccomment">/// Flattens children of an expression into their parent.
     ///
     /// Analogously to [Arena::simp_expr], this performs a simplification of an expression.
-    /// However, this may create new expressions and is therefore more expensive and not called in the parsing stage.
+    /// However, this may create new expressions and is therefore more expensive, thus not called in the parsing stage.
     /// This is useful to call during a postorder syntax tree traversal to ensure canonical form (see [Arena::canon_visitor]).
     </span><span class="kw">fn </span>flatten_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;mut </span>Expr) {
         <span class="kw">match </span>expr {
@@ -901,7 +901,7 @@
     /// Thus, we can just append the expression&#39;s identifier as the new canonical identifier for the expression.
     /// In the second case, the expression already exists and already has a canonical identifier.
     /// Still, we can append the identifier anyway, as only the first identifier will be considered.
-    /// In terms of correctness, appending the identifier suffices, although we may optimize by cleaning up [Arena::exprs_inv].
+    /// In terms of correctness, appending the identifier suffices, although we may optimize in the future by cleaning up [Arena::exprs_inv].
     </span><span class="kw">fn </span>inval_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ExprId) {
         <span class="self">self</span>.exprs_inv
             .entry(<span class="self">self</span>.exprs[id].calc_hash())
@@ -909,7 +909,7 @@
             .push(id);
     }
 
-    <span class="doccomment">/// Mutates an expression in this formula.
+    <span class="doccomment">/// Mutates an expression in this arena.
     ///
     /// This function replaces the expression for a given identifier with a new given expression.
     /// It has no effect on leaves in the syntax tree (i.e., variables).
@@ -953,28 +953,9 @@
         ids
     }
 
-    <span class="doccomment">/// Returns all identifiers of variables in this formula that are not in a given a set of variable identifiers.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>filter_vars(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        predicate: <span class="kw">impl </span>Fn(VarId, <span class="kw-2">&amp;</span>Var) -&gt; bool,
-    ) -&gt; Vec&lt;(VarId, Var)&gt; {
-        <span class="self">self</span>.vars
-            .iter()
-            .enumerate()
-            .flat_map(|(var_id, var)| {
-                <span class="kw">let </span>var_id: VarId = var_id.try_into().unwrap();
-                <span class="kw">if </span>var_id &gt; <span class="number">0 </span>&amp;&amp; predicate(var_id, var) {
-                    <span class="prelude-val">Some</span>((var_id, var.clone()))
-                } <span class="kw">else </span>{
-                    <span class="prelude-val">None
-                </span>}
-            })
-            .collect()
-    }
-
-    <span class="doccomment">/// Writes an expression of this formula to a formatter.
+    <span class="doccomment">/// Writes an expression in this arena to a formatter.
     ///
-    /// Used by [fmt::Display] to print (parts of) a formula.
+    /// Used by [fmt::Display] to print (parts of) a [Formula].
     /// Implements a recursive preorder traversal.
     /// For an iterative reversed preorder traversal, see [Arena::preorder_rev].
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>format_expr(<span class="kw-2">&amp;</span><span class="self">self</span>, id: ExprId, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
@@ -1004,15 +985,26 @@
         }
     }
 
-    <span class="doccomment">/// Visits all sub-expressions of this formula using a reverse preorder traversal.
+    <span class="doccomment">/// Returns a formula with the given root expression.
+    ///
+    /// The created formula references all variables of this arena, use [Formula::new] for more fine-grained sub-variables.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_formula&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>, root_id: ExprId) -&gt; Formula {
+        Formula::new((<span class="number">1</span>..<span class="self">self</span>.vars.len().try_into().unwrap()).collect(), root_id)
+    }
+
+    <span class="doccomment">/// Visits all sub-expressions of a given root expression using a reverse preorder traversal.
     ///
     /// We assume that the given visitor only performs mutation with the designated methods,
     /// such as [Arena::var_expr], [Arena::expr] and [Arena::set_expr].
     /// The visitor is called at most once per unique sub-expression:
-    /// It will not be called several times on the same sub-expression (if this formula is in canonical form).
+    /// It will not be called several times on the same sub-expression (if the formula is in canonical form).
     /// However, we can also not guarantee it to be called on all sub-expressions - as it might change the very set of sub-expressions.
     /// For improved performance, the traversal is reversed, so children are traversed right-to-left.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>preorder_rev(<span class="kw-2">&amp;mut </span><span class="self">self</span>, root_id: <span class="kw-2">&amp;mut </span>ExprId, <span class="kw-2">mut </span>visitor: <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;mut </span><span class="self">Self</span>, ExprId) -&gt; ()) {
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>preorder_rev(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        root_id: <span class="kw-2">&amp;mut </span>ExprId,
+        <span class="kw-2">mut </span>visitor: <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;mut </span><span class="self">Self</span>, ExprId) -&gt; (),
+    ) {
         <span class="kw">let </span><span class="kw-2">mut </span>remaining_ids = <span class="macro">vec!</span>[<span class="kw-2">*</span>root_id];
         <span class="kw">let </span><span class="kw-2">mut </span>visited_ids = HashSet::&lt;ExprId&gt;::new();
         <span class="kw">while </span>!remaining_ids.is_empty() {
@@ -1026,11 +1018,15 @@
         Formula::reset_root_expr(<span class="kw-2">&amp;</span><span class="self">self</span>, root_id);
     }
 
-    <span class="doccomment">/// Visits all sub-expressions of this formula using a reverse postorder traversal.
+    <span class="doccomment">/// Visits all sub-expressions of a given root expression using a reverse postorder traversal.
     ///
     /// Conceptually, this is similar to [Arena::preorder_rev], but sub-expressions are visited bottom-up instead of top-down.
     /// Also, this traversal can be used to ensure structural sharing if the visitor is correctly implemented (see [Arena::canon_visitor]).
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>postorder_rev(<span class="kw-2">&amp;mut </span><span class="self">self</span>, root_id: <span class="kw-2">&amp;mut </span>ExprId, <span class="kw-2">mut </span>visitor: <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;mut </span><span class="self">Self</span>, ExprId) -&gt; ()) {
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>postorder_rev(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        root_id: <span class="kw-2">&amp;mut </span>ExprId,
+        <span class="kw-2">mut </span>visitor: <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;mut </span><span class="self">Self</span>, ExprId) -&gt; (),
+    ) {
         <span class="kw">let </span><span class="kw-2">mut </span>remaining_ids = <span class="macro">vec!</span>[<span class="kw-2">*</span>root_id];
         <span class="kw">let </span><span class="kw-2">mut </span>seen_ids = HashSet::&lt;ExprId&gt;::new();
         <span class="kw">let </span><span class="kw-2">mut </span>visited_ids = HashSet::&lt;ExprId&gt;::new();
@@ -1052,7 +1048,7 @@
         Formula::reset_root_expr(<span class="kw-2">&amp;</span><span class="self">self</span>, root_id);
     }
 
-    <span class="doccomment">/// Visits all sub-expressions of this formula using a combined reverse pre- and postorder traversal.
+    <span class="doccomment">/// Visits all sub-expressions of a given root expression using a combined reverse pre- and postorder traversal.
     ///
     /// Can be used to efficiently interleave a preorder and postorder visitor.
     /// Note that each interior expression is visited twice (with the pre- and then the postorder visitor).
@@ -1087,12 +1083,12 @@
         Formula::reset_root_expr(<span class="kw-2">&amp;</span><span class="self">self</span>, root_id);
     }
 
-    <span class="doccomment">/// Transforms an expression into canonical form (see [Arena::to_canon]).
+    <span class="doccomment">/// Transforms an expression into canonical form (see [Formula::to_canon]).
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>canon_visitor(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ExprId) {
         <span class="self">self</span>.set_expr(id, <span class="self">self</span>.exprs[id].clone());
     }
 
-    <span class="doccomment">/// Transforms an expression into negation normal form by applying De Morgan&#39;s laws (see [Arena::to_nnf]).
+    <span class="doccomment">/// Transforms an expression into negation normal form by applying De Morgan&#39;s laws (see [Formula::to_nnf]).
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>nnf_visitor(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ExprId) {
         <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.exprs[id] {
             Var(<span class="kw">_</span>) | And(<span class="kw">_</span>) | Or(<span class="kw">_</span>) =&gt; (),
@@ -1111,7 +1107,7 @@
         }
     }
 
-    <span class="doccomment">/// Transforms an expression into canonical conjunctive normal form by applying distributivity laws (see [Arena::to_cnf_dist]).
+    <span class="doccomment">/// Transforms an expression into canonical conjunctive normal form by applying distributivity laws (see [Formula::to_cnf_dist]).
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>cnf_dist_visitor(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ExprId) {
         <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.exprs[id] {
             Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) =&gt; (),
@@ -1153,7 +1149,7 @@
     ///
     /// That is, we create a new auxiliary variable and clauses that let it imply all conjuncts and let it be implied by the conjunction.
     /// As an optimization, we do not create a [Var] expression for the new variable, as we are replacing an existing expression.
-    /// We add the clauses defining the new variable to [Arena::new_exprs].
+    /// We add the new variable to [Arena::new_vars] and the clauses defining the new variable to [Arena::new_exprs].
     </span><span class="kw">fn </span>def_and(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var_expr_id: ExprId, ids: <span class="kw-2">&amp;</span>[ExprId]) -&gt; VarId {
         <span class="kw">let </span>var_id = <span class="self">self</span>.add_var_aux();
         <span class="kw">let </span>not_var_expr_id = <span class="self">self</span>.expr(Not(var_expr_id));
@@ -1189,7 +1185,7 @@
         var_id
     }
 
-    <span class="doccomment">/// Transforms an expression into canonical conjunctive normal form by introducing auxiliary variables (see [Arena::to_cnf_tseitin]).
+    <span class="doccomment">/// Transforms an expression into canonical conjunctive normal form by introducing auxiliary variables (see [Formula::to_cnf_tseitin]).
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>cnf_tseitin_visitor(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ExprId) {
         <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.exprs[id] {
             Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) =&gt; (),
@@ -1203,4 +1199,5 @@
             }
         }
     }
-}</code></pre></div></section></main></body></html>
+}
+</code></pre></div></section></main></body></html>

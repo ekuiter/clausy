@@ -156,30 +156,19 @@
 <a href="#156" id="156">156</a>
 <a href="#157" id="157">157</a>
 <a href="#158" id="158">158</a>
-<a href="#159" id="159">159</a>
-<a href="#160" id="160">160</a>
-<a href="#161" id="161">161</a>
-<a href="#162" id="162">162</a>
-<a href="#163" id="163">163</a>
-<a href="#164" id="164">164</a>
-<a href="#165" id="165">165</a>
-<a href="#166" id="166">166</a>
-<a href="#167" id="167">167</a>
-<a href="#168" id="168">168</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Clause representation of a feature-model formula.
 
-</span><span class="kw">use </span>std::{fmt, slice, collections::HashMap};
-
-<span class="kw">use crate</span>::{
-    core::{expr::{Expr::<span class="kw-2">*</span>, ExprId}, var::{Var, VarId}},
-    util::exec,
+</span><span class="kw">use super</span>::{
+    expr::{Expr::<span class="kw-2">*</span>, ExprId},
+    formula_ref::FormulaRef,
+    var::{Var, VarId},
 };
+<span class="kw">use </span><span class="kw">crate</span>::util::exec;
+<span class="kw">use </span>std::{collections::HashMap, fmt, slice};
 
-<span class="kw">use </span><span class="kw">super</span>::formula::FormulaContext;
-
-<span class="doccomment">/// A [Formula] in its clause representation.
+<span class="doccomment">/// A [super::formula::Formula] in its clause representation.
 ///
-/// That is, this data structure enforces a conjunctive normal form.
+/// That is, this data structure enforces conjunctive normal form.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Clauses {
     <span class="doccomment">/// The clauses of this clause representation.
     ///
@@ -191,27 +180,24 @@
     ///
     /// This list is indexed into by the absolute values stored in [Clauses::clauses].
     </span>vars: Vec&lt;Var&gt;,
-
-    var_remap: HashMap&lt;VarId, VarId&gt;,
 }
 
-<span class="doccomment">/// Algorithms for representing a [Formula] as [Clauses].
-</span><span class="kw">impl </span>Clauses {
+<span class="kw">impl </span>Clauses {
     <span class="doccomment">/// Returns the sub-expressions of a formula as clauses.
     ///
-    /// We require that the formula already is in conjunctive normal form (see [Arena::to_cnf_dist]).
-    </span><span class="kw">fn </span>clauses(formula: <span class="kw-2">&amp;</span>FormulaContext, var_remap: <span class="kw-2">&amp;</span>HashMap&lt;VarId, VarId&gt;) -&gt; Vec&lt;Vec&lt;VarId&gt;&gt; {
+    /// We require that the formula already is in conjunctive normal form (see [super::formula::Formula::to_cnf_dist]).
+    /// If there is no clause, the represented formula is a tautology.
+    /// If there is an empty clause, the represented formula is a contradiction.
+    </span><span class="kw">fn </span>clauses(formula_ref: <span class="kw-2">&amp;</span>FormulaRef, var_remap: <span class="kw-2">&amp;</span>HashMap&lt;VarId, VarId&gt;) -&gt; Vec&lt;Vec&lt;VarId&gt;&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>clauses = Vec::&lt;Vec&lt;VarId&gt;&gt;::new();
-
-        <span class="kw">let </span>add_literal = |id, clause: <span class="kw-2">&amp;mut </span>Vec&lt;VarId&gt;| <span class="kw">match </span>formula.arena.exprs[id] {
+        <span class="kw">let </span>add_literal = |id, clause: <span class="kw-2">&amp;mut </span>Vec&lt;VarId&gt;| <span class="kw">match </span>formula_ref.arena.exprs[id] {
             Var(var_id) =&gt; clause.push(var_remap[<span class="kw-2">&amp;</span>var_id]),
-            Not(child_id) =&gt; <span class="kw">match </span>formula.arena.exprs[child_id] {
+            Not(child_id) =&gt; <span class="kw">match </span>formula_ref.arena.exprs[child_id] {
                 Var(var_id) =&gt; clause.push(-var_remap[<span class="kw-2">&amp;</span>var_id]),
                 <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
             },
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
         };
-
         <span class="kw">let </span><span class="kw-2">mut </span>add_clause = |child_ids: <span class="kw-2">&amp;</span>[ExprId]| {
             <span class="kw">let </span><span class="kw-2">mut </span>clause = Vec::&lt;VarId&gt;::new();
             <span class="kw">for </span>child_id <span class="kw">in </span>child_ids {
@@ -219,13 +205,12 @@
             }
             clauses.push(clause);
         };
-
-        <span class="kw">match </span><span class="kw-2">&amp;</span>formula.arena.exprs[formula.formula.get_root_expr()] {
-            Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) =&gt; add_clause(slice::from_ref(<span class="kw-2">&amp;</span>formula.formula.get_root_expr())),
+        <span class="kw">match </span><span class="kw-2">&amp;</span>formula_ref.arena.exprs[formula_ref.formula.get_root_expr()] {
+            Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) =&gt; add_clause(slice::from_ref(<span class="kw-2">&amp;</span>formula_ref.formula.get_root_expr())),
             Or(child_ids) =&gt; add_clause(child_ids),
             And(child_ids) =&gt; {
                 <span class="kw">for </span>child_id <span class="kw">in </span>child_ids {
-                    <span class="kw">match </span><span class="kw-2">&amp;</span>formula.arena.exprs[<span class="kw-2">*</span>child_id] {
+                    <span class="kw">match </span><span class="kw-2">&amp;</span>formula_ref.arena.exprs[<span class="kw-2">*</span>child_id] {
                         Var(<span class="kw">_</span>) | Not(<span class="kw">_</span>) =&gt; add_clause(slice::from_ref(child_id)),
                         Or(child_ids) =&gt; add_clause(<span class="kw-2">&amp;</span>child_ids),
                         <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
@@ -233,18 +218,7 @@
                 }
             }
         }
-
         clauses
-    }
-
-    <span class="doccomment">/// Panics if this clause representation is invalid.
-    ///
-    /// A clause representation is valid if it has at least one variable.
-    /// If there is no clause, the represented formula is a tautology.
-    /// If there is an empty clause, the represented formula is a contradiction.
-    </span><span class="attr">#[cfg(debug_assertions)]
-    </span><span class="kw">pub fn </span>assert_valid(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="macro">debug_assert!</span>(<span class="self">self</span>.vars.len() &gt; <span class="number">0</span>);
     }
 
     <span class="doccomment">/// Returns a solution as a human-readable string.
@@ -291,24 +265,27 @@
 
     <span class="doccomment">/// Panics if this clause representation has a different model count than that of FeatureIDE.
     ///
-    /// Useful for checking the correctness of count-preserving algorithms (e.g., [Arena::to_cnf_tseitin]).
+    /// Useful for checking the correctness of count-preserving algorithms (e.g., [super::formula::Formula::to_cnf_tseitin]).
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_count(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str, extension: <span class="kw-2">&amp;</span>str) {
         <span class="macro">assert_eq!</span>(<span class="self">self</span>.count(), <span class="self">Self</span>::count_featureide(file, extension));
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; From&lt;FormulaContext&lt;<span class="lifetime">&#39;a</span>&gt;&gt; <span class="kw">for </span>Clauses {
-    <span class="kw">fn </span>from(formula: FormulaContext) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span><span class="kw-2">mut </span>vars = <span class="macro">vec!</span>[];
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; From&lt;FormulaRef&lt;<span class="lifetime">&#39;a</span>&gt;&gt; <span class="kw">for </span>Clauses {
+    <span class="kw">fn </span>from(formula_ref: FormulaRef) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span><span class="kw-2">mut </span>vars = <span class="macro">vec!</span>[Var::Aux(<span class="number">0</span>)];
         <span class="kw">let </span><span class="kw-2">mut </span>var_remap = HashMap::&lt;VarId, VarId&gt;::new();
-        formula.formula.vars(formula.arena).into_iter().for_each(|(var_id, var)| {
-            var_remap.insert(var_id, vars.len().try_into().unwrap());
-            vars.push(var.clone());
-        });
+        formula_ref
+            .formula
+            .sub_vars(formula_ref.arena)
+            .into_iter()
+            .for_each(|(var_id, var)| {
+                var_remap.insert(var_id, vars.len().try_into().unwrap());
+                vars.push(var.clone());
+            });
         <span class="self">Self </span>{
-            clauses: <span class="self">Self</span>::clauses(<span class="kw-2">&amp;</span>formula, <span class="kw-2">&amp;</span>var_remap),
+            clauses: <span class="self">Self</span>::clauses(<span class="kw-2">&amp;</span>formula_ref, <span class="kw-2">&amp;</span>var_remap),
             vars,
-            var_remap,
         }
     }
 }
@@ -316,18 +293,21 @@
 <span class="kw">impl </span>fmt::Display <span class="kw">for </span>Clauses {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
         <span class="kw">for </span>(i, var) <span class="kw">in </span><span class="self">self</span>.vars.iter().enumerate() {
+            <span class="kw">if </span>i == <span class="number">0 </span>{
+                <span class="kw">continue</span>;
+            }
             <span class="kw">if let </span>Var::Named(name) = var {
                 <span class="macro">debug_assert!</span>(!name.is_empty());
             }
-            <span class="macro">write!</span>(f, <span class="string">&quot;c {} {var}\n&quot;</span>, i + <span class="number">1</span>)<span class="question-mark">?</span>;
+            <span class="macro">write!</span>(f, <span class="string">&quot;c {} {var}\n&quot;</span>, i)<span class="question-mark">?</span>;
         }
-        <span class="macro">write!</span>(f, <span class="string">&quot;p cnf {} {}\n&quot;</span>, <span class="self">self</span>.vars.len(), <span class="self">self</span>.clauses.len())<span class="question-mark">?</span>;
+        <span class="macro">write!</span>(f, <span class="string">&quot;p cnf {} {}\n&quot;</span>, <span class="self">self</span>.vars.len() - <span class="number">1</span>, <span class="self">self</span>.clauses.len())<span class="question-mark">?</span>;
         <span class="kw">for </span>clause <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.clauses {
             <span class="kw">for </span>literal <span class="kw">in </span>clause {
                 <span class="kw">let </span>var: usize = literal.unsigned_abs().try_into().unwrap();
-                <span class="macro">debug_assert_ne!</span>(var + <span class="number">1</span>, <span class="number">0</span>);
+                <span class="macro">debug_assert_ne!</span>(var, <span class="number">0</span>);
                 <span class="macro">debug_assert!</span>(var &lt; <span class="self">self</span>.vars.len());
-                <span class="macro">write!</span>(f, <span class="string">&quot;{} &quot;</span>, literal + <span class="number">1</span>)<span class="question-mark">?</span>;
+                <span class="macro">write!</span>(f, <span class="string">&quot;{} &quot;</span>, literal)<span class="question-mark">?</span>;
             }
             <span class="macro">write!</span>(f, <span class="string">&quot;0\n&quot;</span>)<span class="question-mark">?</span>;
         }

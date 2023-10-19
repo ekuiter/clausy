@@ -12,15 +12,16 @@
 <a href="#12" id="12">12</a>
 <a href="#13" id="13">13</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! clausy transforms feature-model formulas into conjunctive normal form (CNF) for subsequent analysis.
-//! 
+//!
 //! * For information on installation and usage, visit [github.com/ekuiter/clausy](https://github.com/ekuiter/clausy/).
 //! * clausy should to be called from a binary crate via [shell::main], use in library crates is not intended.
-//! * As a starting point in this documentation, see [core::formula::Formula] for important algorithms.
+//! * As a starting point in this documentation, see [core::arena::Arena] and [core::formula::Formula] for important algorithms.
 
 </span><span class="attr">#![allow(rustdoc::private_intra_doc_links)]
 
-</span><span class="kw">pub mod </span>shell;
-<span class="kw">mod </span>core;
+</span><span class="kw">mod </span>core;
 <span class="kw">mod </span>parser;
+<span class="kw">pub mod </span>shell;
 <span class="kw">mod </span>tests;
-<span class="kw">mod </span>util;</code></pre></div></section></main></body></html>
+<span class="kw">mod </span>util;
+</code></pre></div></section></main></body></html>

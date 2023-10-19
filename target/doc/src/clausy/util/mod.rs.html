@@ -30,17 +30,17 @@
 
 </span><span class="kw">use </span>std::{fs, io::Read, path::Path};
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>exec;
+<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>exec;
 
 <span class="doccomment">/// Returns whether a file exists at a given path.
 ///
 /// Also allows the special value - for referring to standard input.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>file_exists(file_name: <span class="kw-2">&amp;</span>str) -&gt; bool {
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>file_exists(file_name: <span class="kw-2">&amp;</span>str) -&gt; bool {
     Path::new(file_name).exists() || file_name.starts_with(<span class="string">&quot;-&quot;</span>)
 }
 
 <span class="doccomment">/// Reads the contents and extension of a file.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>read_file(file_name: <span class="kw-2">&amp;</span>str) -&gt; (String, <span class="prelude-ty">Option</span>&lt;String&gt;) {
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>read_file(file_name: <span class="kw-2">&amp;</span>str) -&gt; (String, <span class="prelude-ty">Option</span>&lt;String&gt;) {
     <span class="kw">let </span><span class="kw-2">mut </span>file;
     <span class="kw">if </span>file_name.starts_with(<span class="string">&quot;-&quot;</span>) {
         file = String::new();

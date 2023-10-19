@@ -64,7 +64,6 @@
 <a href="#64" id="64">64</a>
 <a href="#65" id="65">65</a>
 <a href="#66" id="66">66</a>
-<a href="#67" id="67">67</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Defines expressions in an arena.
 
 </span><span class="kw">use </span><span class="kw">super</span>::var::VarId;
@@ -77,23 +76,23 @@
 
 <span class="doccomment">/// Identifier type for expressions.
 ///
-/// Serves as an index into [Arena::exprs].
+/// Serves as an index into [super::arena::Arena::exprs].
 /// A note on terminology:
-/// An expression can be any propositional term associated with an [Arena].
+/// An expression can be any propositional term associated with an [super::arena::Arena].
 /// However, it is not necessarily contained in the syntax tree of a formula.
-/// A sub-expression, on the other hand, is a propositional term associated with a [Formula] that actually appears in said formula&#39;s syntax tree.
+/// A sub-expression, on the other hand, is a propositional term associated with a [super::formula::Formula] that actually appears in said formula&#39;s syntax tree.
 /// Thus, all sub-expressions are expressions, but not vice versa.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>ExprId = usize;
 
 <span class="doccomment">/// An expression in an arena.
 ///
 /// Currently, we only allow propositional primitives.
-/// An expression is always implicitly tied to an [Arena], to which the expression&#39;s [ExprId]s or [VarId] refer.
+/// An expression is always implicitly tied to an [super::arena::Arena], to which the expression&#39;s [ExprId]s or [VarId] refer.
 /// We implement expressions as an enum to avoid additional heap allocations for [Var] and [Not].
 /// Note that we derive the default equality check and hashing algorithm here:
-/// This is sensible because any associated [Formula], if canonical, guarantees that each of its sub-expressions is assigned exactly one identifier.
-/// Thus, a shallow equality check or hash on expressions is equivalent to a deep one if they are sub-expressions of the same [Formula].
-/// While we derive [Clone], its use may violate structural sharing, which can be fixed with [Arena::canon_visitor] if needed.
+/// This is sensible because any containing [super::formula::Formula], if canonical, guarantees that each of its sub-expressions is assigned exactly one identifier.
+/// Thus, a shallow equality check or hash on expressions is equivalent to a deep one if they are sub-expressions of the same [super::formula::Formula].
+/// While we derive [Clone], its use may violate structural sharing, which can be fixed with [super::arena::Arena::canon_visitor] if needed.
 </span><span class="attr">#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>Expr {
     <span class="doccomment">/// A propositional variable.
@@ -109,11 +108,10 @@
     </span>Or(Vec&lt;ExprId&gt;),
 }
 
-<span class="doccomment">/// Operations on expressions that are independent of its containing formula.
-</span><span class="kw">impl </span>Expr {
+<span class="kw">impl </span>Expr {
     <span class="doccomment">/// Calculates the hash of this expression.
     ///
-    /// Used to look up an expression&#39;s identifier in [Arena::exprs_inv].
+    /// Used to look up an expression&#39;s identifier in [super::arena::Arena::exprs_inv].
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>calc_hash(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u64 {
         <span class="kw">let </span><span class="kw-2">mut </span>hasher = DefaultHasher::new();
         <span class="self">self</span>.hash(<span class="kw-2">&amp;mut </span>hasher);

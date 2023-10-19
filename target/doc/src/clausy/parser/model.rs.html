@@ -78,6 +78,10 @@
 <a href="#78" id="78">78</a>
 <a href="#79" id="79">79</a>
 <a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parser for KConfigReader .model files.
 
 </span><span class="kw">use </span>std::collections::HashSet;
@@ -99,7 +103,11 @@
 #[grammar = <span class="string">&quot;parser/model.pest&quot;</span>]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ModelFormulaParser;
 
-<span class="kw">fn </span>parse_children(pair: Pair&lt;Rule&gt;, arena: <span class="kw-2">&amp;mut </span>Arena, var_ids: <span class="kw-2">&amp;mut </span>HashSet&lt;VarId&gt;) -&gt; Vec&lt;ExprId&gt; {
+<span class="kw">fn </span>parse_children(
+    pair: Pair&lt;Rule&gt;,
+    arena: <span class="kw-2">&amp;mut </span>Arena,
+    var_ids: <span class="kw-2">&amp;mut </span>HashSet&lt;VarId&gt;,
+) -&gt; Vec&lt;ExprId&gt; {
     pair.into_inner()
         .map(|pair| parse_pair(pair, arena, var_ids))
         .collect()
@@ -137,7 +145,7 @@
 
 <span class="kw">fn </span>parse_into(file: <span class="kw-2">&amp;</span>str, arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; Formula {
     <span class="kw">let </span><span class="kw-2">mut </span>child_ids = Vec::&lt;ExprId&gt;::new();
-    <span class="kw">let </span><span class="kw-2">mut </span>var_ids = HashSet::&lt;VarId&gt;::new();
+    <span class="kw">let </span><span class="kw-2">mut </span>sub_var_ids = HashSet::&lt;VarId&gt;::new();
     <span class="kw">for </span>line <span class="kw">in </span>file.lines() {
         <span class="kw">let </span>pair = ModelFormulaParser::parse(Rule::line, line)
             .unwrap()
@@ -146,11 +154,11 @@
 
         <span class="kw">match </span>pair.as_rule() {
             Rule::EOI =&gt; (),
-            <span class="kw">_ </span>=&gt; child_ids.push(parse_pair(pair, arena, <span class="kw-2">&amp;mut </span>var_ids)),
+            <span class="kw">_ </span>=&gt; child_ids.push(parse_pair(pair, arena, <span class="kw-2">&amp;mut </span>sub_var_ids)),
         }
     }
     <span class="kw">let </span>root_id = arena.expr(And(child_ids));
-    Formula::new(root_id, var_ids)
+    Formula::new(sub_var_ids, root_id)
 }
 
 <span class="kw">impl </span>FormulaParser <span class="kw">for </span>ModelFormulaParser {

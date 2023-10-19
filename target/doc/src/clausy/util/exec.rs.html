@@ -133,6 +133,11 @@
 <a href="#133" id="133">133</a>
 <a href="#134" id="134">134</a>
 <a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Utilities for executing external programs.
 
 </span><span class="kw">use </span>std::{
@@ -250,7 +255,12 @@
 <span class="doccomment">/// Converts a given feature-model file from one format into another.
 ///
 /// Runs the tool FeatureIDE using the Java runtime environment.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>io(input: <span class="kw-2">&amp;</span>str, input_format: <span class="kw-2">&amp;</span>str, output_format: <span class="kw-2">&amp;</span>str, features: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) -&gt; String {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>io(
+    input: <span class="kw-2">&amp;</span>str,
+    input_format: <span class="kw-2">&amp;</span>str,
+    output_format: <span class="kw-2">&amp;</span>str,
+    features: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str],
+) -&gt; String {
     <span class="kw">let </span>process = Command::new(<span class="string">&quot;java&quot;</span>)
         .arg(<span class="string">&quot;-jar&quot;</span>)
         .arg(path(<span class="string">&quot;io.jar&quot;</span>))

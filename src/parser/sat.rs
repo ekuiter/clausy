@@ -1,6 +1,9 @@
 //! Parser for DIMACS .sat files.
 
-use std::{collections::{HashMap, HashSet}, vec};
+use std::{
+    collections::{HashMap, HashSet},
+    vec,
+};
 
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
