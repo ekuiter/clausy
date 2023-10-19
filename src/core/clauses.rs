@@ -1,17 +1,16 @@
 //! Clause representation of a feature-model formula.
 
-use std::{fmt, slice, collections::HashMap};
-
-use crate::{
-    core::{expr::{Expr::*, ExprId}, var::{Var, VarId}},
-    util::exec,
+use super::{
+    expr::{Expr::*, ExprId},
+    formula_ref::FormulaRef,
+    var::{Var, VarId},
 };
-
-use super::formula::FormulaContext;
+use crate::util::exec;
+use std::{collections::HashMap, fmt, slice};
 
 /// A [Formula] in its clause representation.
 ///
-/// That is, this data structure enforces a conjunctive normal form.
+/// That is, this data structure enforces conjunctive normal form.
 pub(crate) struct Clauses {
     /// The clauses of this clause representation.
     ///
@@ -23,27 +22,24 @@ pub(crate) struct Clauses {
     ///
     /// This list is indexed into by the absolute values stored in [Clauses::clauses].
     vars: Vec<Var>,
-
-    var_remap: HashMap<VarId, VarId>,
 }
 
-/// Algorithms for representing a [Formula] as [Clauses].
 impl Clauses {
     /// Returns the sub-expressions of a formula as clauses.
     ///
     /// We require that the formula already is in conjunctive normal form (see [Formula::to_cnf_dist]).
-    fn clauses(formula: &FormulaContext, var_remap: &HashMap<VarId, VarId>) -> Vec<Vec<VarId>> {
+    /// If there is no clause, the represented formula is a tautology.
+    /// If there is an empty clause, the represented formula is a contradiction.
+    fn clauses(formula_ref: &FormulaRef, var_remap: &HashMap<VarId, VarId>) -> Vec<Vec<VarId>> {
         let mut clauses = Vec::<Vec<VarId>>::new();
-
-        let add_literal = |id, clause: &mut Vec<VarId>| match formula.arena.exprs[id] {
+        let add_literal = |id, clause: &mut Vec<VarId>| match formula_ref.arena.exprs[id] {
             Var(var_id) => clause.push(var_remap[&var_id]),
-            Not(child_id) => match formula.arena.exprs[child_id] {
+            Not(child_id) => match formula_ref.arena.exprs[child_id] {
                 Var(var_id) => clause.push(-var_remap[&var_id]),
                 _ => unreachable!(),
             },
             _ => unreachable!(),
         };
-
         let mut add_clause = |child_ids: &[ExprId]| {
             let mut clause = Vec::<VarId>::new();
             for child_id in child_ids {
@@ -51,13 +47,12 @@ impl Clauses {
             }
             clauses.push(clause);
         };
-
-        match &formula.arena.exprs[formula.formula.get_root_expr()] {
-            Var(_) | Not(_) => add_clause(slice::from_ref(&formula.formula.get_root_expr())),
+        match &formula_ref.arena.exprs[formula_ref.formula.get_root_expr()] {
+            Var(_) | Not(_) => add_clause(slice::from_ref(&formula_ref.formula.get_root_expr())),
             Or(child_ids) => add_clause(child_ids),
             And(child_ids) => {
                 for child_id in child_ids {
-                    match &formula.arena.exprs[*child_id] {
+                    match &formula_ref.arena.exprs[*child_id] {
                         Var(_) | Not(_) => add_clause(slice::from_ref(child_id)),
                         Or(child_ids) => add_clause(&child_ids),
                         _ => unreachable!(),
@@ -65,18 +60,7 @@ impl Clauses {
                 }
             }
         }
-
         clauses
-    }
-
-    /// Panics if this clause representation is invalid.
-    ///
-    /// A clause representation is valid if it has at least one variable.
-    /// If there is no clause, the represented formula is a tautology.
-    /// If there is an empty clause, the represented formula is a contradiction.
-    #[cfg(debug_assertions)]
-    pub fn assert_valid(&self) {
-        debug_assert!(self.vars.len() > 0);
     }
 
     /// Returns a solution as a human-readable string.
@@ -123,24 +107,27 @@ impl Clauses {
 
     /// Panics if this clause representation has a different model count than that of FeatureIDE.
     ///
-    /// Useful for checking the correctness of count-preserving algorithms (e.g., [Formula::to_cnf_tseitin]).
+    /// Useful for checking the correctness of count-preserving algorithms (e.g., [Arena::to_cnf_tseitin]).
     pub(crate) fn assert_count(&self, file: &str, extension: &str) {
         assert_eq!(self.count(), Self::count_featureide(file, extension));
     }
 }
 
-impl<'a> From<FormulaContext<'a>> for Clauses {
-    fn from(formula: FormulaContext) -> Self {
+impl<'a> From<FormulaRef<'a>> for Clauses {
+    fn from(formula_ref: FormulaRef) -> Self {
         let mut vars = vec![];
         let mut var_remap = HashMap::<VarId, VarId>::new();
-        formula.formula.vars(formula.arena).into_iter().for_each(|(var_id, var)| {
-            var_remap.insert(var_id, vars.len().try_into().unwrap());
-            vars.push(var.clone());
-        });
+        formula_ref
+            .formula
+            .sub_vars(formula_ref.arena)
+            .into_iter()
+            .for_each(|(var_id, var)| {
+                var_remap.insert(var_id, vars.len().try_into().unwrap());
+                vars.push(var.clone());
+            });
         Self {
-            clauses: Self::clauses(&formula, &var_remap),
+            clauses: Self::clauses(&formula_ref, &var_remap),
             vars,
-            var_remap,
         }
     }
 }

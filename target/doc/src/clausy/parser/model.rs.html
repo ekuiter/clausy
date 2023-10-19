@@ -78,7 +78,6 @@
 <a href="#78" id="78">78</a>
 <a href="#79" id="79">79</a>
 <a href="#80" id="80">80</a>
-<a href="#81" id="81">81</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parser for KConfigReader .model files.
 
 </span><span class="kw">use </span>std::collections::HashSet;
@@ -86,7 +85,12 @@
 <span class="kw">use </span>pest::{iterators::Pair, Parser};
 <span class="kw">use </span>pest_derive::Parser;
 
-<span class="kw">use </span><span class="kw">crate</span>::core::formula::{Expr::<span class="kw-2">*</span>, Formula, Id, VarId};
+<span class="kw">use </span><span class="kw">crate</span>::core::{
+    arena::Arena,
+    expr::{Expr::<span class="kw-2">*</span>, ExprId},
+    formula::Formula,
+    var::VarId,
+};
 
 <span class="kw">use </span><span class="kw">super</span>::FormulaParser;
 
@@ -95,42 +99,44 @@
 #[grammar = <span class="string">&quot;parser/model.pest&quot;</span>]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ModelFormulaParser;
 
-<span class="kw">fn </span>parse_children&lt;<span class="lifetime">&#39;a</span>&gt;(
-    pair: Pair&lt;<span class="lifetime">&#39;a</span>, Rule&gt;,
-    formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;,
-    var_ids: <span class="kw-2">&amp;mut </span>HashSet&lt;VarId&gt;,
-) -&gt; Vec&lt;Id&gt; {
+<span class="kw">fn </span>parse_children(pair: Pair&lt;Rule&gt;, arena: <span class="kw-2">&amp;mut </span>Arena, var_ids: <span class="kw-2">&amp;mut </span>HashSet&lt;VarId&gt;) -&gt; Vec&lt;ExprId&gt; {
     pair.into_inner()
-        .map(|pair| parse_pair(pair, formula, var_ids))
+        .map(|pair| parse_pair(pair, arena, var_ids))
         .collect()
 }
 
-<span class="kw">fn </span>parse_pair&lt;<span class="lifetime">&#39;a</span>&gt;(pair: Pair&lt;<span class="lifetime">&#39;a</span>, Rule&gt;, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;, var_ids: <span class="kw-2">&amp;mut </span>HashSet&lt;VarId&gt;) -&gt; Id {
+<span class="kw">fn </span>parse_pair(pair: Pair&lt;Rule&gt;, arena: <span class="kw-2">&amp;mut </span>Arena, var_ids: <span class="kw-2">&amp;mut </span>HashSet&lt;VarId&gt;) -&gt; ExprId {
     <span class="kw">match </span>pair.as_rule() {
         Rule::var =&gt; {
-            <span class="kw">let </span>(expr_id, var_id) =
-                formula.var_expr_with_id(pair.into_inner().next().unwrap().as_str().trim());
+            <span class="kw">let </span>(expr_id, var_id) = arena.var_expr_with_id(
+                pair.into_inner()
+                    .next()
+                    .unwrap()
+                    .as_str()
+                    .trim()
+                    .to_string(),
+            );
             var_ids.insert(var_id);
             expr_id
         }
         Rule::not =&gt; {
-            <span class="kw">let </span>child_id = parse_pair(pair.into_inner().next().unwrap(), formula, var_ids);
-            formula.expr(Not(child_id))
+            <span class="kw">let </span>child_id = parse_pair(pair.into_inner().next().unwrap(), arena, var_ids);
+            arena.expr(Not(child_id))
         }
         Rule::and =&gt; {
-            <span class="kw">let </span>child_ids = parse_children(pair, formula, var_ids);
-            formula.expr(And(child_ids))
+            <span class="kw">let </span>child_ids = parse_children(pair, arena, var_ids);
+            arena.expr(And(child_ids))
         }
         Rule::or =&gt; {
-            <span class="kw">let </span>child_ids = parse_children(pair, formula, var_ids);
-            formula.expr(Or(child_ids))
+            <span class="kw">let </span>child_ids = parse_children(pair, arena, var_ids);
+            arena.expr(Or(child_ids))
         }
         <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
     }
 }
 
-<span class="kw">fn </span>parse_into&lt;<span class="lifetime">&#39;a</span>&gt;(file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; (Id, HashSet&lt;VarId&gt;) {
-    <span class="kw">let </span><span class="kw-2">mut </span>child_ids = Vec::&lt;Id&gt;::new();
+<span class="kw">fn </span>parse_into(file: <span class="kw-2">&amp;</span>str, arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; Formula {
+    <span class="kw">let </span><span class="kw-2">mut </span>child_ids = Vec::&lt;ExprId&gt;::new();
     <span class="kw">let </span><span class="kw-2">mut </span>var_ids = HashSet::&lt;VarId&gt;::new();
     <span class="kw">for </span>line <span class="kw">in </span>file.lines() {
         <span class="kw">let </span>pair = ModelFormulaParser::parse(Rule::line, line)
@@ -140,24 +146,16 @@
 
         <span class="kw">match </span>pair.as_rule() {
             Rule::EOI =&gt; (),
-            <span class="kw">_ </span>=&gt; child_ids.push(parse_pair(pair, formula, <span class="kw-2">&amp;mut </span>var_ids)),
+            <span class="kw">_ </span>=&gt; child_ids.push(parse_pair(pair, arena, <span class="kw-2">&amp;mut </span>var_ids)),
         }
     }
-    (formula.expr(And(child_ids)), var_ids)
+    <span class="kw">let </span>root_id = arena.expr(And(child_ids));
+    Formula::new(root_id, var_ids)
 }
 
 <span class="kw">impl </span>FormulaParser <span class="kw">for </span>ModelFormulaParser {
-    <span class="kw">fn </span>parse_into&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>String, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; (Id, HashSet&lt;VarId&gt;) {
-        parse_into(file, formula)
-    }
-}
-
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str&gt; <span class="kw">for </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt; {
-    <span class="kw">fn </span>from(file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span><span class="kw-2">mut </span>formula = Formula::new();
-        <span class="kw">let </span>(root_id, <span class="kw">_</span>) = parse_into(file, <span class="kw-2">&amp;mut </span>formula);
-        formula.set_root_expr(root_id);
-        formula
+    <span class="kw">fn </span>parse_into(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str, arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; Formula {
+        parse_into(file, arena)
     }
 }
 </code></pre></div></section></main></body></html>

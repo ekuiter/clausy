@@ -1,47 +1,49 @@
-//! Data structures and algorithms for feature-model formulas.
+//! Defines a feature-model formula.
 
-#![allow(unused_imports, rustdoc::private_intra_doc_links)]
-
-use std::{
-    collections::{hash_map::DefaultHasher, HashMap, HashSet},
-    fmt,
-    hash::{Hash, Hasher},
-    slice,
+use super::{
+    arena::Arena,
+    expr::{Expr::*, ExprId},
+    formula_ref::FormulaRef,
+    var::{Var, VarId},
 };
-use Expr::*;
+use std::collections::HashSet;
 
-use crate::shell::{PRINT_ID, VAR_AUX_PREFIX};
-
-use super::{arena::Arena, expr::{Expr, ExprId}, var::{Var, VarId}};
-
-/// An expression that is explicitly paired with the formula it is tied to.
+/// A feature-model formula.
 ///
-/// This struct is useful whenever we need to pass an expression around, but the containing formula is not available.
-/// Using this might be necessary when there is no `self` of type [Formula], for example whenever we want to [fmt::Display] an expression.
+/// A [Formula] is a view onto part of an [Arena], which contains the actual implementation of most algorithms on formulas.
+/// As such, a formula is given by the set of variables (defining its universe of solutions) as well as
+/// the root expression of its syntax tree (constraining said variables).
+/// We must store the variables to ensure correct results for certain feature-model analyses (e.g., model counting and slicing).
+/// A formula is only a view and always implicitly tied to an [Arena].
 pub(crate) struct Formula {
+    /// Specifies the sub-variables of this formula.
+    ///
+    /// Each identifiers serves as an index into [Arena::vars].
+    /// All variables in the syntax tree of this formula must occur in this set, but it may contain more (unconstrained) variables.
+    sub_var_ids: HashSet<VarId>,
+
     /// Specifies the root expression of this formula.
     ///
-    /// Serves as an index into [Formula::exprs].
+    /// Serves as an index into [Arena::exprs].
     /// The corresponding expression is the root of this formula's syntax tree and thus the starting point for most algorithms.
     /// We consider all expressions below this expression (including itself) to be sub-expressions.
     /// There might be other (non-sub-)expressions that are currently not relevant to this formula.
     root_id: ExprId,
-
-    own_vars: HashSet<VarId>,
 }
 
 impl Formula {
-    pub(crate) fn new(root_id: ExprId, own_vars: HashSet<VarId>) -> Self {
-        Self { root_id, own_vars }
+    /// Creates a new formula.
+    ///
+    /// The sub-variable and root expression identifiers must be valid in the context of some given [Arena].
+    pub(crate) fn new(sub_var_ids: HashSet<VarId>, root_id: ExprId) -> Self {
+        Self {
+            sub_var_ids,
+            root_id,
+        }
     }
 
-    #[cfg(debug_assertions)]
-    pub(crate) fn assert_valid(&mut self) {
-        debug_assert!(self.root_id > 0 && !self.own_vars.is_empty());
-    }
-
-    pub(crate) fn in_arena<'a>(&'a self, arena: &'a Arena) -> FormulaContext {
-        FormulaContext {
+    pub(crate) fn as_ref<'a>(&'a self, arena: &'a Arena) -> FormulaRef {
+        FormulaRef {
             formula: self,
             arena,
         }
@@ -52,22 +54,25 @@ impl Formula {
         self.root_id
     }
 
-    // todo: make this struct immutable (drop a formula to create a new one)
     /// Sets the root expression of this formula.
     ///
-    /// For a formula to be valid, the root expression has to be set at least once.
-    /// It may also be updated subsequently to focus on other expressions of the formula or build more complex expressions.
+    /// The root expression may be updated to focus on other expressions of the referenced [Arena] or to build more complex expressions.
     fn set_root_expr(&mut self, root_id: ExprId) {
         self.root_id = root_id;
     }
 
-    /// Resets the root expression, if necessary.
+    /// Resets the root expression of this formula, if necessary.
     ///
-    /// If the root expression is mutated with [Formula::set_expr], structural sharing might be violated.
-    /// Because [Formula::set_expr] can only address this issue for children,
-    /// we need not explicitly address the only expression that is not a child itself - the root expression.
+    /// If the root expression is mutated with [Arena::set_expr], structural sharing might be violated.
+    /// Because [Arena::set_expr] can only address this issue for children,
+    /// we need to explicitly address the only expression that is not a child itself - the root expression.
     pub(super) fn reset_root_expr(arena: &Arena, root_id: &mut ExprId) {
         *root_id = arena.get_expr(&arena.exprs[*root_id]).unwrap();
+    }
+
+    /// Returns all sub-variables of this formula and their identifiers.
+    pub(crate) fn sub_vars(&self, arena: &Arena) -> Vec<(VarId, Var)> {
+        arena.vars(|var_id, _| self.sub_var_ids.contains(&var_id))
     }
 
     /// Returns the identifiers of all sub-expressions of this formula.
@@ -79,28 +84,24 @@ impl Formula {
         sub_exprs
     }
 
-    pub(crate) fn vars(&self, arena: &Arena) -> Vec<(VarId, Var)> {
-        arena.filter_vars(|var_id, _| self.own_vars.contains(&var_id))
-    }
-
     /// Panics if structural sharing is violated in this formula.
     ///
-    /// That is, we assert that every sub-expr0ession's identifier is indeed the canonical one.
-    /// Does not currently check for commutativity, idempotency, or unary expressions.
+    /// That is, we assert that every sub-expression's identifier is indeed the canonical one.
+    /// Does not currently check for other properties of canonicity (see [Formula::to_canon]).
     #[cfg(debug_assertions)]
-    fn assert_canon(&mut self, arena: &mut Arena) {
+    pub(crate) fn assert_canon(&mut self, arena: &mut Arena) {
         arena.preorder_rev(&mut self.root_id, |arena, id| {
             debug_assert_eq!(arena.get_expr(&arena.exprs[id]).unwrap(), id)
         });
     }
 
-    /// Transforms this formula into canonical form (see [Formula::canon_visitor]).
+    /// Transforms this formula into canonical form (see [Arena::canon_visitor]).
     ///
     /// The resulting formula is logically equivalent to the original formula.
     /// This function is useful when an algorithm assumes or profits from canonical form, or for simplifying a formula after parsing.
     /// In canonical form, several useful guarantees hold:
     /// First, no sub-expression occurs twice in the syntax tree with different identifiers (structural sharing).
-    /// Second, equality of sub-expressions is up to commutativity, idempotency, and unary expressions.
+    /// Second, equality of sub-expressions is up to commutativity, idempotency, and unary expressions, and those expressions are simplified.
     /// Third, no `And` expression is below an `And` expression (and analogously for `Or`).
     /// Fourth, no `Not` expression is below a `Not` expression.
     /// To ensure these guarantees, this visitor must be called in a postorder traversal, preorder does not work.
@@ -108,16 +109,16 @@ impl Formula {
         arena.postorder_rev(&mut self.root_id, Arena::canon_visitor);
     }
 
-    /// Transforms this formula into canonical negation normal form by applying De Morgan's laws (see [Formula::nnf_visitor]).
+    /// Transforms this formula into canonical negation normal form by applying De Morgan's laws (see [Arena::nnf_visitor]).
     ///
     /// The resulting formula is logically equivalent to the original formula.
     /// We do this by traversing the formula top-down, meanwhile, we push negations towards the leaves (i.e., [Var] expressions).
-    /// Double negations cannot be encountered, as they have already been removed by [Formula::simp_expr].
+    /// Double negations cannot be encountered, as they have already been removed by [Arena::simp_expr].
     pub(crate) fn to_nnf(&mut self, arena: &mut Arena) {
         arena.prepostorder_rev(&mut self.root_id, Arena::nnf_visitor, Arena::canon_visitor);
     }
 
-    /// Transforms this formula into canonical conjunctive normal form by applying distributivity laws (see [Formula::cnf_dist_visitor]).
+    /// Transforms this formula into canonical conjunctive normal form by applying distributivity laws (see [Arena::cnf_dist_visitor]).
     ///
     /// The resulting formula is logically equivalent to the original formula.
     /// We do this by traversing the formula bottom-up and pushing [Or] expressions below [And] expressions via multiplication.
@@ -130,35 +131,23 @@ impl Formula {
         );
     }
 
-    /// Transforms this formula into canonical conjunctive normal form by introducing auxiliary variables (see [Formula::cnf_tseitin_visitor]).
+    /// Transforms this formula into canonical conjunctive normal form by introducing auxiliary variables (see [Arena::cnf_tseitin_visitor]).
     ///
-    /// The resulting formula is equivalent to the original formula in terms of its named variables (i.e., satisfiability and model count are preserved).
+    /// The resulting formula is equivalent to the original formula projected onto its named variables (i.e., satisfiability and model count are preserved).
     /// If this formula is in canonical form (see [Formula::to_canon]), we introduce exactly one auxiliary variable per (complex) sub-expression.
-    /// Thus, every sub-expression will be "abbreviated" with an auxiliary variable, including the root expression, which facilitates negation.
+    /// Thus, every sub-expression will be "abbreviated" with an auxiliary variable, including the root expression, which facilitates algebraic operations.
     /// Also, no sub-expression will be abbreviated twice, so the number of auxiliary variables is equal to the number of sub-expressions.
     /// If this formula is not in canonical form, more auxiliary variables might be introduced.
-    /// Note that we only abbreviate complex sub-expressions (i.e., [And] and [Or] expressions).
+    /// Note that we only abbreviate complex sub-expressions (i.e., [And] and [Or] expressions), as [Var] and [Not] expressions do not profit from abbrevation.
     pub(crate) fn to_cnf_tseitin(&mut self, arena: &mut Arena) {
         arena.new_vars = Some(vec![]);
         arena.new_exprs = Some(vec![]);
         arena.postorder_rev(&mut self.root_id, Arena::cnf_tseitin_visitor);
-        self.own_vars.extend(arena.new_vars.take().unwrap());
+        self.sub_var_ids.extend(arena.new_vars.take().unwrap());
         let root_id = self.get_root_expr();
         arena.new_exprs.as_mut().unwrap().push(root_id);
         let new_expr = And(arena.new_exprs.take().unwrap());
         let root_id = arena.expr(new_expr);
         self.set_root_expr(root_id);
-    }
-}
-
-pub(crate) struct FormulaContext<'a> {
-    pub(crate) formula: &'a Formula,
-    pub(crate) arena: &'a Arena,
-}
-
-/// Displays an expression in a formula.
-impl<'a> fmt::Display for FormulaContext<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.arena.format_expr(self.formula.root_id, f)
     }
 }

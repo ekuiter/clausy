@@ -63,7 +63,7 @@ impl FormulaParser for SatFormulaParser {
     fn parse_into(&self, file: &str, arena: &mut Arena) -> Formula {
         let mut pairs = SatFormulaParser::parse(Rule::file, file).unwrap();
 
-        let mut var_ids = HashSet::<VarId>::new();
+        let mut sub_var_ids = HashSet::<VarId>::new();
         let mut variable_names = HashMap::<VarId, &str>::new();
         while let Rule::comment = pairs.peek().unwrap().as_rule() {
             let pair = pairs.next().unwrap().into_inner().next().unwrap();
@@ -89,18 +89,18 @@ impl FormulaParser for SatFormulaParser {
         for i in 1..=n {
             if variable_names.contains_key(&i) {
                 let (expr_id, var_id) = arena.var_expr_with_id(variable_names[&i].to_string());
-                var_ids.insert(var_id);
+                sub_var_ids.insert(var_id);
                 vars.push(expr_id);
                 variable_names.remove(&i);
             } else {
                 let (var_id, expr_id) = arena.add_var_aux_expr();
-                var_ids.insert(var_id);
+                sub_var_ids.insert(var_id);
                 vars.push(expr_id);
             }
         }
         debug_assert!(variable_names.is_empty());
 
         let root_id = parse_pair(pairs.next().unwrap(), &vars, arena);
-        Formula::new(root_id, var_ids)
+        Formula::new(sub_var_ids, root_id)
     }
 }

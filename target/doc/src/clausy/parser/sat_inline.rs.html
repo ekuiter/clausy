@@ -84,6 +84,25 @@
 <a href="#84" id="84">84</a>
 <a href="#85" id="85">85</a>
 <a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parser for inline input in a .sat-like format.
 
 </span><span class="kw">use </span>std::collections::HashSet;
@@ -91,83 +110,102 @@
 <span class="kw">use </span>pest::{iterators::Pair, Parser};
 <span class="kw">use </span>pest_derive::Parser;
 
-<span class="kw">use </span><span class="kw">crate</span>::core::formula::{Expr::<span class="kw-2">*</span>, Formula, Id, VarId};
-
+<span class="kw">use </span><span class="kw">crate</span>::core::{
+    arena::Arena,
+    expr::{Expr::<span class="kw-2">*</span>, ExprId},
+    formula::Formula,
+    var::VarId,
+};
 <span class="doccomment">/// Parses inline input in a .sat-like format.
+///
+/// In this format, identifiers refer to previously parsed inputs.
+/// Optionally, the parsed formula can add negative backbone variables to align differing sets of variables.
 </span><span class="attr">#[derive(Parser)]
 #[grammar = <span class="string">&quot;parser/sat_inline.pest&quot;</span>]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>SatInlineFormulaParser {
-    parsed_results: Vec&lt;(Id, HashSet&lt;VarId&gt;)&gt;,
+    formulas: Vec&lt;Formula&gt;,
+    add_backbone_vars: bool,
 }
 
 <span class="kw">impl </span>SatInlineFormulaParser {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(parsed_results: Vec&lt;(Id, HashSet&lt;VarId&gt;)&gt;) -&gt; <span class="self">Self </span>{
-        SatInlineFormulaParser { parsed_results }
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(formulas: Vec&lt;Formula&gt;, add_backbone_vars: bool) -&gt; <span class="self">Self </span>{
+        SatInlineFormulaParser {
+            formulas,
+            add_backbone_vars,
+        }
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>can_parse(file: <span class="kw-2">&amp;</span>String) -&gt; bool {
         SatInlineFormulaParser::parse(Rule::file, file).is_ok()
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_into(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>String, formula: <span class="kw-2">&amp;mut </span>Formula) -&gt; Id {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_into(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>String, arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; Formula {
         <span class="kw">let </span><span class="kw-2">mut </span>pairs = SatInlineFormulaParser::parse(Rule::file, file).unwrap();
+        <span class="kw">let </span>root_id = <span class="self">self</span>.parse_pair(pairs.next().unwrap(), arena);
+        Formula::new(root_id, HashSet::new()) <span class="comment">// todo: merge variables of used formulas
+    </span>}
 
-        parse_pair(pairs.next().unwrap(), <span class="kw-2">&amp;</span><span class="self">self</span>.parsed_results, formula)
+    <span class="kw">fn </span>parse_children(<span class="kw-2">&amp;</span><span class="self">self</span>, pair: Pair&lt;Rule&gt;, arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; Vec&lt;ExprId&gt; {
+        pair.into_inner()
+            .map(|pair| <span class="self">self</span>.parse_pair(pair, arena))
+            .collect()
     }
-}
 
-<span class="kw">fn </span>parse_children(
-    pair: Pair&lt;Rule&gt;,
-    parsed_results: <span class="kw-2">&amp;</span>Vec&lt;(Id, HashSet&lt;VarId&gt;)&gt;,
-    formula: <span class="kw-2">&amp;mut </span>Formula,
-) -&gt; Vec&lt;Id&gt; {
-    pair.into_inner()
-        .map(|pair| parse_pair(pair, parsed_results, formula))
-        .collect()
-}
-
-<span class="kw">fn </span>parse_pair(
-    pair: Pair&lt;Rule&gt;,
-    parsed_results: <span class="kw-2">&amp;</span>Vec&lt;(Id, HashSet&lt;VarId&gt;)&gt;,
-    formula: <span class="kw-2">&amp;mut </span>Formula,
-) -&gt; Id {
-    <span class="kw">match </span>pair.as_rule() {
-        Rule::var =&gt; {
-            <span class="kw">let </span>arg: i32 = pair
-                .clone()
-                .into_inner()
-                .peek()
-                .unwrap()
-                .as_str()
-                .parse()
-                .unwrap();
-            <span class="kw">let </span>idx: usize = arg.try_into().unwrap();
-            <span class="kw">let </span>(root_id, <span class="kw-2">ref </span>var_ids) = parsed_results[idx - <span class="number">1</span>];
-            <span class="kw">let </span><span class="kw-2">mut </span>ids = <span class="macro">vec!</span>[root_id];
-            ids.extend(formula.named_vars_except(var_ids).iter().map(|var_id| {
-                <span class="kw">let </span>expr = formula.expr(Var(<span class="kw-2">*</span>var_id));
-                formula.expr(Not(expr))
-            }));
-            <span class="kw">let </span>root_id = formula.expr(And(ids));
-            <span class="kw">if </span>pair.as_str().starts_with(<span class="string">&quot;-&quot;</span>) {
-                formula.expr(Not(root_id))
-            } <span class="kw">else </span>{
-                root_id
+    <span class="kw">fn </span>parse_pair(<span class="kw-2">&amp;</span><span class="self">self</span>, pair: Pair&lt;Rule&gt;, arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; ExprId {
+        <span class="kw">match </span>pair.as_rule() {
+            Rule::var =&gt; {
+                <span class="kw">let </span>arg: i32 = pair
+                    .clone()
+                    .into_inner()
+                    .peek()
+                    .unwrap()
+                    .as_str()
+                    .parse()
+                    .unwrap();
+                <span class="kw">let </span>idx: usize = arg.try_into().unwrap();
+                <span class="kw">let </span>formula = <span class="kw-2">&amp;</span><span class="self">self</span>.formulas[idx - <span class="number">1</span>];
+                <span class="kw">let </span><span class="kw-2">mut </span>root_id = formula.get_root_expr();
+                <span class="kw">if </span><span class="self">self</span>.add_backbone_vars {
+                    <span class="kw">let </span><span class="kw-2">mut </span>ids = <span class="macro">vec!</span>[root_id];
+                    <span class="kw">let </span>var_ids = formula
+                        .vars(arena)
+                        .iter()
+                        .map(|(var_id, <span class="kw">_</span>)| <span class="kw-2">*</span>var_id)
+                        .collect::&lt;HashSet&lt;VarId&gt;&gt;();
+                    ids.extend(
+                        arena
+                            .filter_vars(|var_id, <span class="kw">_</span>| !var_ids.contains(<span class="kw-2">&amp;</span>var_id))
+                            .into_iter()
+                            .map(|(var_id, <span class="kw">_</span>)| var_id)
+                            .collect::&lt;Vec&lt;VarId&gt;&gt;() <span class="comment">// todo: either do not return &amp; in filter or collect here
+                            </span>.into_iter()
+                            .map(|var_id| {
+                                <span class="kw">let </span>expr = arena.expr(Var(var_id));
+                                arena.expr(Not(expr))
+                            }),
+                    );
+                    root_id = arena.expr(And(ids));
+                }
+                <span class="kw">if </span>pair.as_str().starts_with(<span class="string">&quot;-&quot;</span>) {
+                    arena.expr(Not(root_id))
+                } <span class="kw">else </span>{
+                    root_id
+                }
             }
+            Rule::not =&gt; {
+                <span class="kw">let </span>child_id = <span class="self">self</span>.parse_pair(pair.into_inner().next().unwrap(), arena);
+                arena.expr(Not(child_id))
+            }
+            Rule::and =&gt; {
+                <span class="kw">let </span>child_ids = <span class="self">self</span>.parse_children(pair, arena);
+                arena.expr(And(child_ids))
+            }
+            Rule::or =&gt; {
+                <span class="kw">let </span>child_ids = <span class="self">self</span>.parse_children(pair, arena);
+                arena.expr(Or(child_ids))
+            }
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
         }
-        Rule::not =&gt; {
-            <span class="kw">let </span>child_id = parse_pair(pair.into_inner().next().unwrap(), parsed_results, formula);
-            formula.expr(Not(child_id))
-        }
-        Rule::and =&gt; {
-            <span class="kw">let </span>child_ids = parse_children(pair, parsed_results, formula);
-            formula.expr(And(child_ids))
-        }
-        Rule::or =&gt; {
-            <span class="kw">let </span>child_ids = parse_children(pair, parsed_results, formula);
-            formula.expr(Or(child_ids))
-        }
-        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
     }
 }
 </code></pre></div></section></main></body></html>

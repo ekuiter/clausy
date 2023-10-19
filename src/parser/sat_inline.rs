@@ -37,7 +37,7 @@ impl SatInlineFormulaParser {
     pub(crate) fn parse_into(&self, file: &String, arena: &mut Arena) -> Formula {
         let mut pairs = SatInlineFormulaParser::parse(Rule::file, file).unwrap();
         let root_id = self.parse_pair(pairs.next().unwrap(), arena);
-        Formula::new(root_id, HashSet::new()) // todo: merge variables of used formulas
+        Formula::new(HashSet::new(), root_id) // todo: merge variables of used formulas
     }
 
     fn parse_children(&self, pair: Pair<Rule>, arena: &mut Arena) -> Vec<ExprId> {
@@ -63,18 +63,15 @@ impl SatInlineFormulaParser {
                 if self.add_backbone_vars {
                     let mut ids = vec![root_id];
                     let var_ids = formula
-                        .vars(arena)
+                        .sub_vars(arena)
                         .iter()
                         .map(|(var_id, _)| *var_id)
                         .collect::<HashSet<VarId>>();
                     ids.extend(
                         arena
-                            .filter_vars(|var_id, _| !var_ids.contains(&var_id))
+                            .vars(|var_id, _| !var_ids.contains(&var_id))
                             .into_iter()
-                            .map(|(var_id, _)| var_id)
-                            .collect::<Vec<VarId>>() // todo: either do not return & in filter or collect here
-                            .into_iter()
-                            .map(|var_id| {
+                            .map(|(var_id, _)| {
                                 let expr = arena.expr(Var(var_id));
                                 arena.expr(Not(expr))
                             }),

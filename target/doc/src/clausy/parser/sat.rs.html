@@ -96,6 +96,14 @@
 <a href="#96" id="96">96</a>
 <a href="#97" id="97">97</a>
 <a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parser for DIMACS .sat files.
 
 </span><span class="kw">use </span>std::{collections::{HashMap, HashSet}, vec};
@@ -103,7 +111,12 @@
 <span class="kw">use </span>pest::{iterators::Pair, Parser};
 <span class="kw">use </span>pest_derive::Parser;
 
-<span class="kw">use </span><span class="kw">crate</span>::core::formula::{Expr::<span class="kw-2">*</span>, Formula, Id, VarId};
+<span class="kw">use </span><span class="kw">crate</span>::core::{
+    arena::Arena,
+    expr::{Expr::<span class="kw-2">*</span>, ExprId},
+    formula::Formula,
+    var::VarId,
+};
 
 <span class="kw">use </span><span class="kw">super</span>::FormulaParser;
 
@@ -112,13 +125,13 @@
 #[grammar = <span class="string">&quot;parser/sat.pest&quot;</span>]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>SatFormulaParser;
 
-<span class="kw">fn </span>parse_children&lt;<span class="lifetime">&#39;a</span>&gt;(pair: Pair&lt;<span class="lifetime">&#39;a</span>, Rule&gt;, vars: <span class="kw-2">&amp;</span>[Id], formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; Vec&lt;Id&gt; {
+<span class="kw">fn </span>parse_children(pair: Pair&lt;Rule&gt;, vars: <span class="kw-2">&amp;</span>[ExprId], arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; Vec&lt;ExprId&gt; {
     pair.into_inner()
-        .map(|pair| parse_pair(pair, vars, formula))
+        .map(|pair| parse_pair(pair, vars, arena))
         .collect()
 }
 
-<span class="kw">fn </span>parse_pair&lt;<span class="lifetime">&#39;a</span>&gt;(pair: Pair&lt;<span class="lifetime">&#39;a</span>, Rule&gt;, vars: <span class="kw-2">&amp;</span>[Id], formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; Id {
+<span class="kw">fn </span>parse_pair(pair: Pair&lt;Rule&gt;, vars: <span class="kw-2">&amp;</span>[ExprId], arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; ExprId {
     <span class="kw">match </span>pair.as_rule() {
         Rule::var =&gt; {
             <span class="kw">let </span>var: VarId = pair
@@ -131,29 +144,29 @@
                 .unwrap();
             <span class="kw">let </span>var: usize = var.try_into().unwrap();
             <span class="kw">if </span>pair.as_str().starts_with(<span class="string">&quot;-&quot;</span>) {
-                formula.expr(Not(vars[var]))
+                arena.expr(Not(vars[var]))
             } <span class="kw">else </span>{
                 vars[var]
             }
         }
         Rule::not =&gt; {
-            <span class="kw">let </span>child_id = parse_pair(pair.into_inner().next().unwrap(), vars, formula);
-            formula.expr(Not(child_id))
+            <span class="kw">let </span>child_id = parse_pair(pair.into_inner().next().unwrap(), vars, arena);
+            arena.expr(Not(child_id))
         }
         Rule::and =&gt; {
-            <span class="kw">let </span>child_ids = parse_children(pair, vars, formula);
-            formula.expr(And(child_ids))
+            <span class="kw">let </span>child_ids = parse_children(pair, vars, arena);
+            arena.expr(And(child_ids))
         }
         Rule::or =&gt; {
-            <span class="kw">let </span>child_ids = parse_children(pair, vars, formula);
-            formula.expr(Or(child_ids))
+            <span class="kw">let </span>child_ids = parse_children(pair, vars, arena);
+            arena.expr(Or(child_ids))
         }
         <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
     }
 }
 
 <span class="kw">impl </span>FormulaParser <span class="kw">for </span>SatFormulaParser {
-    <span class="kw">fn </span>parse_into&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>String, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; (Id, HashSet&lt;VarId&gt;) {
+    <span class="kw">fn </span>parse_into(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str, arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; Formula {
         <span class="kw">let </span><span class="kw-2">mut </span>pairs = SatFormulaParser::parse(Rule::file, file).unwrap();
 
         <span class="kw">let </span><span class="kw-2">mut </span>var_ids = HashSet::&lt;VarId&gt;::new();
@@ -178,20 +191,23 @@
             .as_str()
             .parse()
             .unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>vars: Vec&lt;Id&gt; = <span class="macro">vec!</span>[<span class="number">0</span>];
+        <span class="kw">let </span><span class="kw-2">mut </span>vars: Vec&lt;ExprId&gt; = <span class="macro">vec!</span>[<span class="number">0</span>];
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">1</span>..=n {
             <span class="kw">if </span>variable_names.contains_key(<span class="kw-2">&amp;</span>i) {
-                <span class="kw">let </span>(expr_id, var_id) = formula.var_expr_with_id(variable_names.get(<span class="kw-2">&amp;</span>i).unwrap());
+                <span class="kw">let </span>(expr_id, var_id) = arena.var_expr_with_id(variable_names[<span class="kw-2">&amp;</span>i].to_string());
                 var_ids.insert(var_id);
                 vars.push(expr_id);
                 variable_names.remove(<span class="kw-2">&amp;</span>i);
             } <span class="kw">else </span>{
-                vars.push(formula.add_var_aux_expr());
+                <span class="kw">let </span>(var_id, expr_id) = arena.add_var_aux_expr();
+                var_ids.insert(var_id);
+                vars.push(expr_id);
             }
         }
         <span class="macro">debug_assert!</span>(variable_names.is_empty());
 
-        (parse_pair(pairs.next().unwrap(), <span class="kw-2">&amp;</span>vars, formula), var_ids)
+        <span class="kw">let </span>root_id = parse_pair(pairs.next().unwrap(), <span class="kw-2">&amp;</span>vars, arena);
+        Formula::new(root_id, var_ids)
     }
 }
 </code></pre></div></section></main></body></html>

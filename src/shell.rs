@@ -4,7 +4,6 @@ use std::collections::{HashMap, HashSet};
 
 use crate::core::clauses::Clauses;
 use crate::parser::sat_inline::SatInlineFormulaParser;
-
 use crate::util::exec;
 use crate::{
     core::{arena::Arena, formula::Formula, expr::{Expr::*, ExprId}, var::{Var, VarId}},
@@ -32,7 +31,7 @@ macro_rules! formula {
 macro_rules! clauses {
     ($clauses:expr, $arena:expr, $formulas:expr) => {{
         if $clauses.is_none() {
-            $clauses = Some(Clauses::from(formula!($formulas).in_arena(&$arena)));
+            $clauses = Some(Clauses::from(formula!($formulas).as_ref(&$arena)));
         }
         $clauses.as_ref().unwrap()
     }};
@@ -63,7 +62,7 @@ pub fn main(mut commands: Vec<String>) {
                 if clauses.is_some() {
                     print!("{}", clauses.as_ref().unwrap());
                 } else {
-                    println!("{}", formula!(formulas).in_arena(&arena));
+                    println!("{}", formula!(formulas).as_ref(&arena));
                 };
             }
             "print_sub_exprs" => {
@@ -76,7 +75,7 @@ pub fn main(mut commands: Vec<String>) {
             "to_nnf" => formula!(formulas).to_nnf(&mut arena),
             "to_cnf_dist" => formula!(formulas).to_cnf_dist(&mut arena),
             "to_cnf_tseitin" => formula!(formulas).to_cnf_tseitin(&mut arena),
-            "to_clauses" => clauses = Some(Clauses::from(formula!(formulas).in_arena(&mut arena))),
+            "to_clauses" => clauses = Some(Clauses::from(formula!(formulas).as_ref(&mut arena))),
             "satisfy" => println!("{}", clauses!(clauses, arena, formulas).satisfy().unwrap()),
             "count" => println!("{}", clauses!(clauses, arena, formulas).count()),
             "assert_count" => {
@@ -187,10 +186,7 @@ pub fn main(mut commands: Vec<String>) {
         #[cfg(debug_assertions)]
         {
             if formulas.last().is_some() {
-                formulas.last_mut().unwrap().assert_valid();
-            }
-            if clauses.is_some() {
-                clauses.as_ref().unwrap().assert_valid();
+                formulas.last_mut().unwrap().assert_canon(&mut arena);
             }
         }
     }

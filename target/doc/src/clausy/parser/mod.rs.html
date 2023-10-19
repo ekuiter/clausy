@@ -71,13 +71,10 @@
 <a href="#71" id="71">71</a>
 <a href="#72" id="72">72</a>
 <a href="#73" id="73">73</a>
-<a href="#74" id="74">74</a>
-<a href="#75" id="75">75</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parsers for feature-model formula files.
 
-</span><span class="kw">use </span>std::collections::HashSet;
-
-<span class="kw">use </span><span class="kw">crate</span>::core::formula::{Formula, Id, VarId};
+</span><span class="kw">use </span><span class="kw">crate</span>::core::arena::Arena;
+<span class="kw">use </span><span class="kw">crate</span>::core::formula::Formula;
 
 <span class="kw">use </span><span class="self">self</span>::{io::IoFormulaParser, model::ModelFormulaParser, sat::SatFormulaParser};
 
@@ -95,28 +92,27 @@
 
     <span class="doccomment">/// Parses a feature-model formula file into an existing [Formula].
     ///
-    /// Returns the [Id] of the root expression of the parsed formula.
+    /// Returns the [ExprId] of the root expression of the parsed formula.
     /// Also returns a set with each [VarId] of a named sub-variable of the parsed formula.
     /// This function does not modify the sub-expressions of the given formula.
-    /// That is, after parsing, the formula will hold the given feature-model formula in [Formula::exprs], but not refer to it.
-    /// Thus, [Formula::set_root_expr] must be called explicitly with the returned [Id] to make use of the parsed formula.
-    </span><span class="kw">fn </span>parse_into&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>String, formula: <span class="kw-2">&amp;mut </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; (Id, HashSet&lt;VarId&gt;);
+    /// That is, after parsing, the formula will hold the given feature-model formula in [Arena::exprs], but not refer to it.
+    /// Thus, [Arena::set_root_expr] must be called explicitly with the returned [ExprId] to make use of the parsed formula.
+    </span><span class="kw">fn </span>parse_into(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str, arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; Formula;
 
-    <span class="doccomment">/// Parses a feature-model formula file into a new [Formula].
-    </span><span class="kw">fn </span>parse_new&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>String) -&gt; Formula&lt;<span class="lifetime">&#39;a</span>&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>formula = Formula::new();
-        <span class="kw">let </span>(root_id, <span class="kw">_</span>) = <span class="self">self</span>.parse_into(file, <span class="kw-2">&amp;mut </span>formula);
-        formula.set_root_expr(root_id);
-        formula
-    }
-}
+    <span class="comment">// /// Parses a feature-model formula file into a new [Formula].
+    // fn parse_new(&amp;&#39;a self, file: &amp;str) -&gt; (Arena, Formula) {
+    //     let mut arena = Arena::new();
+    //     let formula = self.parse_into(file, &amp;mut arena);
+    //     (arena, formula)
+    // }
+</span>}
 
 <span class="doccomment">/// An object that can parse a feature-model formula file into itself.
 ///
 /// Only implemented for [Formula].
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">trait </span>FormulaParsee&lt;<span class="lifetime">&#39;a</span>&gt; {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">trait </span>FormulaParsee {
     <span class="doccomment">/// Parses a feature-model formula into this object.
-    </span><span class="kw">fn </span>parse(<span class="kw-2">&amp;mut </span><span class="self">self</span>, file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>String, parser: Box&lt;<span class="kw">dyn </span>FormulaParser&gt;) -&gt; (Id, HashSet&lt;VarId&gt;);
+    </span><span class="kw">fn </span>parse(<span class="kw-2">&amp;mut </span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str, parser: Box&lt;<span class="kw">dyn </span>FormulaParser&gt;) -&gt; Formula;
 }
 
 <span class="doccomment">/// Returns the appropriate parser for a file extension.
@@ -132,19 +128,19 @@
 }
 
 <span class="doccomment">/// Creates a feature-model formula from a feature-model formula file and parser.
-</span><span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, T&gt; From&lt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>String, T)&gt; <span class="kw">for </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt;
-<span class="kw">where
-    </span>T: FormulaParser,
-{
-    <span class="kw">fn </span>from(file_and_parser: (<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>String, T)) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>(file, parser) = file_and_parser;
-        parser.parse_new(file)
-    }
-}
+</span><span class="comment">// impl&lt;&#39;a, T&gt; From&lt;(&amp;str, T)&gt; for Formula
+// where
+//     T: FormulaParser,
+// {
+//     fn from(file_and_parser: (&amp;str, T)) -&gt; Self {
+//         let (file, parser) = file_and_parser;
+//         parser.parse_new(file).1
+//     }
+// }
 
-<span class="doccomment">/// Parses a feature-model formula file into an existing formula.
-</span><span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; FormulaParsee&lt;<span class="lifetime">&#39;a</span>&gt; <span class="kw">for </span>Formula&lt;<span class="lifetime">&#39;a</span>&gt; {
-    <span class="kw">fn </span>parse(<span class="kw-2">&amp;mut </span><span class="self">self</span>, file: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>String, parser: Box&lt;<span class="kw">dyn </span>FormulaParser&gt;) -&gt; (Id, HashSet&lt;VarId&gt;) {
+</span><span class="doccomment">/// Parses a feature-model formula file into an existing formula.
+</span><span class="kw">impl </span>FormulaParsee <span class="kw">for </span>Arena {
+    <span class="kw">fn </span>parse(<span class="kw-2">&amp;mut </span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str, parser: Box&lt;<span class="kw">dyn </span>FormulaParser&gt;) -&gt; Formula {
         parser.parse_into(file, <span class="self">self</span>)
     }
 }

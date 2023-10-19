@@ -261,12 +261,14 @@
 <a href="#261" id="261">261</a>
 <a href="#262" id="262">262</a>
 <a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Unit tests.
 
 </span><span class="attr">#![allow(unused_imports)]
 </span><span class="kw">use </span><span class="kw">crate</span>::core::{
     clauses::Clauses,
-    formula::{Expr::<span class="kw-2">*</span>, Formula},
+    expr::{Expr::<span class="kw-2">*</span>},
+    arena::Arena,
 };
 
 <span class="kw">mod </span>formula {
@@ -278,22 +280,22 @@
         <span class="attr">#[test]
         #[should_panic]
         </span><span class="kw">fn </span>empty() {
-            Formula::new().assert_valid();
+            Arena::new().assert_valid();
         }
 
         <span class="attr">#[test]
         #[should_panic]
         </span><span class="kw">fn </span>no_root() {
-            <span class="kw">let </span><span class="kw-2">mut </span>f = Formula::new();
-            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>);
+            <span class="kw">let </span><span class="kw-2">mut </span>f = Arena::new();
+            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>.to_string());
             f.expr(Not(a));
             f.assert_valid();
         }
 
         <span class="attr">#[test]
         </span><span class="kw">fn </span>valid() {
-            <span class="kw">let </span><span class="kw-2">mut </span>f = Formula::new();
-            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>);
+            <span class="kw">let </span><span class="kw-2">mut </span>f = Arena::new();
+            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>.to_string());
             <span class="kw">let </span>not_a = f.expr(Not(a));
             f.set_root_expr(not_a);
             f.assert_valid();
@@ -305,8 +307,8 @@
 
         <span class="attr">#[test]
         </span><span class="kw">fn </span>not_a() {
-            <span class="kw">let </span><span class="kw-2">mut </span>f = Formula::new();
-            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>);
+            <span class="kw">let </span><span class="kw-2">mut </span>f = Arena::new();
+            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>.to_string());
             <span class="kw">let </span>not_a = f.expr(Not(a));
             f.set_root_expr(not_a);
             <span class="macro">assert_eq!</span>(
@@ -317,8 +319,8 @@
 
         <span class="attr">#[test]
         </span><span class="kw">fn </span>not_not_a() {
-            <span class="kw">let </span><span class="kw-2">mut </span>f = Formula::new();
-            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>);
+            <span class="kw">let </span><span class="kw-2">mut </span>f = Arena::new();
+            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>.to_string());
             <span class="kw">let </span>not_a = f.expr(Not(a));
             <span class="kw">let </span>not_not_a = f.expr(Not(not_a));
             f.set_root_expr(not_not_a);
@@ -327,8 +329,8 @@
 
         <span class="attr">#[test]
         </span><span class="kw">fn </span>and_not_not_a() {
-            <span class="kw">let </span><span class="kw-2">mut </span>f = Formula::new();
-            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>);
+            <span class="kw">let </span><span class="kw-2">mut </span>f = Arena::new();
+            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>.to_string());
             <span class="kw">let </span>not_a = f.expr(Not(a));
             <span class="kw">let </span>not_not_a = f.expr(Not(not_a));
             <span class="kw">let </span>and = f.expr(And(<span class="macro">vec!</span>[not_not_a]));
@@ -341,10 +343,10 @@
 
         <span class="attr">#[test]
         </span><span class="kw">fn </span>complex() {
-            <span class="kw">let </span><span class="kw-2">mut </span>f = Formula::new();
-            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>);
-            <span class="kw">let </span>b = f.var_expr(<span class="string">&quot;b&quot;</span>);
-            <span class="kw">let </span>c = f.var_expr(<span class="string">&quot;c&quot;</span>);
+            <span class="kw">let </span><span class="kw-2">mut </span>f = Arena::new();
+            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>.to_string());
+            <span class="kw">let </span>b = f.var_expr(<span class="string">&quot;b&quot;</span>.to_string());
+            <span class="kw">let </span>c = f.var_expr(<span class="string">&quot;c&quot;</span>.to_string());
             <span class="kw">let </span>not_a = f.expr(Not(a));
             <span class="kw">let </span>not_b = f.expr(Not(b));
             <span class="kw">let </span>not_c = f.expr(Not(c));
@@ -369,7 +371,7 @@
 
         <span class="attr">#[test]
         </span><span class="kw">fn </span>idempotent() {
-            <span class="kw">let </span>f = Formula::from(
+            <span class="kw">let </span>f = Arena::from(
                 <span class="string">&quot;(((!def(a)))&amp;(((def(c)|!def(a)))|((def(a))&amp;(def(c)|!(def(a)|def(b))))))&quot;</span>,
             )
             .assert_valid()
@@ -381,7 +383,7 @@
 
         <span class="attr">#[test]
         </span><span class="kw">fn </span>shared() {
-            Formula::from(<span class="string">&quot;((((!(def(a))&amp;def(a)))&amp;(!(!(def(a))&amp;def(a))))&amp;((!(!(def(a))&amp;def(a)))&amp;(!((def(a))&amp;def(a)))))&quot;</span>)
+            Arena::from(<span class="string">&quot;((((!(def(a))&amp;def(a)))&amp;(!(!(def(a))&amp;def(a))))&amp;((!(!(def(a))&amp;def(a)))&amp;(!((def(a))&amp;def(a)))))&quot;</span>)
             .assert_valid()
             .to_nnf()
             .assert_valid();
@@ -393,9 +395,9 @@
 
         <span class="attr">#[test]
         </span><span class="kw">fn </span>simple() {
-            <span class="kw">let </span><span class="kw-2">mut </span>f = Formula::new();
-            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>);
-            <span class="kw">let </span>b = f.var_expr(<span class="string">&quot;b&quot;</span>);
+            <span class="kw">let </span><span class="kw-2">mut </span>f = Arena::new();
+            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>.to_string());
+            <span class="kw">let </span>b = f.var_expr(<span class="string">&quot;b&quot;</span>.to_string());
             <span class="kw">let </span>a_and_b = f.expr(And(<span class="macro">vec!</span>[a, b]));
             <span class="kw">let </span>a_or_a_and_b = f.expr(Or(<span class="macro">vec!</span>[a, a_and_b]));
             <span class="kw">let </span>a_and_a_or_a_and_b = f.expr(And(<span class="macro">vec!</span>[a, a_or_a_and_b]));
@@ -411,10 +413,10 @@
 
         <span class="attr">#[test]
         </span><span class="kw">fn </span>complex() {
-            <span class="kw">let </span><span class="kw-2">mut </span>f = Formula::new();
-            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>);
-            <span class="kw">let </span>b = f.var_expr(<span class="string">&quot;b&quot;</span>);
-            <span class="kw">let </span>c = f.var_expr(<span class="string">&quot;c&quot;</span>);
+            <span class="kw">let </span><span class="kw-2">mut </span>f = Arena::new();
+            <span class="kw">let </span>a = f.var_expr(<span class="string">&quot;a&quot;</span>.to_string());
+            <span class="kw">let </span>b = f.var_expr(<span class="string">&quot;b&quot;</span>.to_string());
+            <span class="kw">let </span>c = f.var_expr(<span class="string">&quot;c&quot;</span>.to_string());
             <span class="kw">let </span>not_a = f.expr(Not(a));
             <span class="kw">let </span>not_b = f.expr(Not(b));
             <span class="kw">let </span>not_c = f.expr(Not(c));
@@ -442,27 +444,27 @@
         <span class="attr">#[test]
         </span><span class="kw">fn </span>shared_expr() {
             <span class="kw">let </span>model = <span class="string">&quot;((def(a)|!def(a))&amp;(def(a)|!(def(a)|def(a))))&quot;</span>;
-            <span class="kw">let </span>f = Formula::from(model)
+            <span class="kw">let </span>f = Arena::from(model)
                 .assert_valid()
                 .to_nnf()
                 .assert_valid()
                 .to_cnf_dist()
                 .assert_valid();
-            Clauses::from(<span class="kw-2">&amp;</span>f).assert_count(<span class="kw-2">&amp;</span>model, String::from(<span class="string">&quot;model&quot;</span>));
+            Clauses::from(<span class="kw-2">&amp;</span>f).assert_count(<span class="kw-2">&amp;</span>model, <span class="string">&quot;model&quot;</span>);
             <span class="kw">let </span>model = <span class="string">&quot;(((!def(a)))&amp;(((def(c)|!def(a)))|((def(a))&amp;(def(c)|!(def(a)|def(b))))))&quot;</span>;
-            <span class="kw">let </span>f = Formula::from(model)
+            <span class="kw">let </span>f = Arena::from(model)
                 .assert_valid()
                 .to_nnf()
                 .assert_valid()
                 .to_cnf_dist()
                 .assert_valid();
-            Clauses::from(<span class="kw-2">&amp;</span>f).assert_count(<span class="kw-2">&amp;</span>model, String::from(<span class="string">&quot;model&quot;</span>));
+            Clauses::from(<span class="kw-2">&amp;</span>f).assert_count(<span class="kw-2">&amp;</span>model, <span class="string">&quot;model&quot;</span>);
         }
 
         <span class="attr">#[test]
         </span><span class="kw">fn </span>idempotent() {
             <span class="kw">let </span>model = <span class="string">&quot;(((!def(a)))&amp;(((def(c)|!def(a)))|((def(a))&amp;(def(c)|!(def(a)|def(b))))))&quot;</span>;
-            <span class="kw">let </span>f = Formula::from(model)
+            <span class="kw">let </span>f = Arena::from(model)
                 .assert_valid()
                 .to_nnf()
                 .assert_valid()
@@ -471,19 +473,19 @@
             <span class="kw">let </span>s = f.to_string();
             <span class="kw">let </span>f = f.assert_valid().to_cnf_dist().assert_valid();
             <span class="macro">assert_eq!</span>(s, f.to_string());
-            Clauses::from(<span class="kw-2">&amp;</span>f).assert_count(<span class="kw-2">&amp;</span>model, String::from(<span class="string">&quot;model&quot;</span>));
+            Clauses::from(<span class="kw-2">&amp;</span>f).assert_count(<span class="kw-2">&amp;</span>model, <span class="string">&quot;model&quot;</span>);
         }
 
         <span class="attr">#[test]
         </span><span class="kw">fn </span>shared() {
             <span class="kw">let </span>model = <span class="string">&quot;((((!(def(a))&amp;def(a)))&amp;(!(!(def(a))&amp;def(a))))&amp;((!(!(def(a))&amp;def(a)))&amp;(!((def(a))&amp;def(a)))))&quot;</span>;
-            <span class="kw">let </span>f = Formula::from(model)
+            <span class="kw">let </span>f = Arena::from(model)
                 .assert_valid()
                 .to_nnf()
                 .assert_valid()
                 .to_cnf_dist()
                 .assert_valid();
-            Clauses::from(<span class="kw-2">&amp;</span>f).assert_count(<span class="kw-2">&amp;</span>model, String::from(<span class="string">&quot;model&quot;</span>));
+            Clauses::from(<span class="kw-2">&amp;</span>f).assert_count(<span class="kw-2">&amp;</span>model, <span class="string">&quot;model&quot;</span>);
         }
     }
 }
@@ -494,7 +496,7 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>simple() {
         <span class="kw">let </span>model = <span class="string">&quot;((def(x)|def(y))&amp;def(ab)&amp;!def(n)&amp;(def(abc)&amp;!(def(x)|def(y))&amp;def(bb)))&quot;</span>;
-        <span class="kw">let </span>f = Formula::from(model)
+        <span class="kw">let </span>f = Arena::from(model)
             .assert_valid()
             .to_nnf()
             .assert_valid()
@@ -502,7 +504,7 @@
             .assert_valid();
         <span class="kw">let </span>cnf = Clauses::from(<span class="kw-2">&amp;</span>f);
         <span class="macro">assert_eq!</span>(cnf.to_string().lines().count(), <span class="number">14</span>);
-        cnf.assert_count(<span class="kw-2">&amp;</span>model, String::from(<span class="string">&quot;model&quot;</span>));
+        cnf.assert_count(<span class="kw-2">&amp;</span>model, <span class="string">&quot;model&quot;</span>);
     }
 }
 
@@ -517,7 +519,7 @@
             def( ab )
             !def(n)
             (def( abc)&amp; !(def(x)|def(y))   &amp; def( bb ))&quot;</span>;
-        <span class="kw">let </span>f = Formula::from(model).assert_valid();
+        <span class="kw">let </span>f = Arena::from(model).assert_valid();
         <span class="macro">assert_eq!</span>(
             f.to_string(),
             <span class="string">&quot;And(Or(x, y), ab, Not(n), And(abc, Not(Or(x, y)), bb))&quot;

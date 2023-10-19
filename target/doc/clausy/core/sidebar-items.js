@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["clauses","formula"]};
+window.SIDEBAR_ITEMS = {"mod":["arena","clauses","expr","formula","var"]};
