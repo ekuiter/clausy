@@ -80,7 +80,7 @@ pub(crate) struct Arena {
     /// Conceptually, this is analogous to [Arena::exprs].
     /// Accordingly, the set of variables referenced by a given [Formula] constitutes its sub-variables (see [Formula::sub_var_ids]).
     /// Variable-forgetting operations, such as feature-model slicing, are possible by adapting this set.
-    pub(super) vars: Vec<Var>,
+    pub(crate) vars: Vec<Var>,
 
     /// Maps variables to their identifiers.
     ///

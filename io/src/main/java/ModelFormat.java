@@ -49,14 +49,14 @@ public class ModelFormat extends AFeatureModelFormat {
 	}
 
 	private static String fixNonBooleanConstraints(String l) {
-		return l.replace("=", "_")
-				.replace(":", "_")
-				.replace(".", "_")
-				.replace(",", "_")
-				.replace("/", "_")
-				.replace("\\", "_")
-				.replace(" ", "_")
-				.replace("-", "_");
+		return l.replace("=", "__EQUALS__")
+				.replace(":", "__COLON__")
+				.replace(".", "__DOT__")
+				.replace(",", "__COMMA__")
+				.replace("/", "__SLASH__")
+				.replace("\\", "__BACKSLASH__")
+				.replace(" ", "__SPACE__")
+				.replace("-", "__DASH__");
 	}
 
 	@Override

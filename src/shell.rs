@@ -1,12 +1,14 @@
 //! Imperative shell for operating on feature-model formulas.
 
+use std::collections::HashSet;
+
 use crate::core::clauses::Clauses;
+use crate::core::expr::Expr;
+use crate::core::var::{Var, VarId};
 use crate::parser::sat_inline::SatInlineFormulaParser;
+use crate::util::exec;
 use crate::{
-    core::{
-        arena::Arena,
-        formula::Formula,
-    },
+    core::{arena::Arena, formula::Formula},
     parser::{parser, FormulaParsee},
     util::{file_exists, read_file},
 };
@@ -37,6 +39,28 @@ macro_rules! clauses {
     }};
 }
 
+fn name_to_io(str: &str) -> String {
+    str.replace("=", "__EQUALS__")
+        .replace(":", "__COLON__")
+        .replace(".", "__DOT__")
+        .replace(",", "__COMMA__")
+        .replace("/", "__SLASH__")
+        .replace("\\", "__BACKSLASH__")
+        .replace(" ", "__SPACE__")
+        .replace("-", "__DASH__")
+}
+
+fn name_from_io(str: &str) -> String {
+    str.replace("__EQUALS__", "=")
+        .replace("__COLON__", ":")
+        .replace("__DOT__", ".")
+        .replace("__COMMA__", ",")
+        .replace("__SLASH__", "/")
+        .replace("__BACKSLASH__", "\\")
+        .replace("__SPACE__", " ")
+        .replace("__DASH__", "-")
+}
+
 /// Main entry point.
 ///
 /// Parses and runs each given command in order.
@@ -44,7 +68,7 @@ pub fn main(mut commands: Vec<String>) {
     let mut arena = Arena::new();
     let mut formulas = Vec::<Formula>::new();
     let mut clauses = None;
-    let mut parsed_file = None;
+    let mut parsed_files = vec![];
 
     if commands.is_empty() {
         commands.push("-".to_string());
@@ -78,95 +102,81 @@ pub fn main(mut commands: Vec<String>) {
             "satisfy" => println!("{}", clauses!(clauses, arena, formulas).satisfy().unwrap()),
             "count" => println!("{}", clauses!(clauses, arena, formulas).count()),
             "assert_count" => {
-                let (file, extension): &(String, Option<String>) = parsed_file.as_ref().unwrap();
+                let (file, extension): &(String, Option<String>) = parsed_files.last().unwrap();
                 clauses!(clauses, arena, formulas).assert_count(file, extension.as_ref().unwrap());
             }
             "enumerate" => clauses!(clauses, arena, formulas).enumerate(),
             "compare" => {
-                // debug_assert!(parsed_files.len() == 2);
-                // debug_assert!(formulas.len() == 2);
-                // let (root_id_a, var_ids_a): &(Id, HashSet<VarId>) = &formulas[0];
-                // let (root_id_b, var_ids_b): &(Id, HashSet<VarId>) = &formulas[1];
-                // println!("formula a has {} variables", var_ids_a.len());
-                // println!("formula b has {} variables", var_ids_b.len());
+                debug_assert!(formulas.len() == 2);
+                let a = &formulas[0];
+                let b = &formulas[1];
+                println!("formula a has {} variables", a.sub_var_ids.len());
+                println!("formula b has {} variables", b.sub_var_ids.len());
 
-                // let common_var_ids: HashSet<VarId> = var_ids_a
-                //     .intersection(var_ids_b)
-                //     .map(|var_id| *var_id)
-                //     .collect();
-                // let common_vars = common_var_ids
-                //     .iter()
-                //     .map(|var_id| {
-                //         let var_id: usize = var_id.unsigned_abs().try_into().unwrap();
-                //         if let Var::Named(name) = &arena.vars[var_id] {
-                //             name.clone()
-                //         } else {
-                //             unreachable!()
-                //         }
-                //     })
-                //     .collect::<Vec<String>>();
-                // println!("both formulas have {} common variables", common_vars.len());
+                let common_var_ids: HashSet<VarId> = a
+                    .sub_var_ids
+                    .intersection(&b.sub_var_ids)
+                    .map(|var_id| *var_id)
+                    .collect();
+                let common_vars = common_var_ids
+                    .iter()
+                    .map(|var_id| {
+                        let var_id: usize = var_id.unsigned_abs().try_into().unwrap();
+                        if let Var::Named(name) = &arena.vars[var_id] {
+                            name_to_io(name)
+                        } else {
+                            unreachable!()
+                        }
+                    })
+                    .collect::<Vec<String>>();
+                println!("both formulas have {} common variables", common_vars.len());
 
-                // let mut get_not_root_id = |root_id, other_var_ids, name| {
-                //     let mut ids = vec![root_id];
-                //     ids.extend(arena.filter_vars(other_var_ids).iter().flat_map(
-                //         |var_id| {
-                //             if !common_var_ids.contains(var_id) {
-                //                 let expr = arena.expr(Var(*var_id));
-                //                 Some(arena.expr(Not(expr)))
-                //             } else {
-                //                 None
-                //             }
-                //         },
-                //     ));
-                //     println!(
-                //         "{} variables are exclusive to formula {} and will be sliced",
-                //         ids.len() - 1,
-                //         name
-                //     );
-                //     let expr = arena.expr(And(ids));
-                //     arena.expr(Not(expr))
-                // };
-                // let not_root_id_a = get_not_root_id(*root_id_a, var_ids_b, "a");
-                // let not_root_id_b = get_not_root_id(*root_id_b, var_ids_a, "b");
+                let (file, extension) = &parsed_files[0];
+                let common_vars = common_vars.iter().map(|s| &**s).collect::<Vec<&str>>();
+                let slice_a = exec::io(file, extension.as_ref().unwrap(), "sat", &common_vars);
+                let slice_a = name_from_io(&slice_a);
+                let slice_a = arena.parse(&slice_a, parser(Some("sat".to_string())));
+                assert!(common_var_ids
+                    .symmetric_difference(&slice_a.sub_var_ids)
+                    .next()
+                    .is_none());
+                let (file, extension) = &parsed_files[1];
+                let slice_b = exec::io(file, extension.as_ref().unwrap(), "sat", &common_vars);
+                let slice_b = name_from_io(&slice_b);
+                let slice_b = arena.parse(&slice_b, parser(Some("sat".to_string())));
+                assert!(common_var_ids
+                    .symmetric_difference(&slice_b.sub_var_ids)
+                    .next()
+                    .is_none());
 
-                // let (file, extension) = &parsed_files[&parsed_file_names[0]];
-                // let common_vars = common_vars.iter().map(|s| &**s).collect::<Vec<&str>>();
-                // let slice_a = exec::io(file, extension.as_ref().unwrap(), "sat", &common_vars);
-                // let (root_id_slice_a, var_ids_slice_a) =
-                //     arena.parse(&slice_a, parser(Some("sat".to_string())));
-                // println!(
-                //     "the slice of a differs in its supposed variables in {:?}",
-                //     common_var_ids
-                //         .symmetric_difference(&var_ids_slice_a)
-                //         .collect::<HashSet<&VarId>>()
-                // );
+                // let not_root_id_a = arena.expr(Expr::Not(a.root_id));
+                // let root_id = arena.expr(Expr::And(vec![slice_a.root_id, not_root_id_a]));
+                // let mut cmp_a_slice = Formula::new(a.sub_var_ids.clone(), root_id);
+                // cmp_a_slice.to_cnf_tseitin(&mut arena);
+                // let c = Clauses::from(cmp_a_slice.as_ref(&arena));
+                // println!("{}", c.count());
 
-                // let (file, extension) = &parsed_files[&parsed_file_names[1]];
-                // let slice_b = exec::io(file, extension.as_ref().unwrap(), "sat", &common_vars);
-                // let (root_id_slice_b, var_ids_slice_b) =
-                //     arena.parse(&slice_b, parser(Some("sat".to_string())));
-                // println!(
-                //     "the slice of b differs in its supposed variables in {:?}",
-                //     common_var_ids
-                //         .symmetric_difference(&var_ids_slice_b)
-                //         .collect::<HashSet<&VarId>>()
-                // );
+                // let not_root_id_b = arena.expr(Expr::Not(b.root_id));
+                // let root_id = arena.expr(Expr::And(vec![slice_b.root_id, not_root_id_b]));
+                // let mut cmp_b_slice = Formula::new(b.sub_var_ids.clone(), root_id);
+                // cmp_b_slice.to_cnf_tseitin(&mut arena);
+                // let c = Clauses::from(cmp_b_slice.as_ref(&arena));
+                // println!("{}", c.count());
 
-                // let root_id = arena.expr(And(vec![root_id_slice_a, not_root_id_a]));
-                // arena.set_root_expr(root_id);
-                // arena = arena.to_cnf_tseitin();
-                // let c = clauses!(clauses, arena); // set of variables not accurate
-                //                                     //println!("{}", c);
-                // dbg!(c.count());
-                // return;
+                // let not = arena.expr(Expr::Not(slice_b.root_id));
+                // let root_id = arena.expr(Expr::And(vec![slice_a.root_id, not]));
+                // let mut cmp = Formula::new(common_var_ids.clone(), root_id);
+                // cmp.to_cnf_tseitin(&mut arena);
+                // let c = Clauses::from(cmp.as_ref(&arena));
+                // println!("{}", c.count());
+                return;
             }
             _ => {
                 if file_exists(command) {
                     let (mut file, extension) = read_file(command);
                     file = parser(extension.clone()).preprocess(file);
                     formulas.push(arena.parse(&file, parser(extension.clone())));
-                    parsed_file = Some((file, extension));
+                    parsed_files.push((file, extension));
                 } else if SatInlineFormulaParser::can_parse(command) {
                     formulas.push(
                         SatInlineFormulaParser::new(&formulas, true)
