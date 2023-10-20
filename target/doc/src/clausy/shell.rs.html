@@ -194,22 +194,22 @@
 <a href="#194" id="194">194</a>
 <a href="#195" id="195">195</a>
 <a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Imperative shell for operating on feature-model formulas.
 
-</span><span class="kw">use </span><span class="kw">crate</span>::core::clauses::Clauses;
+</span><span class="kw">use </span>std::collections::HashSet;
+
+<span class="kw">use </span><span class="kw">crate</span>::core::clauses::Clauses;
+<span class="kw">use </span><span class="kw">crate</span>::core::expr::Expr;
+<span class="kw">use </span><span class="kw">crate</span>::core::var::{Var, VarId};
 <span class="kw">use </span><span class="kw">crate</span>::parser::sat_inline::SatInlineFormulaParser;
 <span class="kw">use </span><span class="kw">crate</span>::util::exec;
 <span class="kw">use crate</span>::{
-    core::{
-        arena::Arena,
-        expr::{Expr::<span class="kw-2">*</span>, ExprId},
-        formula::Formula,
-        var::{Var, VarId},
-    },
+    core::{arena::Arena, formula::Formula},
     parser::{parser, FormulaParsee},
     util::{file_exists, read_file},
 };
-<span class="kw">use </span>std::collections::{HashMap, HashSet};
 
 <span class="doccomment">/// Whether to print identifiers of expressions.
 ///
@@ -237,6 +237,28 @@
     }};
 }
 
+<span class="kw">fn </span>name_to_io(str: <span class="kw-2">&amp;</span>str) -&gt; String {
+    str.replace(<span class="string">&quot;=&quot;</span>, <span class="string">&quot;__EQUALS__&quot;</span>)
+        .replace(<span class="string">&quot;:&quot;</span>, <span class="string">&quot;__COLON__&quot;</span>)
+        .replace(<span class="string">&quot;.&quot;</span>, <span class="string">&quot;__DOT__&quot;</span>)
+        .replace(<span class="string">&quot;,&quot;</span>, <span class="string">&quot;__COMMA__&quot;</span>)
+        .replace(<span class="string">&quot;/&quot;</span>, <span class="string">&quot;__SLASH__&quot;</span>)
+        .replace(<span class="string">&quot;\\&quot;</span>, <span class="string">&quot;__BACKSLASH__&quot;</span>)
+        .replace(<span class="string">&quot; &quot;</span>, <span class="string">&quot;__SPACE__&quot;</span>)
+        .replace(<span class="string">&quot;-&quot;</span>, <span class="string">&quot;__DASH__&quot;</span>)
+}
+
+<span class="kw">fn </span>name_from_io(str: <span class="kw-2">&amp;</span>str) -&gt; String {
+    str.replace(<span class="string">&quot;__EQUALS__&quot;</span>, <span class="string">&quot;=&quot;</span>)
+        .replace(<span class="string">&quot;__COLON__&quot;</span>, <span class="string">&quot;:&quot;</span>)
+        .replace(<span class="string">&quot;__DOT__&quot;</span>, <span class="string">&quot;.&quot;</span>)
+        .replace(<span class="string">&quot;__COMMA__&quot;</span>, <span class="string">&quot;,&quot;</span>)
+        .replace(<span class="string">&quot;__SLASH__&quot;</span>, <span class="string">&quot;/&quot;</span>)
+        .replace(<span class="string">&quot;__BACKSLASH__&quot;</span>, <span class="string">&quot;\\&quot;</span>)
+        .replace(<span class="string">&quot;__SPACE__&quot;</span>, <span class="string">&quot; &quot;</span>)
+        .replace(<span class="string">&quot;__DASH__&quot;</span>, <span class="string">&quot;-&quot;</span>)
+}
+
 <span class="doccomment">/// Main entry point.
 ///
 /// Parses and runs each given command in order.
@@ -244,9 +266,9 @@
     <span class="kw">let </span><span class="kw-2">mut </span>arena = Arena::new();
     <span class="kw">let </span><span class="kw-2">mut </span>formulas = Vec::&lt;Formula&gt;::new();
     <span class="kw">let </span><span class="kw-2">mut </span>clauses = <span class="prelude-val">None</span>;
-    <span class="comment">//let mut parsed_files = Vec::&lt;(String, Option&lt;String&gt;)&gt;::new();
+    <span class="kw">let </span><span class="kw-2">mut </span>parsed_files = <span class="macro">vec!</span>[];
 
-    </span><span class="kw">if </span>commands.is_empty() {
+    <span class="kw">if </span>commands.is_empty() {
         commands.push(<span class="string">&quot;-&quot;</span>.to_string());
     }
 
@@ -278,105 +300,87 @@
             <span class="string">&quot;satisfy&quot; </span>=&gt; <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="macro">clauses!</span>(clauses, arena, formulas).satisfy().unwrap()),
             <span class="string">&quot;count&quot; </span>=&gt; <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="macro">clauses!</span>(clauses, arena, formulas).count()),
             <span class="string">&quot;assert_count&quot; </span>=&gt; {
-                <span class="comment">// if parsed_files.len() == 1 {
-                //     let (file, extension) = parsed_files[0];
-                //     clauses!(clauses, arena, formulas).assert_count(&amp;file, &amp;extension.as_ref().unwrap());
-                // } else {
-                //     unreachable!();
-                // } todo
-            </span>}
+                <span class="kw">let </span>(file, extension): <span class="kw-2">&amp;</span>(String, <span class="prelude-ty">Option</span>&lt;String&gt;) = parsed_files.last().unwrap();
+                <span class="macro">clauses!</span>(clauses, arena, formulas).assert_count(file, extension.as_ref().unwrap());
+            }
             <span class="string">&quot;enumerate&quot; </span>=&gt; <span class="macro">clauses!</span>(clauses, arena, formulas).enumerate(),
             <span class="string">&quot;compare&quot; </span>=&gt; {
-                <span class="comment">// debug_assert!(parsed_files.len() == 2);
-                // debug_assert!(formulas.len() == 2);
-                // let (root_id_a, var_ids_a): &amp;(Id, HashSet&lt;VarId&gt;) = &amp;formulas[0];
-                // let (root_id_b, var_ids_b): &amp;(Id, HashSet&lt;VarId&gt;) = &amp;formulas[1];
-                // println!(&quot;formula a has {} variables&quot;, var_ids_a.len());
-                // println!(&quot;formula b has {} variables&quot;, var_ids_b.len());
+                <span class="macro">debug_assert!</span>(formulas.len() == <span class="number">2</span>);
+                <span class="kw">let </span>a = <span class="kw-2">&amp;</span>formulas[<span class="number">0</span>];
+                <span class="kw">let </span>b = <span class="kw-2">&amp;</span>formulas[<span class="number">1</span>];
+                <span class="macro">println!</span>(<span class="string">&quot;formula a has {} variables&quot;</span>, a.sub_var_ids.len());
+                <span class="macro">println!</span>(<span class="string">&quot;formula b has {} variables&quot;</span>, b.sub_var_ids.len());
 
-                // let common_var_ids: HashSet&lt;VarId&gt; = var_ids_a
-                //     .intersection(var_ids_b)
-                //     .map(|var_id| *var_id)
-                //     .collect();
-                // let common_vars = common_var_ids
-                //     .iter()
-                //     .map(|var_id| {
-                //         let var_id: usize = var_id.unsigned_abs().try_into().unwrap();
-                //         if let Var::Named(name) = &amp;arena.vars[var_id] {
-                //             name.clone()
-                //         } else {
-                //             unreachable!()
-                //         }
-                //     })
-                //     .collect::&lt;Vec&lt;String&gt;&gt;();
-                // println!(&quot;both formulas have {} common variables&quot;, common_vars.len());
+                <span class="kw">let </span>common_var_ids: HashSet&lt;VarId&gt; = a
+                    .sub_var_ids
+                    .intersection(<span class="kw-2">&amp;</span>b.sub_var_ids)
+                    .map(|var_id| <span class="kw-2">*</span>var_id)
+                    .collect();
+                <span class="kw">let </span>common_vars = common_var_ids
+                    .iter()
+                    .map(|var_id| {
+                        <span class="kw">let </span>var_id: usize = var_id.unsigned_abs().try_into().unwrap();
+                        <span class="kw">if let </span>Var::Named(name) = <span class="kw-2">&amp;</span>arena.vars[var_id] {
+                            name_to_io(name)
+                        } <span class="kw">else </span>{
+                            <span class="macro">unreachable!</span>()
+                        }
+                    })
+                    .collect::&lt;Vec&lt;String&gt;&gt;();
+                <span class="macro">println!</span>(<span class="string">&quot;both formulas have {} common variables&quot;</span>, common_vars.len());
 
-                // let mut get_not_root_id = |root_id, other_var_ids, name| {
-                //     let mut ids = vec![root_id];
-                //     ids.extend(arena.filter_vars(other_var_ids).iter().flat_map(
-                //         |var_id| {
-                //             if !common_var_ids.contains(var_id) {
-                //                 let expr = arena.expr(Var(*var_id));
-                //                 Some(arena.expr(Not(expr)))
-                //             } else {
-                //                 None
-                //             }
-                //         },
-                //     ));
-                //     println!(
-                //         &quot;{} variables are exclusive to formula {} and will be sliced&quot;,
-                //         ids.len() - 1,
-                //         name
-                //     );
-                //     let expr = arena.expr(And(ids));
-                //     arena.expr(Not(expr))
-                // };
-                // let not_root_id_a = get_not_root_id(*root_id_a, var_ids_b, &quot;a&quot;);
-                // let not_root_id_b = get_not_root_id(*root_id_b, var_ids_a, &quot;b&quot;);
+                <span class="kw">let </span>(file, extension) = <span class="kw-2">&amp;</span>parsed_files[<span class="number">0</span>];
+                <span class="kw">let </span>common_vars = common_vars.iter().map(|s| <span class="kw-2">&amp;**</span>s).collect::&lt;Vec&lt;<span class="kw-2">&amp;</span>str&gt;&gt;();
+                <span class="kw">let </span>slice_a = exec::io(file, extension.as_ref().unwrap(), <span class="string">&quot;sat&quot;</span>, <span class="kw-2">&amp;</span>common_vars);
+                <span class="kw">let </span>slice_a = name_from_io(<span class="kw-2">&amp;</span>slice_a);
+                <span class="kw">let </span>slice_a = arena.parse(<span class="kw-2">&amp;</span>slice_a, parser(<span class="prelude-val">Some</span>(<span class="string">&quot;sat&quot;</span>.to_string())));
+                <span class="macro">assert!</span>(common_var_ids
+                    .symmetric_difference(<span class="kw-2">&amp;</span>slice_a.sub_var_ids)
+                    .next()
+                    .is_none());
+                <span class="kw">let </span>(file, extension) = <span class="kw-2">&amp;</span>parsed_files[<span class="number">1</span>];
+                <span class="kw">let </span>slice_b = exec::io(file, extension.as_ref().unwrap(), <span class="string">&quot;sat&quot;</span>, <span class="kw-2">&amp;</span>common_vars);
+                <span class="kw">let </span>slice_b = name_from_io(<span class="kw-2">&amp;</span>slice_b);
+                <span class="kw">let </span>slice_b = arena.parse(<span class="kw-2">&amp;</span>slice_b, parser(<span class="prelude-val">Some</span>(<span class="string">&quot;sat&quot;</span>.to_string())));
+                <span class="macro">assert!</span>(common_var_ids
+                    .symmetric_difference(<span class="kw-2">&amp;</span>slice_b.sub_var_ids)
+                    .next()
+                    .is_none());
 
-                // let (file, extension) = &amp;parsed_files[&amp;parsed_file_names[0]];
-                // let common_vars = common_vars.iter().map(|s| &amp;**s).collect::&lt;Vec&lt;&amp;str&gt;&gt;();
-                // let slice_a = exec::io(file, extension.as_ref().unwrap(), &quot;sat&quot;, &amp;common_vars);
-                // let (root_id_slice_a, var_ids_slice_a) =
-                //     arena.parse(&amp;slice_a, parser(Some(&quot;sat&quot;.to_string())));
-                // println!(
-                //     &quot;the slice of a differs in its supposed variables in {:?}&quot;,
-                //     common_var_ids
-                //         .symmetric_difference(&amp;var_ids_slice_a)
-                //         .collect::&lt;HashSet&lt;&amp;VarId&gt;&gt;()
-                // );
+                <span class="comment">// let not_root_id_a = arena.expr(Expr::Not(a.root_id));
+                // let root_id = arena.expr(Expr::And(vec![slice_a.root_id, not_root_id_a]));
+                // let mut cmp_a_slice = Formula::new(a.sub_var_ids.clone(), root_id);
+                // cmp_a_slice.to_cnf_tseitin(&amp;mut arena);
+                // let c = Clauses::from(cmp_a_slice.as_ref(&amp;arena));
+                // println!(&quot;{}&quot;, c.count());
 
-                // let (file, extension) = &amp;parsed_files[&amp;parsed_file_names[1]];
-                // let slice_b = exec::io(file, extension.as_ref().unwrap(), &quot;sat&quot;, &amp;common_vars);
-                // let (root_id_slice_b, var_ids_slice_b) =
-                //     arena.parse(&amp;slice_b, parser(Some(&quot;sat&quot;.to_string())));
-                // println!(
-                //     &quot;the slice of b differs in its supposed variables in {:?}&quot;,
-                //     common_var_ids
-                //         .symmetric_difference(&amp;var_ids_slice_b)
-                //         .collect::&lt;HashSet&lt;&amp;VarId&gt;&gt;()
-                // );
+                // let not_root_id_b = arena.expr(Expr::Not(b.root_id));
+                // let root_id = arena.expr(Expr::And(vec![slice_b.root_id, not_root_id_b]));
+                // let mut cmp_b_slice = Formula::new(b.sub_var_ids.clone(), root_id);
+                // cmp_b_slice.to_cnf_tseitin(&amp;mut arena);
+                // let c = Clauses::from(cmp_b_slice.as_ref(&amp;arena));
+                // println!(&quot;{}&quot;, c.count());
 
-                // let root_id = arena.expr(And(vec![root_id_slice_a, not_root_id_a]));
-                // arena.set_root_expr(root_id);
-                // arena = arena.to_cnf_tseitin();
-                // let c = clauses!(clauses, arena); // set of variables not accurate
-                //                                     //println!(&quot;{}&quot;, c);
-                // dbg!(c.count());
-                // return;
-            </span>}
+                // let not = arena.expr(Expr::Not(slice_b.root_id));
+                // let root_id = arena.expr(Expr::And(vec![slice_a.root_id, not]));
+                // let mut cmp = Formula::new(common_var_ids.clone(), root_id);
+                // cmp.to_cnf_tseitin(&amp;mut arena);
+                // let c = Clauses::from(cmp.as_ref(&amp;arena));
+                // println!(&quot;{}&quot;, c.count());
+                </span><span class="kw">return</span>;
+            }
             <span class="kw">_ </span>=&gt; {
                 <span class="kw">if </span>file_exists(command) {
                     <span class="kw">let </span>(<span class="kw-2">mut </span>file, extension) = read_file(command);
-                    <span class="comment">//parsed_files.push((file, extension));
-                    </span>file = parser(extension.clone()).preprocess(file);
+                    file = parser(extension.clone()).preprocess(file);
                     formulas.push(arena.parse(<span class="kw-2">&amp;</span>file, parser(extension.clone())));
-                <span class="comment">// } else if SatInlineFormulaParser::can_parse(command) {
-                //     formulas.push(
-                //         SatInlineFormulaParser::new(&amp;formulas, true)
-                //             .parse_into(&amp;command, &amp;mut arena),
-                //     );
-                </span>} <span class="kw">else </span>{
+                    parsed_files.push((file, extension));
+                } <span class="kw">else if </span>SatInlineFormulaParser::can_parse(command) {
+                    formulas.push(
+                        SatInlineFormulaParser::new(<span class="kw-2">&amp;</span>formulas, <span class="bool-val">true</span>)
+                            .parse_into(<span class="kw-2">&amp;</span>command, <span class="kw-2">&amp;mut </span>arena),
+                    );
+                } <span class="kw">else </span>{
                     <span class="macro">unreachable!</span>();
                 }
                 clauses = <span class="prelude-val">None</span>;

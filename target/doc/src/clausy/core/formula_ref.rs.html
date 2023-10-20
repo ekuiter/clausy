@@ -33,7 +33,7 @@
 
 <span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; fmt::Display <span class="kw">for </span>FormulaRef&lt;<span class="lifetime">&#39;a</span>&gt; {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
-        <span class="self">self</span>.arena.format_expr(<span class="self">self</span>.formula.get_root_expr(), f)
+        <span class="self">self</span>.arena.format_expr(<span class="self">self</span>.formula.root_id, f)
     }
 }
 </code></pre></div></section></main></body></html>

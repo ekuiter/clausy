@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["PRINT_ID","VAR_AUX_PREFIX"],"fn":["main"],"macro":["clauses","formula"]};
+window.SIDEBAR_ITEMS = {"constant":["PRINT_ID","VAR_AUX_PREFIX"],"fn":["main","name_from_io","name_to_io"],"macro":["clauses","formula"]};

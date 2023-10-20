@@ -140,18 +140,6 @@
 <a href="#140" id="140">140</a>
 <a href="#141" id="141">141</a>
 <a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a>
-<a href="#144" id="144">144</a>
-<a href="#145" id="145">145</a>
-<a href="#146" id="146">146</a>
-<a href="#147" id="147">147</a>
-<a href="#148" id="148">148</a>
-<a href="#149" id="149">149</a>
-<a href="#150" id="150">150</a>
-<a href="#151" id="151">151</a>
-<a href="#152" id="152">152</a>
-<a href="#153" id="153">153</a>
-<a href="#154" id="154">154</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Defines a feature-model formula.
 
 </span><span class="kw">use super</span>::{
@@ -174,7 +162,7 @@
     ///
     /// Each identifiers serves as an index into [Arena::vars].
     /// All variables in the syntax tree of this formula must occur in this set, but it may contain more (unconstrained) variables.
-    </span>sub_var_ids: HashSet&lt;VarId&gt;,
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) sub_var_ids: HashSet&lt;VarId&gt;,
 
     <span class="doccomment">/// Specifies the root expression of this formula.
     ///
@@ -182,7 +170,7 @@
     /// The corresponding expression is the root of this formula&#39;s syntax tree and thus the starting point for most algorithms.
     /// We consider all expressions below this expression (including itself) to be sub-expressions.
     /// There might be other (non-sub-)expressions that are currently not relevant to this formula.
-    </span>root_id: ExprId,
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) root_id: ExprId,
 }
 
 <span class="kw">impl </span>Formula {
@@ -203,19 +191,7 @@
             formula: <span class="self">self</span>,
         }
     }
-
-    <span class="doccomment">/// Returns the root expression of this formula.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_root_expr(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ExprId {
-        <span class="self">self</span>.root_id
-    }
-
-    <span class="doccomment">/// Sets the root expression of this formula.
-    ///
-    /// The root expression may be updated to focus on other expressions of the referenced [Arena] or to build more complex expressions.
-    </span><span class="kw">fn </span>set_root_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, root_id: ExprId) {
-        <span class="self">self</span>.root_id = root_id;
-    }
-
+    
     <span class="doccomment">/// Resets the root expression of this formula, if necessary.
     ///
     /// If the root expression is mutated with [Arena::set_expr], structural sharing might be violated.
@@ -299,11 +275,11 @@
         arena.new_exprs = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[]);
         arena.postorder_rev(<span class="kw-2">&amp;mut </span><span class="self">self</span>.root_id, Arena::cnf_tseitin_visitor);
         <span class="self">self</span>.sub_var_ids.extend(arena.new_vars.take().unwrap());
-        <span class="kw">let </span>root_id = <span class="self">self</span>.get_root_expr();
+        <span class="kw">let </span>root_id = <span class="self">self</span>.root_id;
         arena.new_exprs.as_mut().unwrap().push(root_id);
         <span class="kw">let </span>new_expr = And(arena.new_exprs.take().unwrap());
         <span class="kw">let </span>root_id = arena.expr(new_expr);
-        <span class="self">self</span>.set_root_expr(root_id);
+        <span class="self">self</span>.root_id = root_id;
     }
 }
 </code></pre></div></section></main></body></html>

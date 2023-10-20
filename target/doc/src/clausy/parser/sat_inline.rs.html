@@ -98,35 +98,33 @@
 <a href="#98" id="98">98</a>
 <a href="#99" id="99">99</a>
 <a href="#100" id="100">100</a>
-<a href="#101" id="101">101</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parser for inline input in a .sat-like format.
 
 </span><span class="kw">use </span><span class="kw">crate</span>::core::{
     arena::Arena,
     expr::{Expr::<span class="kw-2">*</span>, ExprId},
     formula::Formula,
-    var::VarId,
 };
 <span class="kw">use </span>pest::{iterators::Pair, Parser};
 <span class="kw">use </span>pest_derive::Parser;
-<span class="kw">use </span>std::collections::HashSet;
 
 <span class="doccomment">/// Parses inline input in a .sat-like format.
 ///
 /// In this format, identifiers refer to previously parsed inputs.
-/// Optionally, the parsed formula can add negative backbone variables to align differing sets of variables.
+/// Optionally, the parsed formula can add negative backbone literals to align differing sets of variables.
+/// As sub-variables, the parsed formula has the union of the sub-variables of all given formulas.
 </span><span class="attr">#[derive(Parser)]
 #[grammar = <span class="string">&quot;parser/sat_inline.pest&quot;</span>]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>SatInlineFormulaParser {
-    formulas: Vec&lt;Formula&gt;,
-    add_backbone_vars: bool,
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>SatInlineFormulaParser&lt;<span class="lifetime">&#39;a</span>&gt; {
+    formulas: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Vec&lt;Formula&gt;,
+    add_backbone_literals: bool,
 }
 
-<span class="kw">impl </span>SatInlineFormulaParser {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(formulas: Vec&lt;Formula&gt;, add_backbone_vars: bool) -&gt; <span class="self">Self </span>{
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; SatInlineFormulaParser&lt;<span class="lifetime">&#39;a</span>&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(formulas: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Vec&lt;Formula&gt;, add_backbone_literals: bool) -&gt; <span class="self">Self </span>{
         SatInlineFormulaParser {
             formulas,
-            add_backbone_vars,
+            add_backbone_literals,
         }
     }
 
@@ -137,8 +135,13 @@
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_into(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>String, arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; Formula {
         <span class="kw">let </span><span class="kw-2">mut </span>pairs = SatInlineFormulaParser::parse(Rule::file, file).unwrap();
         <span class="kw">let </span>root_id = <span class="self">self</span>.parse_pair(pairs.next().unwrap(), arena);
-        Formula::new(HashSet::new(), root_id) <span class="comment">// todo: merge variables of used formulas
-    </span>}
+        <span class="kw">let </span>sub_var_ids = <span class="self">self
+            </span>.formulas
+            .iter()
+            .flat_map(|formula| formula.sub_var_ids.clone())
+            .collect();
+        Formula::new(sub_var_ids, root_id)
+    }
 
     <span class="kw">fn </span>parse_children(<span class="kw-2">&amp;</span><span class="self">self</span>, pair: Pair&lt;Rule&gt;, arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; Vec&lt;ExprId&gt; {
         pair.into_inner()
@@ -159,17 +162,12 @@
                     .unwrap();
                 <span class="kw">let </span>idx: usize = arg.try_into().unwrap();
                 <span class="kw">let </span>formula = <span class="kw-2">&amp;</span><span class="self">self</span>.formulas[idx - <span class="number">1</span>];
-                <span class="kw">let </span><span class="kw-2">mut </span>root_id = formula.get_root_expr();
-                <span class="kw">if </span><span class="self">self</span>.add_backbone_vars {
+                <span class="kw">let </span><span class="kw-2">mut </span>root_id = formula.root_id;
+                <span class="kw">if </span><span class="self">self</span>.add_backbone_literals {
                     <span class="kw">let </span><span class="kw-2">mut </span>ids = <span class="macro">vec!</span>[root_id];
-                    <span class="kw">let </span>var_ids = formula
-                        .sub_vars(arena)
-                        .iter()
-                        .map(|(var_id, <span class="kw">_</span>)| <span class="kw-2">*</span>var_id)
-                        .collect::&lt;HashSet&lt;VarId&gt;&gt;();
                     ids.extend(
                         arena
-                            .vars(|var_id, <span class="kw">_</span>| !var_ids.contains(<span class="kw-2">&amp;</span>var_id))
+                            .vars(|var_id, <span class="kw">_</span>| !formula.sub_var_ids.contains(<span class="kw-2">&amp;</span>var_id))
                             .into_iter()
                             .map(|(var_id, <span class="kw">_</span>)| {
                                 <span class="kw">let </span>expr = arena.expr(Var(var_id));
