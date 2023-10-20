@@ -2,18 +2,14 @@
 
 use crate::core::clauses::Clauses;
 use crate::parser::sat_inline::SatInlineFormulaParser;
-use crate::util::exec;
 use crate::{
     core::{
         arena::Arena,
-        expr::{Expr::*, ExprId},
         formula::Formula,
-        var::{Var, VarId},
     },
     parser::{parser, FormulaParsee},
     util::{file_exists, read_file},
 };
-use std::collections::{HashMap, HashSet};
 
 /// Whether to print identifiers of expressions.
 ///
@@ -48,7 +44,7 @@ pub fn main(mut commands: Vec<String>) {
     let mut arena = Arena::new();
     let mut formulas = Vec::<Formula>::new();
     let mut clauses = None;
-    //let mut parsed_files = Vec::<(String, Option<String>)>::new();
+    let mut parsed_file = None;
 
     if commands.is_empty() {
         commands.push("-".to_string());
@@ -82,12 +78,8 @@ pub fn main(mut commands: Vec<String>) {
             "satisfy" => println!("{}", clauses!(clauses, arena, formulas).satisfy().unwrap()),
             "count" => println!("{}", clauses!(clauses, arena, formulas).count()),
             "assert_count" => {
-                // if parsed_files.len() == 1 {
-                //     let (file, extension) = parsed_files[0];
-                //     clauses!(clauses, arena, formulas).assert_count(&file, &extension.as_ref().unwrap());
-                // } else {
-                //     unreachable!();
-                // } todo
+                let (file, extension): &(String, Option<String>) = parsed_file.as_ref().unwrap();
+                clauses!(clauses, arena, formulas).assert_count(file, extension.as_ref().unwrap());
             }
             "enumerate" => clauses!(clauses, arena, formulas).enumerate(),
             "compare" => {
@@ -172,14 +164,14 @@ pub fn main(mut commands: Vec<String>) {
             _ => {
                 if file_exists(command) {
                     let (mut file, extension) = read_file(command);
-                    //parsed_files.push((file, extension));
                     file = parser(extension.clone()).preprocess(file);
                     formulas.push(arena.parse(&file, parser(extension.clone())));
-                // } else if SatInlineFormulaParser::can_parse(command) {
-                //     formulas.push(
-                //         SatInlineFormulaParser::new(&formulas, true)
-                //             .parse_into(&command, &mut arena),
-                //     );
+                    parsed_file = Some((file, extension));
+                } else if SatInlineFormulaParser::can_parse(command) {
+                    formulas.push(
+                        SatInlineFormulaParser::new(&formulas, true)
+                            .parse_into(&command, &mut arena),
+                    );
                 } else {
                     unreachable!();
                 }

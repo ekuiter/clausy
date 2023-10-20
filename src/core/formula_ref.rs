@@ -14,6 +14,6 @@ pub(crate) struct FormulaRef<'a> {
 
 impl<'a> fmt::Display for FormulaRef<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.arena.format_expr(self.formula.get_root_expr(), f)
+        self.arena.format_expr(self.formula.root_id, f)
     }
 }

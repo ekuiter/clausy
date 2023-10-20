@@ -66,9 +66,6 @@
 <a href="#66" id="66">66</a>
 <a href="#67" id="67">67</a>
 <a href="#68" id="68">68</a>
-<a href="#69" id="69">69</a>
-<a href="#70" id="70">70</a>
-<a href="#71" id="71">71</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parsers for feature-model formula files.
 
 </span><span class="kw">use </span><span class="self">self</span>::{io::IoFormulaParser, model::ModelFormulaParser, sat::SatFormulaParser};
@@ -80,20 +77,17 @@
 <span class="kw">mod </span>sat;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>sat_inline;
 
-<span class="doccomment">/// Parses a feature-model formula file into a [Formula] instance.
+<span class="doccomment">/// Parses a feature-model formula file into an [Arena].
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">trait </span>FormulaParser {
     <span class="doccomment">/// Preprocesses a feature-model formula file, if necessary.
     </span><span class="kw">fn </span>preprocess(<span class="kw-2">&amp;</span><span class="self">self</span>, file: String) -&gt; String {
         file
     }
 
-    <span class="doccomment">/// Parses a feature-model formula file into an existing [Formula].
+    <span class="doccomment">/// Parses a feature-model formula file into an existing [Arena].
     ///
-    /// Returns the [crate::core::expr::ExprId] of the root expression of the parsed formula.
-    /// Also returns a set with each [crate::core::var::VarId] of a named sub-variable of the parsed formula.
-    /// This function does not modify the sub-expressions of the given formula.
-    /// That is, after parsing, the formula will hold the given feature-model formula in [Arena::exprs], but not refer to it.
-    /// Thus, [Formula::set_root_expr] must be called explicitly with the returned [crate::core::expr::ExprId] to make use of the parsed formula.
+    /// Returns the parsed [Formula].
+    /// Does not modify the sub-expressions of any other formula in the arena.
     </span><span class="kw">fn </span>parse_into(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str, arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; Formula;
 
     <span class="comment">// /// Parses a feature-model formula file into a new [Formula].

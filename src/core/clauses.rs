@@ -47,8 +47,8 @@ impl Clauses {
             }
             clauses.push(clause);
         };
-        match &formula_ref.arena.exprs[formula_ref.formula.get_root_expr()] {
-            Var(_) | Not(_) => add_clause(slice::from_ref(&formula_ref.formula.get_root_expr())),
+        match &formula_ref.arena.exprs[formula_ref.formula.root_id] {
+            Var(_) | Not(_) => add_clause(slice::from_ref(&formula_ref.formula.root_id)),
             Or(child_ids) => add_clause(child_ids),
             And(child_ids) => {
                 for child_id in child_ids {

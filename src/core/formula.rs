@@ -20,7 +20,7 @@ pub(crate) struct Formula {
     ///
     /// Each identifiers serves as an index into [Arena::vars].
     /// All variables in the syntax tree of this formula must occur in this set, but it may contain more (unconstrained) variables.
-    sub_var_ids: HashSet<VarId>,
+    pub(crate) sub_var_ids: HashSet<VarId>,
 
     /// Specifies the root expression of this formula.
     ///
@@ -28,7 +28,7 @@ pub(crate) struct Formula {
     /// The corresponding expression is the root of this formula's syntax tree and thus the starting point for most algorithms.
     /// We consider all expressions below this expression (including itself) to be sub-expressions.
     /// There might be other (non-sub-)expressions that are currently not relevant to this formula.
-    root_id: ExprId,
+    pub(crate) root_id: ExprId,
 }
 
 impl Formula {
@@ -49,19 +49,7 @@ impl Formula {
             formula: self,
         }
     }
-
-    /// Returns the root expression of this formula.
-    pub(crate) fn get_root_expr(&self) -> ExprId {
-        self.root_id
-    }
-
-    /// Sets the root expression of this formula.
-    ///
-    /// The root expression may be updated to focus on other expressions of the referenced [Arena] or to build more complex expressions.
-    fn set_root_expr(&mut self, root_id: ExprId) {
-        self.root_id = root_id;
-    }
-
+    
     /// Resets the root expression of this formula, if necessary.
     ///
     /// If the root expression is mutated with [Arena::set_expr], structural sharing might be violated.
@@ -145,10 +133,10 @@ impl Formula {
         arena.new_exprs = Some(vec![]);
         arena.postorder_rev(&mut self.root_id, Arena::cnf_tseitin_visitor);
         self.sub_var_ids.extend(arena.new_vars.take().unwrap());
-        let root_id = self.get_root_expr();
+        let root_id = self.root_id;
         arena.new_exprs.as_mut().unwrap().push(root_id);
         let new_expr = And(arena.new_exprs.take().unwrap());
         let root_id = arena.expr(new_expr);
-        self.set_root_expr(root_id);
+        self.root_id = root_id;
     }
 }

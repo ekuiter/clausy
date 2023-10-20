@@ -9,33 +9,30 @@ mod model;
 mod sat;
 pub(crate) mod sat_inline;
 
-/// Parses a feature-model formula file into a [Formula] instance.
+/// Parses a feature-model formula file into an [Arena].
 pub(crate) trait FormulaParser {
     /// Preprocesses a feature-model formula file, if necessary.
     fn preprocess(&self, file: String) -> String {
         file
     }
 
-    /// Parses a feature-model formula file into an existing [Formula].
+    /// Parses a feature-model formula file into an existing [Arena].
     ///
-    /// Returns the [crate::core::expr::ExprId] of the root expression of the parsed formula.
-    /// Also returns a set with each [crate::core::var::VarId] of a named sub-variable of the parsed formula.
-    /// This function does not modify the sub-expressions of the given formula.
-    /// That is, after parsing, the formula will hold the given feature-model formula in [Arena::exprs], but not refer to it.
-    /// Thus, [Formula::set_root_expr] must be called explicitly with the returned [crate::core::expr::ExprId] to make use of the parsed formula.
+    /// Returns the parsed [Formula].
+    /// Does not modify the sub-expressions of any other formula in the arena.
     fn parse_into(&self, file: &str, arena: &mut Arena) -> Formula;
 
-    // /// Parses a feature-model formula file into a new [Formula].
-    // fn parse_new(&'a self, file: &str) -> (Arena, Formula) {
-    //     let mut arena = Arena::new();
-    //     let formula = self.parse_into(file, &mut arena);
-    //     (arena, formula)
-    // }
+    /// Parses a feature-model formula file into a new [Arena].
+    fn parse_new(&self, file: &str) -> (Arena, Formula) {
+        let mut arena = Arena::new();
+        let formula = self.parse_into(file, &mut arena);
+        (arena, formula)
+    }
 }
 
 /// An object that can parse a feature-model formula file into itself.
 ///
-/// Only implemented for [Formula].
+/// Only implemented for [Arena].
 pub(crate) trait FormulaParsee {
     /// Parses a feature-model formula into this object.
     fn parse(&mut self, file: &str, parser: Box<dyn FormulaParser>) -> Formula;
@@ -54,15 +51,15 @@ pub(crate) fn parser(extension: Option<String>) -> Box<dyn FormulaParser> {
 }
 
 /// Creates a feature-model formula from a feature-model formula file and parser.
-// impl<'a, T> From<(&str, T)> for Formula
-// where
-//     T: FormulaParser,
-// {
-//     fn from(file_and_parser: (&str, T)) -> Self {
-//         let (file, parser) = file_and_parser;
-//         parser.parse_new(file).1
-//     }
-// }
+impl<'a, T> From<(&str, T)> for Formula
+where
+    T: FormulaParser,
+{
+    fn from(file_and_parser: (&str, T)) -> Self {
+        let (file, parser) = file_and_parser;
+        parser.parse_new(file).1
+    }
+}
 
 impl FormulaParsee for Arena {
     fn parse(&mut self, file: &str, parser: Box<dyn FormulaParser>) -> Formula {

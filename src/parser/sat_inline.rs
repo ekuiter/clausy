@@ -4,28 +4,27 @@ use crate::core::{
     arena::Arena,
     expr::{Expr::*, ExprId},
     formula::Formula,
-    var::VarId,
 };
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
-use std::collections::HashSet;
 
 /// Parses inline input in a .sat-like format.
 ///
 /// In this format, identifiers refer to previously parsed inputs.
-/// Optionally, the parsed formula can add negative backbone variables to align differing sets of variables.
+/// Optionally, the parsed formula can add negative backbone literals to align differing sets of variables.
+/// As sub-variables, the parsed formula has the union of the sub-variables of all given formulas.
 #[derive(Parser)]
 #[grammar = "parser/sat_inline.pest"]
-pub(crate) struct SatInlineFormulaParser {
-    formulas: Vec<Formula>,
-    add_backbone_vars: bool,
+pub(crate) struct SatInlineFormulaParser<'a> {
+    formulas: &'a Vec<Formula>,
+    add_backbone_literals: bool,
 }
 
-impl SatInlineFormulaParser {
-    pub(crate) fn new(formulas: Vec<Formula>, add_backbone_vars: bool) -> Self {
+impl<'a> SatInlineFormulaParser<'a> {
+    pub(crate) fn new(formulas: &'a Vec<Formula>, add_backbone_literals: bool) -> Self {
         SatInlineFormulaParser {
             formulas,
-            add_backbone_vars,
+            add_backbone_literals,
         }
     }
 
@@ -36,7 +35,12 @@ impl SatInlineFormulaParser {
     pub(crate) fn parse_into(&self, file: &String, arena: &mut Arena) -> Formula {
         let mut pairs = SatInlineFormulaParser::parse(Rule::file, file).unwrap();
         let root_id = self.parse_pair(pairs.next().unwrap(), arena);
-        Formula::new(HashSet::new(), root_id) // todo: merge variables of used formulas
+        let sub_var_ids = self
+            .formulas
+            .iter()
+            .flat_map(|formula| formula.sub_var_ids.clone())
+            .collect();
+        Formula::new(sub_var_ids, root_id)
     }
 
     fn parse_children(&self, pair: Pair<Rule>, arena: &mut Arena) -> Vec<ExprId> {
@@ -58,17 +62,12 @@ impl SatInlineFormulaParser {
                     .unwrap();
                 let idx: usize = arg.try_into().unwrap();
                 let formula = &self.formulas[idx - 1];
-                let mut root_id = formula.get_root_expr();
-                if self.add_backbone_vars {
+                let mut root_id = formula.root_id;
+                if self.add_backbone_literals {
                     let mut ids = vec![root_id];
-                    let var_ids = formula
-                        .sub_vars(arena)
-                        .iter()
-                        .map(|(var_id, _)| *var_id)
-                        .collect::<HashSet<VarId>>();
                     ids.extend(
                         arena
-                            .vars(|var_id, _| !var_ids.contains(&var_id))
+                            .vars(|var_id, _| !formula.sub_var_ids.contains(&var_id))
                             .into_iter()
                             .map(|(var_id, _)| {
                                 let expr = arena.expr(Var(var_id));
