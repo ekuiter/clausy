@@ -3,7 +3,6 @@
 use std::collections::HashSet;
 
 use crate::core::clauses::Clauses;
-use crate::core::expr::Expr;
 use crate::core::var::{Var, VarId};
 use crate::parser::sat_inline::SatInlineFormulaParser;
 use crate::util::exec;
