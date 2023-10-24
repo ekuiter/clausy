@@ -74,3 +74,7 @@ evaluate this:
 - reproduce ASE (hybrid parameter should influence solving performance)
 - measure time + max heap size
 - measure time of parsing, preprocessing, and DPLL/CDCL (instrument solvers?)
+
+- count diffs of models in parallel
+- teile jeden arbitrary edit in eine generalisierung und eine Spezialisierung auf, indem syntaktisch die entfernten und zugefügten klauseln getrennt werden. dann wird je eine diffzahl auf 0 forciert. vmtl liegt die Schwierigkeit darin, die gemeinsamen klauseln zu identifizieren, das sollte aber mit structural sharing leicht sein. slicing ist vmtl immer noch nötig, aber einfacher bei kleinen windows
+- move parsed file and extension into formula instance as optional
