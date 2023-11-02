@@ -11,11 +11,6 @@ pub(crate) mod sat_inline;
 
 /// Parses a feature-model formula file into an [Arena].
 pub(crate) trait FormulaParser {
-    /// Preprocesses a feature-model formula file, if necessary.
-    fn preprocess(&self, file: String) -> String {
-        file
-    }
-
     /// Parses a feature-model formula file into an existing [Arena].
     ///
     /// Returns the parsed [Formula].

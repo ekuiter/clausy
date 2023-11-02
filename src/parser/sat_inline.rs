@@ -40,7 +40,7 @@ impl<'a> SatInlineFormulaParser<'a> {
             .iter()
             .flat_map(|formula| formula.sub_var_ids.clone())
             .collect();
-        Formula::new(sub_var_ids, root_id)
+        Formula::new(sub_var_ids, root_id, None, None)
     }
 
     fn parse_children(&self, pair: Pair<Rule>, arena: &mut Arena) -> Vec<ExprId> {

@@ -101,6 +101,6 @@ impl FormulaParser for SatFormulaParser {
         debug_assert!(variable_names.is_empty());
 
         let root_id = parse_pair(pairs.next().unwrap(), &vars, arena);
-        Formula::new(sub_var_ids, root_id)
+        Formula::new(sub_var_ids, root_id, Some(file.to_string()), Some("sat".to_string()))
     }
 }

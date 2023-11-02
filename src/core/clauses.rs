@@ -22,6 +22,12 @@ pub(crate) struct Clauses {
     ///
     /// This list is indexed into by the absolute values stored in [Clauses::clauses].
     vars: Vec<Var>,
+
+    /// The file this clause representation's formula was originally parsed from, if any.
+    pub(crate) file: Option<String>,
+
+    /// The extension of the file this clause representation's formula was originally parsed from, if any.
+    pub(crate) extension: Option<String>,
 }
 
 impl Clauses {
@@ -108,8 +114,14 @@ impl Clauses {
     /// Panics if this clause representation has a different model count than that of FeatureIDE.
     ///
     /// Useful for checking the correctness of count-preserving algorithms (e.g., [super::formula::Formula::to_cnf_tseitin]).
-    pub(crate) fn assert_count(&self, file: &str, extension: &str) {
-        assert_eq!(self.count(), Self::count_featureide(file, extension));
+    pub(crate) fn assert_count(&self) {
+        assert_eq!(
+            self.count(),
+            Self::count_featureide(
+                self.file.as_ref().unwrap().as_str(),
+                self.extension.as_ref().unwrap().as_str()
+            )
+        );
     }
 }
 
@@ -128,6 +140,8 @@ impl<'a> From<FormulaRef<'a>> for Clauses {
         Self {
             clauses: Self::clauses(&formula_ref, &var_remap),
             vars,
+            file: formula_ref.formula.file.clone(),
+            extension: formula_ref.formula.extension.clone(),
         }
     }
 }

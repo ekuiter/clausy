@@ -71,7 +71,7 @@ fn parse_into(file: &str, arena: &mut Arena) -> Formula {
         }
     }
     let root_id = arena.expr(And(child_ids));
-    Formula::new(sub_var_ids, root_id)
+    Formula::new(sub_var_ids, root_id, Some(file.to_string()), Some("model".to_string()))
 }
 
 impl FormulaParser for ModelFormulaParser {

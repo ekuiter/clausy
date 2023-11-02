@@ -21,11 +21,11 @@ impl IoFormulaParser {
 }
 
 impl FormulaParser for IoFormulaParser {
-    fn preprocess(&self, file: String) -> String {
-        util::exec::io(&file, &self.extension, "sat", &[])
-    }
-
     fn parse_into(&self, file: &str, arena: &mut Arena) -> Formula {
-        SatFormulaParser.parse_into(file, arena)
+        let sat_file = util::exec::io(file, &self.extension, "sat", &[]);
+        let mut formula = SatFormulaParser.parse_into(&sat_file, arena);
+        formula.file = Some(file.to_string());
+        formula.extension = Some(self.extension.clone());
+        formula
     }
 }

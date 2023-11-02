@@ -29,16 +29,24 @@ pub(crate) struct Formula {
     /// We consider all expressions below this expression (including itself) to be sub-expressions.
     /// There might be other (non-sub-)expressions that are currently not relevant to this formula.
     pub(crate) root_id: ExprId,
+
+    /// The file this formula was originally parsed from, if any.
+    pub(crate) file: Option<String>,
+
+    /// The extension of the file this formula was originally parsed from, if any.
+    pub(crate) extension: Option<String>,
 }
 
 impl Formula {
     /// Creates a new formula.
     ///
     /// The sub-variable and root expression identifiers must be valid in the context of some given [Arena].
-    pub(crate) fn new(sub_var_ids: HashSet<VarId>, root_id: ExprId) -> Self {
+    pub(crate) fn new(sub_var_ids: HashSet<VarId>, root_id: ExprId, file: Option<String>, extension: Option<String>) -> Self {
         Self {
             sub_var_ids,
             root_id,
+            file,
+            extension
         }
     }
 
