@@ -22,6 +22,7 @@ pub(super) const PRINT_ID: bool = false; // todo: make configurable
 /// Auxiliary variables are required by some algorithms on formulas and can be created with [Var::Aux].
 pub(super) const VAR_AUX_PREFIX: &str = "_aux_"; // todo: make configurable (also whether aux vars should even be listed)
 
+/// Returns the most recently parsed formula.
 macro_rules! formula {
     ($formulas:expr) => {
         $formulas.last_mut().unwrap()
@@ -36,28 +37,6 @@ macro_rules! clauses {
         }
         $clauses.as_ref().unwrap()
     }};
-}
-
-fn name_to_io(str: &str) -> String {
-    str.replace("=", "__EQUALS__")
-        .replace(":", "__COLON__")
-        .replace(".", "__DOT__")
-        .replace(",", "__COMMA__")
-        .replace("/", "__SLASH__")
-        .replace("\\", "__BACKSLASH__")
-        .replace(" ", "__SPACE__")
-        .replace("-", "__DASH__")
-}
-
-fn name_from_io(str: &str) -> String {
-    str.replace("__EQUALS__", "=")
-        .replace("__COLON__", ":")
-        .replace("__DOT__", ".")
-        .replace("__COMMA__", ",")
-        .replace("__SLASH__", "/")
-        .replace("__BACKSLASH__", "\\")
-        .replace("__SPACE__", " ")
-        .replace("__DASH__", "-")
 }
 
 /// Main entry point.
@@ -122,7 +101,7 @@ pub fn main(mut commands: Vec<String>) {
                     .map(|var_id| {
                         let var_id: usize = var_id.unsigned_abs().try_into().unwrap();
                         if let Var::Named(name) = &arena.vars[var_id] {
-                            name_to_io(name)
+                            exec::name_to_io(name)
                         } else {
                             unreachable!()
                         }
@@ -133,7 +112,7 @@ pub fn main(mut commands: Vec<String>) {
                 let (file, extension) = &parsed_files[0];
                 let common_vars = common_vars.iter().map(|s| &**s).collect::<Vec<&str>>();
                 let slice_a = exec::io(file, extension.as_ref().unwrap(), "sat", &common_vars);
-                let slice_a = name_from_io(&slice_a);
+                let slice_a = exec::name_from_io(&slice_a);
                 let slice_a = arena.parse(&slice_a, parser(Some("sat".to_string())));
                 assert!(common_var_ids
                     .symmetric_difference(&slice_a.sub_var_ids)
@@ -141,7 +120,7 @@ pub fn main(mut commands: Vec<String>) {
                     .is_none());
                 let (file, extension) = &parsed_files[1];
                 let slice_b = exec::io(file, extension.as_ref().unwrap(), "sat", &common_vars);
-                let slice_b = name_from_io(&slice_b);
+                let slice_b = exec::name_from_io(&slice_b);
                 let slice_b = arena.parse(&slice_b, parser(Some("sat".to_string())));
                 assert!(common_var_ids
                     .symmetric_difference(&slice_b.sub_var_ids)

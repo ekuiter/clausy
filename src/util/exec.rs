@@ -136,3 +136,27 @@ pub(crate) fn io(
     debug_assert!(!output.is_empty());
     output
 }
+
+/// Transforms a given name into a form compatible with FeatureIDE.
+pub(crate) fn name_to_io(str: &str) -> String {
+    str.replace("=", "__EQUALS__")
+        .replace(":", "__COLON__")
+        .replace(".", "__DOT__")
+        .replace(",", "__COMMA__")
+        .replace("/", "__SLASH__")
+        .replace("\\", "__BACKSLASH__")
+        .replace(" ", "__SPACE__")
+        .replace("-", "__DASH__")
+}
+
+/// Retrieves a name from a given form compatible with FeatureIDE.
+pub(crate) fn name_from_io(str: &str) -> String {
+    str.replace("__EQUALS__", "=")
+        .replace("__COLON__", ":")
+        .replace("__DOT__", ".")
+        .replace("__COMMA__", ",")
+        .replace("__SLASH__", "/")
+        .replace("__BACKSLASH__", "\\")
+        .replace("__SPACE__", " ")
+        .replace("__DASH__", "-")
+}
