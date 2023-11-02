@@ -75,7 +75,9 @@ evaluate this:
 - measure time + max heap size
 - measure time of parsing, preprocessing, and DPLL/CDCL (instrument solvers?)
 
+reasoning 2.0:
 - count diffs of models in parallel
 - teile jeden arbitrary edit in eine generalisierung und eine Spezialisierung auf, indem syntaktisch die entfernten und zugefügten klauseln getrennt werden. dann wird je eine diffzahl auf 0 forciert. vmtl liegt die Schwierigkeit darin, die gemeinsamen klauseln zu identifizieren, das sollte aber mit structural sharing leicht sein. slicing ist vmtl immer noch nötig, aber einfacher bei kleinen windows
+- annahme: kleinere zeitfenster sind einfacher zu zählen, da kleinere differenzen. es ist wahrscheinlich, dass manche wöchentliche edits sehr komplex sind, dort sollte man evtl. adaptiv kleinere abstände wählen. idealerweise hätte man ein automatisches adaptives verfahren, das versucht, die zeitabstände immer so zu wählen, dass die differenzen noch bestimmbar sind (eine art binäre suche, wobei man da ein gutes kriterium braucht, um zu wissen, wann halbiert werden soll (zB wie viele kconfig-lines im diff enthalten sind, damit könnte man abschätzen wie komplex das semantische diff wird, siehe NaCI submission)).
 - move parsed file and extension into formula instance as optional
 - crashes: cargo run ~/Downloads/v2.5.45\[alpha\].model to_canon print to_cnf_dist to_clauses countcargo run ~/Downloads/v2.5.46\[i386\].uvl to_cnf_dist assert_count
