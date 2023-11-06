@@ -70,7 +70,7 @@ evaluate this:
 //     self.exprs_inv.entry(new_hash).or_default().push(id);
 // }
 
-- hybrid visitor that decides for the dist or tseitin visitor (one criterion: could multiply all len's to calculate a threshold for hybrid tseitin, as done in z3) - could be helpful to identify which constraints are actually hard, what they model, and why they are so hard
+- hybrid visitor that decides for the dist or tseitin visitor (one criterion: could multiply all len's to calculate a threshold for hybrid tseitin, as done in z3) - could be helpful to identify which constraints are actually hard, what they model, and why they are so hard and whether they could be rephrased
 - reproduce ASE (hybrid parameter should influence solving performance)
 - measure time + max heap size
 - measure time of parsing, preprocessing, and DPLL/CDCL (instrument solvers?)
