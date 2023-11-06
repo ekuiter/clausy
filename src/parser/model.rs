@@ -5,7 +5,7 @@ use crate::core::{
     arena::Arena,
     expr::{Expr::*, ExprId},
     formula::Formula,
-    var::VarId,
+    var::VarId, file::File,
 };
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
@@ -71,7 +71,7 @@ fn parse_into(file: &str, arena: &mut Arena) -> Formula {
         }
     }
     let root_id = arena.expr(And(child_ids));
-    Formula::new(sub_var_ids, root_id, Some(file.to_string()), Some("model".to_string()))
+    Formula::new(sub_var_ids, root_id, Some(File::new(file.to_string(), Some("model".to_string()))))
 }
 
 impl FormulaParser for ModelFormulaParser {

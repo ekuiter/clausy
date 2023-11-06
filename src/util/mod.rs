@@ -12,17 +12,17 @@ pub(super) fn file_exists(file_name: &str) -> bool {
 }
 
 /// Reads the contents and extension of a file.
-pub(super) fn read_file(file_name: &str) -> (String, Option<String>) {
-    let mut file;
+pub(super) fn read_contents(file_name: &str) -> (String, Option<String>) {
+    let mut contents;
     if file_name.starts_with("-") {
-        file = String::new();
-        std::io::stdin().read_to_string(&mut file).unwrap();
+        contents = String::new();
+        std::io::stdin().read_to_string(&mut contents).unwrap();
     } else {
-        file = fs::read_to_string(file_name).unwrap();
+        contents = fs::read_to_string(file_name).unwrap();
     };
     let extension = Path::new(file_name)
         .extension()
         .map_or(None, |e| e.to_str())
         .map(|e| e.to_string());
-    (file, extension)
+    (contents, extension)
 }

@@ -5,7 +5,7 @@ use crate::core::{
     arena::Arena,
     expr::{Expr::*, ExprId},
     formula::Formula,
-    var::VarId,
+    var::VarId, file::File,
 };
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
@@ -101,6 +101,6 @@ impl FormulaParser for SatFormulaParser {
         debug_assert!(variable_names.is_empty());
 
         let root_id = parse_pair(pairs.next().unwrap(), &vars, arena);
-        Formula::new(sub_var_ids, root_id, Some(file.to_string()), Some("sat".to_string()))
+        Formula::new(sub_var_ids, root_id, Some(File::new(file.to_string(), Some("sat".to_string()))))
     }
 }

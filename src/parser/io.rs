@@ -2,7 +2,7 @@
 
 use super::{sat::SatFormulaParser, FormulaParser};
 use crate::{
-    core::{arena::Arena, formula::Formula},
+    core::{arena::Arena, formula::Formula, file::File},
     util,
 };
 
@@ -24,8 +24,7 @@ impl FormulaParser for IoFormulaParser {
     fn parse_into(&self, file: &str, arena: &mut Arena) -> Formula {
         let sat_file = util::exec::io(file, &self.extension, "sat", &[]);
         let mut formula = SatFormulaParser.parse_into(&sat_file, arena);
-        formula.file = Some(file.to_string());
-        formula.extension = Some(self.extension.clone());
+        formula.file = Some(File::new(file.to_string(), Some(self.extension.clone())));
         formula
     }
 }

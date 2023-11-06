@@ -9,7 +9,7 @@ use crate::util::exec;
 use crate::{
     core::{arena::Arena, formula::Formula},
     parser::{parser, FormulaParsee},
-    util::{file_exists, read_file},
+    util::{file_exists, read_contents},
 };
 
 /// Whether to print identifiers of expressions.
@@ -78,7 +78,10 @@ pub fn main(mut commands: Vec<String>) {
             "to_clauses" => clauses = Some(Clauses::from(formula!(formulas).as_ref(&mut arena))),
             "satisfy" => println!("{}", clauses!(clauses, arena, formulas).satisfy().unwrap()),
             "count" => println!("{}", clauses!(clauses, arena, formulas).count()),
-            "assert_count" => clauses!(clauses, arena, formulas).assert_count(),
+            "assert_count" => {
+                let clauses = clauses!(clauses, arena, formulas);
+                formula!(formulas).file.as_ref().unwrap().assert_count(clauses);
+            },
             "enumerate" => clauses!(clauses, arena, formulas).enumerate(),
             "compare" => {
                 debug_assert!(formulas.len() == 2);
@@ -105,19 +108,15 @@ pub fn main(mut commands: Vec<String>) {
                     .collect::<Vec<String>>();
                 println!("both formulas have {} common variables", common_vars.len());
 
-                let (file, extension) =
-                    (&a.file.as_ref().unwrap(), &a.extension);
                 let common_vars = common_vars.iter().map(|s| &**s).collect::<Vec<&str>>();
-                let slice_a = exec::io(file, extension.as_ref().unwrap(), "sat", &common_vars);
+                let slice_a = exec::io(&a.file.as_ref().unwrap().contents, a.file.as_ref().unwrap().extension.as_ref().unwrap(), "sat", &common_vars);
                 let slice_a = exec::name_from_io(&slice_a);
                 let slice_a = arena.parse(&slice_a, parser(Some("sat".to_string())));
                 assert!(common_var_ids
                     .symmetric_difference(&slice_a.sub_var_ids)
                     .next()
                     .is_none());
-                let (file, extension) =
-                    (&b.file.as_ref().unwrap(), &b.extension);
-                let slice_b = exec::io(file, extension.as_ref().unwrap(), "sat", &common_vars);
+                let slice_b = exec::io(&b.file.as_ref().unwrap().contents, a.file.as_ref().unwrap().extension.as_ref().unwrap(), "sat", &common_vars);
                 let slice_b = exec::name_from_io(&slice_b);
                 let slice_b = arena.parse(&slice_b, parser(Some("sat".to_string())));
                 assert!(common_var_ids
@@ -149,7 +148,7 @@ pub fn main(mut commands: Vec<String>) {
             }
             _ => {
                 if file_exists(command) {
-                    let (file, extension) = read_file(command);
+                    let (file, extension) = read_contents(command);
                     formulas.push(arena.parse(&file, parser(extension.clone())));
                 } else if SatInlineFormulaParser::can_parse(command) {
                     formulas.push(
