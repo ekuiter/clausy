@@ -46,4 +46,8 @@ impl File {
             self.count_featureide()
         );
     }
+
+    // fn slice_featureide(&self) -> String {
+        
+    // }
 }

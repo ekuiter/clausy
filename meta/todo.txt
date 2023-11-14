@@ -74,6 +74,7 @@ evaluate this:
 - reproduce ASE (hybrid parameter should influence solving performance. which models are the ones that the chosen trafo affects the most?)
 - measure time + max heap size
 - measure time of parsing, preprocessing, and DPLL/CDCL (instrument solvers?)
+- Constraint Complexity? welche constraints von linux sind schwierig, warum, und sind die wichtig (was drücken die aus, kann man die approximieren)?
 
 reasoning 2.0:
 - count diffs of models in parallel
