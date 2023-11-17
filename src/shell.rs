@@ -2,6 +2,8 @@
 
 use std::collections::HashSet;
 
+use num_bigint::{BigUint, ToBigInt};
+
 use crate::core::clauses::Clauses;
 use crate::core::expr::Expr;
 use crate::core::var::{Var, VarId};
@@ -103,8 +105,10 @@ pub fn main(mut commands: Vec<String>) {
 
                 let count_a = a.file.as_ref().unwrap().count_featureide();
                 let count_b = b.file.as_ref().unwrap().count_featureide();
-                println!("formula a has count {}", count_a);
-                println!("formula b has count {}", count_b);
+                println!("formula a {}", &count_a);
+                println!("formula b {}", &count_b);
+                println!("var diff a {}", a.sub_var_ids.len() - common_var_ids.len());
+                //println!("diff a b {}", &count_b - &count_a);
 
                 let slice_a = a
                     .file
@@ -117,44 +121,67 @@ pub fn main(mut commands: Vec<String>) {
                     .unwrap()
                     .slice_featureide(&mut arena, &common_var_ids);
 
+                let mut countsa;
+                let mut countsb;
                 {
                     let mut arena = arena.clone();
                     let mut slice = slice_a.clone();
                     slice.to_cnf_tseitin(&mut arena);
-                    println!(
-                        "slice a has count {}",
-                        Clauses::from(slice.as_ref(&arena)).count()
-                    );
+                    countsa = Clauses::from(slice.as_ref(&arena)).count();
+                    println!("slice a {}", countsa);
                 }
                 {
                     let mut arena = arena.clone();
                     let mut slice = slice_b.clone();
                     slice.to_cnf_tseitin(&mut arena);
-                    println!(
-                        "slice b has count {}",
-                        Clauses::from(slice.as_ref(&arena)).count()
-                    );
+                    countsb = Clauses::from(slice.as_ref(&arena)).count();
+                    println!("slice b {}", countsb);
                 }
 
-                // todo: do not clone arena, modify root id instead
+                if false {
+                    println!("diff slice {}", &countsb - &countsa);
+
+                    // todo: do not clone arena, modify root id instead
+                    let mut badds;
+                    let mut bremoves;
+                    {
+                        let mut arena = arena.clone();
+                        let not = arena.expr(Expr::Not(slice_b.root_id));
+                        let root_id = arena.expr(Expr::And(vec![slice_a.root_id, not]));
+                        let mut tmp = Formula::new(common_var_ids.clone(), root_id, None);
+                        tmp.to_cnf_tseitin(&mut arena);
+                        bremoves = Clauses::from(tmp.as_ref(&arena)).count();
+                        println!("slice b removes {}", bremoves);
+                    }
+
+                    {
+                        let mut arena = arena.clone();
+                        let not = arena.expr(Expr::Not(slice_a.root_id));
+                        let root_id = arena.expr(Expr::And(vec![slice_b.root_id, not]));
+                        let mut tmp = Formula::new(common_var_ids.clone(), root_id, None);
+                        tmp.to_cnf_tseitin(&mut arena);
+                        badds = Clauses::from(tmp.as_ref(&arena)).count();
+                        println!("slice b adds {}", badds);
+                    }
+
+                    println!("diff slice {}", &badds - &bremoves);
+                    assert_eq!(&countsb - &countsa - (&badds - &bremoves), BigUint::from(0u32));
+                }
+                //todo: split slice edit up into special+generalization
+                //count diff to slice
+
+                println!("goal: calc diff of a and slice a, which is {}", &count_a - &countsa);
+
+                let x;
                 {
                     let mut arena = arena.clone();
-                    let not = arena.expr(Expr::Not(slice_b.root_id));
+                    let not = arena.expr(Expr::Not(a.root_id));
                     let root_id = arena.expr(Expr::And(vec![slice_a.root_id, not]));
-                    let mut tmp = Formula::new(common_var_ids.clone(), root_id, None);
+                    let mut tmp = Formula::new(a.sub_var_ids.clone(), root_id, None);
                     tmp.to_cnf_tseitin(&mut arena);
-                    println!("slice b removes {}", Clauses::from(tmp.as_ref(&arena)).count());
+                    x = Clauses::from(tmp.as_ref(&arena)).count();
+                    println!("x {}", x);
                 }
-
-                {
-                    let mut arena = arena.clone();
-                    let not = arena.expr(Expr::Not(slice_a.root_id));
-                    let root_id = arena.expr(Expr::And(vec![slice_b.root_id, not]));
-                    let mut tmp = Formula::new(common_var_ids.clone(), root_id, None);
-                    tmp.to_cnf_tseitin(&mut arena);
-                    println!("slice b adds {}", Clauses::from(tmp.as_ref(&arena)).count());
-                }
-                
 
                 // let not_root_id_a = arena.expr(Expr::Not(a.root_id));
                 // let root_id = arena.expr(Expr::And(vec![slice_a.root_id, not_root_id_a]));

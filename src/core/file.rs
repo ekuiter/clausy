@@ -2,6 +2,8 @@
 
 use std::collections::HashSet;
 
+use num_bigint::BigUint;
+
 use crate::{
     core::{
         clauses::Clauses,
@@ -37,7 +39,7 @@ impl File {
     /// Counts the number of solutions of the formula this file represents using FeatureIDE.
     ///
     /// The file extension must be given so FeatureIDE can detect the correct format.
-    pub(crate) fn count_featureide(&self) -> String {
+    pub(crate) fn count_featureide(&self) -> BigUint {
         exec::d4(&exec::io(
             self.contents.as_str(),
             self.extension.as_ref().unwrap(),
