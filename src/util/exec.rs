@@ -117,14 +117,14 @@ pub(crate) fn io(
     input: &str,
     input_format: &str,
     output_format: &str,
-    features: &[&str],
+    variables: &[&str],
 ) -> String {
     let process = Command::new("java")
         .arg("-jar")
         .arg(path("io.jar"))
         .arg(format!("-.{}", input_format))
         .arg(output_format)
-        .arg(features.join(","))
+        .arg(variables.join(","))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -132,8 +132,13 @@ pub(crate) fn io(
         .unwrap();
     process.stdin.unwrap().write_all(input.as_bytes()).ok();
     let mut output = String::new();
+    let mut error = String::new();
     process.stdout.unwrap().read_to_string(&mut output).ok();
-    debug_assert!(!output.is_empty());
+    process.stderr.unwrap().read_to_string(&mut error).ok();
+    if !error.is_empty() {
+        println!("{}", error);
+    }
+    debug_assert!(error.is_empty() && !output.is_empty());
     output
 }
 

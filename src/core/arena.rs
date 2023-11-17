@@ -74,6 +74,7 @@ macro_rules! flatten_expr {
 /// Due to structural sharing, we effectively treat the syntax tree as a directed acyclic graph.
 /// We represent this graph as an adjacency list stored in [Arena::exprs].
 /// Note that, for performance reasons, structural sharing is not guaranteed by all algorithms (including parsers) until calling [Arena::canon_visitor].
+#[derive(Clone)]
 pub(crate) struct Arena {
     /// Stores all variables in this arena.
     ///

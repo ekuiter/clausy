@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 
 use crate::core::clauses::Clauses;
+use crate::core::expr::Expr;
 use crate::core::var::{Var, VarId};
 use crate::parser::sat_inline::SatInlineFormulaParser;
 use crate::util::exec;
@@ -80,8 +81,12 @@ pub fn main(mut commands: Vec<String>) {
             "count" => println!("{}", clauses!(clauses, arena, formulas).count()),
             "assert_count" => {
                 let clauses = clauses!(clauses, arena, formulas);
-                formula!(formulas).file.as_ref().unwrap().assert_count(clauses);
-            },
+                formula!(formulas)
+                    .file
+                    .as_ref()
+                    .unwrap()
+                    .assert_count(clauses);
+            }
             "enumerate" => clauses!(clauses, arena, formulas).enumerate(),
             "compare" => {
                 debug_assert!(formulas.len() == 2);
@@ -95,34 +100,61 @@ pub fn main(mut commands: Vec<String>) {
                     .intersection(&b.sub_var_ids)
                     .map(|var_id| *var_id)
                     .collect();
-                let common_vars = common_var_ids
-                    .iter()
-                    .map(|var_id| {
-                        let var_id: usize = var_id.unsigned_abs().try_into().unwrap();
-                        if let Var::Named(name) = &arena.vars[var_id] {
-                            exec::name_to_io(name)
-                        } else {
-                            unreachable!()
-                        }
-                    })
-                    .collect::<Vec<String>>();
-                println!("both formulas have {} common variables", common_vars.len());
 
-                let common_vars = common_vars.iter().map(|s| &**s).collect::<Vec<&str>>();
-                let slice_a = exec::io(&a.file.as_ref().unwrap().contents, a.file.as_ref().unwrap().extension.as_ref().unwrap(), "sat", &common_vars);
-                let slice_a = exec::name_from_io(&slice_a);
-                let slice_a = arena.parse(&slice_a, parser(Some("sat".to_string())));
-                assert!(common_var_ids
-                    .symmetric_difference(&slice_a.sub_var_ids)
-                    .next()
-                    .is_none());
-                let slice_b = exec::io(&b.file.as_ref().unwrap().contents, a.file.as_ref().unwrap().extension.as_ref().unwrap(), "sat", &common_vars);
-                let slice_b = exec::name_from_io(&slice_b);
-                let slice_b = arena.parse(&slice_b, parser(Some("sat".to_string())));
-                assert!(common_var_ids
-                    .symmetric_difference(&slice_b.sub_var_ids)
-                    .next()
-                    .is_none());
+                let count_a = a.file.as_ref().unwrap().count_featureide();
+                let count_b = b.file.as_ref().unwrap().count_featureide();
+                println!("formula a has count {}", count_a);
+                println!("formula b has count {}", count_b);
+
+                let slice_a = a
+                    .file
+                    .as_ref()
+                    .unwrap()
+                    .slice_featureide(&mut arena, &common_var_ids);
+                let slice_b = b
+                    .file
+                    .as_ref()
+                    .unwrap()
+                    .slice_featureide(&mut arena, &common_var_ids);
+
+                {
+                    let mut arena = arena.clone();
+                    let mut slice = slice_a.clone();
+                    slice.to_cnf_tseitin(&mut arena);
+                    println!(
+                        "slice a has count {}",
+                        Clauses::from(slice.as_ref(&arena)).count()
+                    );
+                }
+                {
+                    let mut arena = arena.clone();
+                    let mut slice = slice_b.clone();
+                    slice.to_cnf_tseitin(&mut arena);
+                    println!(
+                        "slice b has count {}",
+                        Clauses::from(slice.as_ref(&arena)).count()
+                    );
+                }
+
+                // todo: do not clone arena, modify root id instead
+                {
+                    let mut arena = arena.clone();
+                    let not = arena.expr(Expr::Not(slice_b.root_id));
+                    let root_id = arena.expr(Expr::And(vec![slice_a.root_id, not]));
+                    let mut tmp = Formula::new(common_var_ids.clone(), root_id, None);
+                    tmp.to_cnf_tseitin(&mut arena);
+                    println!("slice b removes {}", Clauses::from(tmp.as_ref(&arena)).count());
+                }
+
+                {
+                    let mut arena = arena.clone();
+                    let not = arena.expr(Expr::Not(slice_a.root_id));
+                    let root_id = arena.expr(Expr::And(vec![slice_b.root_id, not]));
+                    let mut tmp = Formula::new(common_var_ids.clone(), root_id, None);
+                    tmp.to_cnf_tseitin(&mut arena);
+                    println!("slice b adds {}", Clauses::from(tmp.as_ref(&arena)).count());
+                }
+                
 
                 // let not_root_id_a = arena.expr(Expr::Not(a.root_id));
                 // let root_id = arena.expr(Expr::And(vec![slice_a.root_id, not_root_id_a]));
@@ -152,6 +184,7 @@ pub fn main(mut commands: Vec<String>) {
                     formulas.push(arena.parse(&file, parser(extension.clone())));
                 } else if SatInlineFormulaParser::can_parse(command) {
                     formulas.push(
+                        // todo: what does this implement? a comparison as in Thüm 2009?
                         SatInlineFormulaParser::new(&formulas, true)
                             .parse_into(&command, &mut arena),
                     );

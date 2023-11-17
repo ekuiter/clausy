@@ -15,6 +15,7 @@ use std::collections::HashSet;
 /// the root expression of its syntax tree (constraining said variables).
 /// We must store the variables to ensure correct results for certain feature-model analyses (e.g., model counting and slicing).
 /// A formula is only a view and always implicitly tied to an [Arena].
+#[derive(Clone)]
 pub(crate) struct Formula {
     /// Specifies the sub-variables of this formula.
     ///
