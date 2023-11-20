@@ -2,13 +2,12 @@
 
 use std::collections::HashSet;
 
-use num_bigint::{BigUint, ToBigInt};
+use num_bigint::BigUint;
 
 use crate::core::clauses::Clauses;
 use crate::core::expr::Expr;
-use crate::core::var::{Var, VarId};
+use crate::core::var::VarId;
 use crate::parser::sat_inline::SatInlineFormulaParser;
-use crate::util::exec;
 use crate::{
     core::{arena::Arena, formula::Formula},
     parser::{parser, FormulaParsee},
@@ -165,12 +164,18 @@ pub fn main(mut commands: Vec<String>) {
                     }
 
                     println!("diff slice {}", &badds - &bremoves);
-                    assert_eq!(&countsb - &countsa - (&badds - &bremoves), BigUint::from(0u32));
+                    assert_eq!(
+                        &countsb - &countsa - (&badds - &bremoves),
+                        BigUint::from(0u32)
+                    );
                 }
                 //todo: split slice edit up into special+generalization
                 //count diff to slice
 
-                println!("goal: calc diff of a and slice a, which is {}", &count_a - &countsa);
+                println!(
+                    "goal: calc diff of a and slice a, which is {}",
+                    &count_a - &countsa
+                );
 
                 let x;
                 {

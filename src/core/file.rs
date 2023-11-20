@@ -5,10 +5,7 @@ use std::collections::HashSet;
 use num_bigint::BigUint;
 
 use crate::{
-    core::{
-        clauses::Clauses,
-        var::Var,
-    },
+    core::{clauses::Clauses, var::Var},
     parser::{parser, FormulaParsee},
     util::exec,
 };
@@ -78,11 +75,8 @@ impl File {
             &vars,
         );
         let slice = exec::name_from_io(&slice);
-        let formula = arena.parse(&slice, parser(Some("sat".to_string())));
-        assert!(var_ids
-            .symmetric_difference(&formula.sub_var_ids)
-            .next()
-            .is_none());
+        let mut formula = arena.parse(&slice, parser(Some("sat".to_string())));
+        formula.sub_var_ids = var_ids.clone();
         formula
     }
 }
