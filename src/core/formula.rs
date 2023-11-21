@@ -70,6 +70,30 @@ impl Formula {
         arena.vars(|var_id, _| self.sub_var_ids.contains(&var_id))
     }
 
+    /// Returns all sub-variable identifiers of this formula also in another formula.
+    pub(crate) fn common_vars(&self, other: &Formula) -> HashSet<VarId> {
+        self.sub_var_ids
+            .intersection(&other.sub_var_ids)
+            .map(|id| *id)
+            .collect::<HashSet<VarId>>()
+    }
+
+    /// Returns all sub-variable identifiers of this formula or in another formula.
+    pub(crate) fn all_vars(&self, other: &Formula) -> HashSet<VarId> {
+        self.sub_var_ids
+            .union(&other.sub_var_ids)
+            .map(|id| *id)
+            .collect::<HashSet<VarId>>()
+    }
+
+    /// Returns all sub-variable identifiers of this formula not in another formula.
+    pub(crate) fn except_vars(&self, other: &Formula) -> HashSet<VarId> {
+        self.sub_var_ids
+            .difference(&other.sub_var_ids)
+            .map(|id| *id)
+            .collect::<HashSet<VarId>>()
+    }
+
     /// Returns the identifiers of all sub-expressions of this formula.
     ///
     /// If in canonical form, each identifier is guaranteed to appear only once.
@@ -149,6 +173,7 @@ impl Formula {
     /// Returns a formula that only contains constraints of this formula that do not contain any given variable.
     ///
     /// Assumes that this formula is in proto-CNF; that is, it is a conjunction of constraints.
+    /// Does not modify this formula.
     pub(crate) fn remove_constraints(&self, ids: &HashSet<VarId>, arena: &mut Arena) -> Formula {
         if let And(child_ids) = &arena.exprs[self.root_id] {
             let new_child_ids = child_ids
@@ -161,5 +186,15 @@ impl Formula {
         } else {
             unreachable!()
         }
+    }
+
+    /// Returns a formula that encodes whether this formula implies another formula and solutions gone in the other formula, if any.
+    /// 
+    /// Considers all sub variables in both formulas.
+    /// Does not modify this formula.
+    pub(crate) fn implies(&self, other: &Formula, arena: &mut Arena) -> Formula {
+        let not_other = arena.expr(Not(other.root_id));
+        let root_id = arena.expr(And(vec![self.root_id, not_other]));
+        Formula::new(self.all_vars(other), root_id, None)
     }
 }

@@ -94,207 +94,49 @@ pub fn main(mut commands: Vec<String>) {
                 debug_assert!(formulas.len() == 2);
                 let a = &formulas[0];
                 let b = &formulas[1];
-
-                let mut count_a_time = Instant::now();
-                let count_a;
-                {
-                    let mut arena = arena.clone();
-                    let mut a = a.clone();
-                    a.to_cnf_tseitin(&mut arena);
-                    count_a = Clauses::from(a.as_ref(&arena)).count();
-                }
-                let count_a_time = count_a_time.elapsed();
-
-                // let count_b;
-                // {
-                //     let mut arena = arena.clone();
-                //     let mut b = b.clone();
-                //     b.to_cnf_tseitin(&mut arena);
-                //     count_b = Clauses::from(b.as_ref(&arena)).count();
-                // }
-
-                let mut count_diff_time = Instant::now();
-                let a_excl_var_ids = a
-                    .sub_var_ids
-                    .difference(&b.sub_var_ids)
-                    .map(|id| *id)
-                    .collect::<HashSet<VarId>>();
-                let b_excl_var_ids = b
-                    .sub_var_ids
-                    .difference(&a.sub_var_ids)
-                    .map(|id| *id)
-                    .collect::<HashSet<VarId>>();
-                let common_var_ids = a
-                    .sub_var_ids
-                    .intersection(&b.sub_var_ids)
-                    .map(|id| *id)
-                    .collect::<HashSet<VarId>>();
-
-                let ap = a.remove_constraints(&a_excl_var_ids, &mut arena);
-                let bp = b.remove_constraints(&b_excl_var_ids, &mut arena);
-
-                let diffaap;
-                {
-                    let mut arena = arena.clone();
-                    let not = arena.expr(Expr::Not(a.root_id));
-                    let root_id = arena.expr(Expr::And(vec![ap.root_id, not]));
-                    let mut tmp = Formula::new(a.sub_var_ids.clone(), root_id, None);
-                    tmp.to_cnf_tseitin(&mut arena);
-                    diffaap = Clauses::from(tmp.as_ref(&arena)).count();
-                }
-
-                let diffbpb;
-                {
-                    let mut arena = arena.clone();
-                    let not = arena.expr(Expr::Not(b.root_id));
-                    let root_id = arena.expr(Expr::And(vec![bp.root_id, not]));
-                    let mut tmp = Formula::new(b.sub_var_ids.clone(), root_id, None);
-                    tmp.to_cnf_tseitin(&mut arena);
-                    diffbpb = Clauses::from(tmp.as_ref(&arena)).count();
-                }
-
+                let a_var_ids = a.except_vars(b);
+                let b_var_ids = b.except_vars(a);
+                let common_var_ids = a.common_vars(b);
+                let mut a_plice = a.remove_constraints(&a_var_ids, &mut arena);
+                let mut b_plice = b.remove_constraints(&b_var_ids, &mut arena);
+                a_plice.sub_var_ids = common_var_ids.clone();
+                b_plice.sub_var_ids = common_var_ids.clone();
+                let a_plice_to_a;
+                let a_vars: u32 = a_var_ids.len().try_into().unwrap();
                 let removed;
-                {
-                    let mut arena = arena.clone();
-                    let mut ap = ap.clone();
-                    let mut bp = bp.clone();
-                    ap.sub_var_ids = common_var_ids.clone();
-                    bp.sub_var_ids = common_var_ids.clone();
-                    let not = arena.expr(Expr::Not(bp.root_id));
-                    let root_id = arena.expr(Expr::And(vec![ap.root_id, not]));
-                    let mut tmp = Formula::new(ap.sub_var_ids.clone(), root_id, None);
-                    tmp.to_cnf_tseitin(&mut arena);
-                    removed = Clauses::from(tmp.as_ref(&arena)).count();
-                }
-
                 let added;
+                let b_vars: u32 = b_var_ids.len().try_into().unwrap();
+                let b_plice_to_b;
                 {
                     let mut arena = arena.clone();
-                    let mut ap = ap.clone();
-                    let mut bp = bp.clone();
-                    ap.sub_var_ids = common_var_ids.clone();
-                    bp.sub_var_ids = common_var_ids.clone();
-                    let not = arena.expr(Expr::Not(ap.root_id));
-                    let root_id = arena.expr(Expr::And(vec![bp.root_id, not]));
-                    let mut tmp = Formula::new(ap.sub_var_ids.clone(), root_id, None);
-                    tmp.to_cnf_tseitin(&mut arena);
-                    added = Clauses::from(tmp.as_ref(&arena)).count();
+                    let mut diff = a_plice.implies(a, &mut arena);
+                    diff.to_cnf_tseitin(&mut arena);
+                    a_plice_to_a = Clauses::from(diff.as_ref(&arena)).count();
                 }
-                let count_diff_time = count_diff_time.elapsed();
-
-                let two = 2.to_biguint().unwrap();
-                let ax: u32 = a_excl_var_ids.len().try_into().unwrap();
-                let bx: u32 = b_excl_var_ids.len().try_into().unwrap();
+                {
+                    let mut arena = arena.clone();
+                    let mut diff = a_plice.implies(&b_plice, &mut arena);
+                    diff.to_cnf_tseitin(&mut arena);
+                    removed = Clauses::from(diff.as_ref(&arena)).count();
+                }
+                // todo: do not clone arena, modify root id instead
+                {
+                    let mut arena = arena.clone();
+                    let mut diff = b_plice.implies(&a_plice, &mut arena);
+                    diff.to_cnf_tseitin(&mut arena);
+                    added = Clauses::from(diff.as_ref(&arena)).count();
+                }
+                {
+                    let mut arena = arena.clone();
+                    let mut diff = b_plice.implies(b, &mut arena);
+                    diff.to_cnf_tseitin(&mut arena);
+                    b_plice_to_b = Clauses::from(diff.as_ref(&arena)).count();
+                }
                 println!(
-                    "{},{},{diffaap},{ax},{removed},{added},{bx},{diffbpb}",
-                    count_a_time.as_nanos(),
-                    count_diff_time.as_nanos(),
-                    // (((&count_a + &diffaap) / two.pow(ax)) - &removed + &added) * two.pow(bx)
-                    //     - &diffbpb
+                    "(((#+{a_plice_to_a})/2^{a_vars})-{removed}+{added})*2^{b_vars}-{b_plice_to_b}"
+                    // (((&count_a + &diffaap) / two.pow(ax)) - &removed + &added) * two.pow(bx) - &diffbpb
+                    // bin/clausy ... compare | sed 's/#/<model count of a>/' | bc
                 );
-
-                // println!("{:?}", arena.var_strings(&b_excl_var_ids));
-                // b.bla(&b_excl_var_ids, &mut arena);
-
-                // let slice_a = a
-                //     .file
-                //     .as_ref()
-                //     .unwrap()
-                //     .slice_featureide(&mut arena, &common_var_ids);
-                // let slice_b = b
-                //     .file
-                //     .as_ref()
-                //     .unwrap()
-                //     .slice_featureide(&mut arena, &common_var_ids);
-
-                // let mut countsa;
-                // let mut countsb;
-                // {
-                //     let mut arena = arena.clone();
-                //     let mut slice = slice_a.clone();
-                //     slice.to_cnf_tseitin(&mut arena);
-                //     countsa = Clauses::from(slice.as_ref(&arena)).count();
-                //     println!("slice a {}", countsa);
-                // }
-                // {
-                //     let mut arena = arena.clone();
-                //     let mut slice = slice_b.clone();
-                //     slice.to_cnf_tseitin(&mut arena);
-                //     countsb = Clauses::from(slice.as_ref(&arena)).count();
-                //     println!("slice b {}", countsb);
-                // }
-
-                // if false {
-                //     println!("diff slice {}", &countsb - &countsa);
-
-                //     // todo: do not clone arena, modify root id instead
-                //     let mut badds;
-                //     let mut bremoves;
-                //     {
-                //         let mut arena = arena.clone();
-                //         let not = arena.expr(Expr::Not(slice_b.root_id));
-                //         let root_id = arena.expr(Expr::And(vec![slice_a.root_id, not]));
-                //         let mut tmp = Formula::new(common_var_ids.clone(), root_id, None);
-                //         tmp.to_cnf_tseitin(&mut arena);
-                //         bremoves = Clauses::from(tmp.as_ref(&arena)).count();
-                //         println!("slice b removes {}", bremoves);
-                //     }
-
-                //     {
-                //         let mut arena = arena.clone();
-                //         let not = arena.expr(Expr::Not(slice_a.root_id));
-                //         let root_id = arena.expr(Expr::And(vec![slice_b.root_id, not]));
-                //         let mut tmp = Formula::new(common_var_ids.clone(), root_id, None);
-                //         tmp.to_cnf_tseitin(&mut arena);
-                //         badds = Clauses::from(tmp.as_ref(&arena)).count();
-                //         println!("slice b adds {}", badds);
-                //     }
-
-                //     println!("diff slice {}", &badds - &bremoves);
-                //     assert_eq!(
-                //         &countsb - &countsa - (&badds - &bremoves),
-                //         BigUint::from(0u32)
-                //     );
-                // }
-                // //todo: split slice edit up into special+generalization
-                // //count diff to slice
-
-                // println!(
-                //     "goal: calc diff of a and slice a, which is {}",
-                //     &count_a - &countsa
-                // );
-
-                // let x;
-                // {
-                //     let mut arena = arena.clone();
-                //     let not = arena.expr(Expr::Not(a.root_id));
-                //     let root_id = arena.expr(Expr::And(vec![slice_a.root_id, not]));
-                //     let mut tmp = Formula::new(a.sub_var_ids.clone(), root_id, None);
-                //     tmp.to_cnf_tseitin(&mut arena);
-                //     x = Clauses::from(tmp.as_ref(&arena)).count();
-                //     println!("x {}", x);
-                // }
-
-                // let not_root_id_a = arena.expr(Expr::Not(a.root_id));
-                // let root_id = arena.expr(Expr::And(vec![slice_a.root_id, not_root_id_a]));
-                // let mut cmp_a_slice = Formula::new(a.sub_var_ids.clone(), root_id);
-                // cmp_a_slice.to_cnf_tseitin(&mut arena);
-                // let c = Clauses::from(cmp_a_slice.as_ref(&arena));
-                // println!("{}", c.count());
-
-                // let not_root_id_b = arena.expr(Expr::Not(b.root_id));
-                // let root_id = arena.expr(Expr::And(vec![slice_b.root_id, not_root_id_b]));
-                // let mut cmp_b_slice = Formula::new(b.sub_var_ids.clone(), root_id);
-                // cmp_b_slice.to_cnf_tseitin(&mut arena);
-                // let c = Clauses::from(cmp_b_slice.as_ref(&arena));
-                // println!("{}", c.count());
-
-                // let not = arena.expr(Expr::Not(slice_b.root_id));
-                // let root_id = arena.expr(Expr::And(vec![slice_a.root_id, not]));
-                // let mut cmp = Formula::new(common_var_ids.clone(), root_id);
-                // cmp.to_cnf_tseitin(&mut arena);
-                // let c = Clauses::from(cmp.as_ref(&arena));
-                // println!("{}", c.count());
                 return;
             }
             _ => {
