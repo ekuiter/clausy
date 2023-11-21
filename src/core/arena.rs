@@ -222,6 +222,7 @@ impl Arena {
     }
 
     /// Given a set of variable identifiers, returns a set of their associated sting representations.
+    #[allow(unused)]
     pub(crate) fn var_strs(&self, var_ids: &HashSet<VarId>) -> Vec<String> {
         var_ids
             .into_iter()
@@ -602,12 +603,16 @@ impl Arena {
         match &self.exprs[id] {
             Var(_) | Not(_) => (),
             And(child_ids) => {
-                let var_id = self.def_and(id, &child_ids.clone());
-                self.set_expr(id, Var(var_id));
+                if !child_ids.is_empty() {
+                    let var_id = self.def_and(id, &child_ids.clone());
+                    self.set_expr(id, Var(var_id));
+                }
             }
-            Or(grandchild_ids) => {
-                let var_id = self.def_or(id, &grandchild_ids.clone());
-                self.set_expr(id, Var(var_id));
+            Or(child_ids) => {
+                if !child_ids.is_empty() {
+                    let var_id = self.def_or(id, &child_ids.clone());
+                    self.set_expr(id, Var(var_id));
+                }
             }
         }
     }

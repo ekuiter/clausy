@@ -32,6 +32,7 @@ impl Clauses {
     /// We require that the formula already is in conjunctive normal form (see [super::formula::Formula::to_cnf_dist]).
     /// If there is no clause, the represented formula is a tautology.
     /// If there is an empty clause, the represented formula is a contradiction.
+    /// If there is at least one variable, the empty clause is translated as And(1, -1), as some solvers do not treat the empty clause correctly.
     fn clauses(formula_ref: &FormulaRef, var_remap: &HashMap<VarId, VarId>) -> Vec<Vec<VarId>> {
         let mut clauses = Vec::<Vec<VarId>>::new();
         let add_literal = |id, clause: &mut Vec<VarId>| match formula_ref.arena.exprs[id] {
@@ -47,7 +48,12 @@ impl Clauses {
             for child_id in child_ids {
                 add_literal(*child_id, &mut clause);
             }
-            clauses.push(clause);
+            if child_ids.is_empty() && !var_remap.is_empty() {
+                clauses.push(vec![1]);
+                clauses.push(vec![-1]);
+            } else {
+                clauses.push(clause);
+            }
         };
         match &formula_ref.arena.exprs[formula_ref.formula.root_id] {
             Var(_) | Not(_) => add_clause(slice::from_ref(&formula_ref.formula.root_id)),

@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 use std::time::Instant;
 
-use num_bigint::BigUint;
+use num_bigint::ToBigUint;
 
 use crate::core::clauses::Clauses;
 use crate::core::expr::Expr;
@@ -182,17 +182,15 @@ pub fn main(mut commands: Vec<String>) {
                 }
                 let count_diff_time = count_diff_time.elapsed();
 
+                let two = 2.to_biguint().unwrap();
+                let ax: u32 = a_excl_var_ids.len().try_into().unwrap();
+                let bx: u32 = b_excl_var_ids.len().try_into().unwrap();
                 println!(
-                    "{},{},{},{}",
+                    "{},{},{diffaap},{ax},{removed},{added},{bx},{diffbpb}",
                     count_a_time.as_nanos(),
                     count_diff_time.as_nanos(),
-                    count_a,
-                    (((&count_a + &diffaap)
-                        / 2usize.pow(a_excl_var_ids.len().try_into().unwrap()))
-                        - &removed
-                        + &added)
-                        * 2usize.pow(b_excl_var_ids.len().try_into().unwrap())
-                        - &diffbpb
+                    // (((&count_a + &diffaap) / two.pow(ax)) - &removed + &added) * two.pow(bx)
+                    //     - &diffbpb
                 );
 
                 // println!("{:?}", arena.var_strings(&b_excl_var_ids));
