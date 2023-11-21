@@ -221,6 +221,14 @@ impl Arena {
             .collect()
     }
 
+    /// Given a set of variable identifiers, returns a set of their associated sting representations.
+    pub(crate) fn var_strs(&self, var_ids: &HashSet<VarId>) -> Vec<String> {
+        var_ids
+            .into_iter()
+            .map(|id| self.vars[TryInto::<usize>::try_into(*id).unwrap()].to_string())
+            .collect::<Vec<String>>()
+    }
+
     /// Adds a new expression to this arena, returning its new identifier.
     ///
     /// Appends the given expression to [Arena::exprs] and enables its lookup via [Arena::exprs_inv].
@@ -389,7 +397,11 @@ impl Arena {
     ///
     /// The created formula references all variables of this arena, use [Formula::new] for more fine-grained sub-variables.
     pub(crate) fn as_formula<'a>(&'a self, root_id: ExprId) -> Formula {
-        Formula::new((1..self.vars.len().try_into().unwrap()).collect(), root_id, None)
+        Formula::new(
+            (0..self.vars.len().try_into().unwrap()).collect(),
+            root_id,
+            None,
+        )
     }
 
     /// Visits all sub-expressions of a given root expression using a reverse preorder traversal.
@@ -598,5 +610,28 @@ impl Arena {
                 self.set_expr(id, Var(var_id));
             }
         }
+    }
+
+    /// Returns whether the given expression contains any given expression.
+    pub(super) fn contains_expr(&self, root_id: ExprId, ids: &HashSet<ExprId>) -> bool {
+        let mut remaining_ids = vec![root_id];
+        let mut visited_ids = HashSet::<ExprId>::new();
+        while !remaining_ids.is_empty() {
+            let id = remaining_ids.pop().unwrap();
+            if !visited_ids.contains(&id) {
+                if ids.contains(&id) {
+                    return true;
+                }
+                remaining_ids.extend(self.exprs[id].children());
+                visited_ids.insert(id);
+            }
+        }
+        false
+    }
+
+    /// Returns whether the given expression contains any given variable.
+    pub(super) fn contains_var(&mut self, root_id: ExprId, ids: &HashSet<VarId>) -> bool {
+        let ids = ids.iter().map(|id| self.expr(Var(*id))).collect();
+        self.contains_expr(root_id, &ids)
     }
 }

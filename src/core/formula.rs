@@ -3,8 +3,9 @@
 use super::{
     arena::Arena,
     expr::{Expr::*, ExprId},
+    file::File,
     formula_ref::FormulaRef,
-    var::{Var, VarId}, file::File,
+    var::{Var, VarId},
 };
 use std::collections::HashSet;
 
@@ -39,11 +40,7 @@ impl Formula {
     /// Creates a new formula.
     ///
     /// The sub-variable and root expression identifiers must be valid in the context of some given [Arena].
-    pub(crate) fn new(
-        sub_var_ids: HashSet<VarId>,
-        root_id: ExprId,
-        file: Option<File>,
-    ) -> Self {
+    pub(crate) fn new(sub_var_ids: HashSet<VarId>, root_id: ExprId, file: Option<File>) -> Self {
         Self {
             sub_var_ids,
             root_id,
@@ -147,5 +144,22 @@ impl Formula {
         let new_expr = And(arena.new_exprs.take().unwrap());
         let root_id = arena.expr(new_expr);
         self.root_id = root_id;
+    }
+
+    /// Returns a formula that only contains constraints of this formula that do not contain any given variable.
+    ///
+    /// Assumes that this formula is in proto-CNF; that is, it is a conjunction of constraints.
+    pub(crate) fn remove_constraints(&self, ids: &HashSet<VarId>, arena: &mut Arena) -> Formula {
+        if let And(child_ids) = &arena.exprs[self.root_id] {
+            let new_child_ids = child_ids
+                .clone()
+                .into_iter()
+                .filter(|child_id| !arena.contains_var(*child_id, ids))
+                .collect();
+            let root_id = arena.expr(And(new_child_ids));
+            Self::new(self.sub_var_ids.clone(), root_id, None)
+        } else {
+            unreachable!()
+        }
     }
 }
