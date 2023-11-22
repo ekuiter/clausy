@@ -55,7 +55,6 @@ impl File {
     /// Slices the formula this file represents such that only the given variables remain.
     ///
     /// Internally, this uses FeatureIDE, so it operates on an intermediate CNF representation created by distributive transformation.
-    #[allow(unused)]
     pub(crate) fn slice_featureide(&self, var_ids: &HashSet<VarId>, arena: &mut Arena) -> Formula {
         let vars = var_ids
             .iter()

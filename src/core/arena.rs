@@ -294,7 +294,7 @@ impl Arena {
     /// Analogously to [Arena::simp_expr], this performs a simplification of an expression.
     /// However, this may create new expressions and is therefore more expensive, thus not called in the parsing stage.
     /// This is useful to call during a postorder syntax tree traversal to ensure canonical form (see [Arena::canon_visitor]).
-    fn flatten_expr(&mut self, expr: &mut Expr) {
+    pub(super) fn flatten_expr(&mut self, expr: &mut Expr) {
         match expr {
             Var(_) | Not(_) => (),
             And(child_ids) => flatten_expr!(self, expr, child_ids, And),

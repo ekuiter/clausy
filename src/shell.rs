@@ -1,14 +1,10 @@
 //! Imperative shell for operating on feature-model formulas.
 
-use std::collections::HashSet;
 use std::str::FromStr;
-use std::time::Instant;
 
 use num_bigint::{BigUint, ToBigUint};
 
 use crate::core::clauses::Clauses;
-use crate::core::expr::Expr;
-use crate::core::var::VarId;
 use crate::parser::sat_inline::SatInlineFormulaParser;
 use crate::{
     core::{arena::Arena, formula::Formula},
@@ -37,7 +33,7 @@ macro_rules! formula {
 macro_rules! clauses {
     ($clauses:expr, $arena:expr, $formulas:expr) => {{
         if $clauses.is_none() {
-            $clauses = Some(Clauses::from(formula!($formulas).as_ref(&$arena)));
+            $clauses = Some(formula!($formulas).to_clauses(&$arena));
         }
         $clauses.as_ref().unwrap()
     }};
@@ -79,8 +75,10 @@ pub fn main(mut commands: Vec<String>) {
             "to_canon" => formula!(formulas).to_canon(&mut arena),
             "to_nnf" => formula!(formulas).to_nnf(&mut arena),
             "to_cnf_dist" => formula!(formulas).to_cnf_dist(&mut arena),
-            "to_cnf_tseitin" => formula!(formulas).to_cnf_tseitin(&mut arena),
-            "to_clauses" => clauses = Some(Clauses::from(formula!(formulas).as_ref(&mut arena))),
+            "to_cnf_tseitin" => {
+                formula!(formulas).to_cnf_tseitin(&mut arena);
+            }
+            "to_clauses" => clauses = Some(formula!(formulas).to_clauses(&mut arena)),
             "satisfy" => println!("{}", clauses!(clauses, arena, formulas).satisfy().unwrap()),
             "count" => println!("{}", clauses!(clauses, arena, formulas).count()),
             "assert_count" => {
@@ -97,7 +95,7 @@ pub fn main(mut commands: Vec<String>) {
                 let a = &formulas[0];
                 let b = &formulas[1];
                 let (a2_to_a, a_vars, removed, added, b_vars, b2_to_b) =
-                    a.count_diff_pseudo_slice(b, &mut arena);
+                    a.count_diff_pseudo_slice(b, true, &mut arena);
                 if parts.len() == 2 {
                     let count_a = BigUint::from_str(parts[1]).unwrap();
                     let two = 2.to_biguint().unwrap();
@@ -108,7 +106,7 @@ pub fn main(mut commands: Vec<String>) {
                             - &b2_to_b
                     );
                 } else {
-                    println!("(((#+{a2_to_a})/2^{a_vars})-{removed}+{added})*2^{b_vars}-{b2_to_b}# | sed 's/#/<model count of a>/' | bc");
+                    println!("(((#+{a2_to_a})/2^{a_vars})-{removed}+{added})*2^{b_vars}-{b2_to_b}# | sed 's/#/<left model count>/' | bc");
                 }
             }
             _ => {
