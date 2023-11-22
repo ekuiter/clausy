@@ -92,9 +92,8 @@ pub fn main(mut commands: Vec<String>) {
                     .assert_count(clauses);
             }
             "enumerate" => clauses!(clauses, arena, formulas).enumerate(),
-            "count_diff" => {
+            "count_diff_pseudo_slice" => {
                 debug_assert!(formulas.len() == 2);
-                //debug_assert!(parts.len() >= 2);
                 let a = &formulas[0];
                 let b = &formulas[1];
                 let (a2_to_a, a_vars, removed, added, b_vars, b2_to_b) =
