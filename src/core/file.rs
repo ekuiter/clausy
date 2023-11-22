@@ -56,7 +56,7 @@ impl File {
     ///
     /// Internally, this uses FeatureIDE, so it operates on an intermediate CNF representation created by distributive transformation.
     #[allow(unused)]
-    pub(crate) fn slice_featureide(&self, arena: &mut Arena, var_ids: &HashSet<VarId>) -> Formula {
+    pub(crate) fn slice_featureide(&self, var_ids: &HashSet<VarId>, arena: &mut Arena) -> Formula {
         let vars = var_ids
             .iter()
             .map(|var_id| {

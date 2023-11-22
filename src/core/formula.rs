@@ -1,11 +1,13 @@
 //! Defines a feature-model formula.
 
+use num_bigint::BigUint;
+
 use super::{
     arena::Arena,
     expr::{Expr::*, ExprId},
     file::File,
     formula_ref::FormulaRef,
-    var::{Var, VarId},
+    var::{Var, VarId}, clauses::Clauses,
 };
 use std::collections::HashSet;
 
@@ -189,12 +191,56 @@ impl Formula {
     }
 
     /// Returns a formula that encodes whether this formula implies another formula and solutions gone in the other formula, if any.
-    /// 
+    ///
     /// Considers all sub variables in both formulas.
     /// Does not modify this formula.
     pub(crate) fn implies(&self, other: &Formula, arena: &mut Arena) -> Formula {
         let not_other = arena.expr(Not(other.root_id));
         let root_id = arena.expr(And(vec![self.root_id, not_other]));
         Formula::new(self.all_vars(other), root_id, None)
+    }
+
+    /// Returns a description of the difference between this formula's count and another's by means of a pseudo-slice.
+    pub(crate) fn count_diff_pseudo_slice(&self, b: &Formula, arena: &mut Arena) -> (BigUint, u32, BigUint, BigUint, u32, BigUint) {
+        let a = self;
+        let a_var_ids = a.except_vars(b);
+        let b_var_ids = b.except_vars(a);
+        let common_var_ids = a.common_vars(b);
+        let mut a2 = a.remove_constraints(&a_var_ids, arena);
+        let mut b2 = b.remove_constraints(&b_var_ids, arena);
+        a2.sub_var_ids = common_var_ids.clone();
+        b2.sub_var_ids = common_var_ids.clone();
+        let a2_to_a;
+        let a_vars: u32 = a_var_ids.len().try_into().unwrap();
+        let removed;
+        let added;
+        let b_vars: u32 = b_var_ids.len().try_into().unwrap();
+        let b2_to_b;
+        {
+            let mut arena = arena.clone();
+            let mut diff = a2.implies(a, &mut arena);
+            diff.to_cnf_tseitin(&mut arena);
+            a2_to_a = Clauses::from(diff.as_ref(&arena)).count();
+        }
+        {
+            let mut arena = arena.clone();
+            let mut diff = a2.implies(&b2, &mut arena);
+            diff.to_cnf_tseitin(&mut arena);
+            removed = Clauses::from(diff.as_ref(&arena)).count();
+        }
+        // todo: do not clone arena, modify root id instead
+        {
+            let mut arena = arena.clone();
+            let mut diff = b2.implies(&a2, &mut arena);
+            diff.to_cnf_tseitin(&mut arena);
+            added = Clauses::from(diff.as_ref(&arena)).count();
+        }
+        {
+            let mut arena = arena.clone();
+            let mut diff = b2.implies(b, &mut arena);
+            diff.to_cnf_tseitin(&mut arena);
+            b2_to_b = Clauses::from(diff.as_ref(&arena)).count();
+        }
+        (a2_to_a, a_vars, removed, added, b_vars, b2_to_b)
     }
 }

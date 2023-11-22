@@ -1,9 +1,10 @@
 //! Imperative shell for operating on feature-model formulas.
 
 use std::collections::HashSet;
+use std::str::FromStr;
 use std::time::Instant;
 
-use num_bigint::ToBigUint;
+use num_bigint::{BigUint, ToBigUint};
 
 use crate::core::clauses::Clauses;
 use crate::core::expr::Expr;
@@ -61,7 +62,8 @@ pub fn main(mut commands: Vec<String>) {
     }
 
     for command in &commands {
-        match command.as_str() {
+        let parts: Vec<&str> = command.split_whitespace().collect();
+        match parts[0] {
             "print" => {
                 if clauses.is_some() {
                     print!("{}", clauses.as_ref().unwrap());
@@ -90,54 +92,25 @@ pub fn main(mut commands: Vec<String>) {
                     .assert_count(clauses);
             }
             "enumerate" => clauses!(clauses, arena, formulas).enumerate(),
-            "compare" => {
+            "count_diff" => {
                 debug_assert!(formulas.len() == 2);
+                //debug_assert!(parts.len() >= 2);
                 let a = &formulas[0];
                 let b = &formulas[1];
-                let a_var_ids = a.except_vars(b);
-                let b_var_ids = b.except_vars(a);
-                let common_var_ids = a.common_vars(b);
-                let mut a_plice = a.remove_constraints(&a_var_ids, &mut arena);
-                let mut b_plice = b.remove_constraints(&b_var_ids, &mut arena);
-                a_plice.sub_var_ids = common_var_ids.clone();
-                b_plice.sub_var_ids = common_var_ids.clone();
-                let a_plice_to_a;
-                let a_vars: u32 = a_var_ids.len().try_into().unwrap();
-                let removed;
-                let added;
-                let b_vars: u32 = b_var_ids.len().try_into().unwrap();
-                let b_plice_to_b;
-                {
-                    let mut arena = arena.clone();
-                    let mut diff = a_plice.implies(a, &mut arena);
-                    diff.to_cnf_tseitin(&mut arena);
-                    a_plice_to_a = Clauses::from(diff.as_ref(&arena)).count();
+                let (a2_to_a, a_vars, removed, added, b_vars, b2_to_b) =
+                    a.count_diff_pseudo_slice(b, &mut arena);
+                if parts.len() == 2 {
+                    let count_a = BigUint::from_str(parts[1]).unwrap();
+                    let two = 2.to_biguint().unwrap();
+                    println!(
+                        "{}",
+                        (((&count_a + &a2_to_a) / two.pow(a_vars)) - &removed + &added)
+                            * two.pow(b_vars)
+                            - &b2_to_b
+                    );
+                } else {
+                    println!("(((#+{a2_to_a})/2^{a_vars})-{removed}+{added})*2^{b_vars}-{b2_to_b}# | sed 's/#/<model count of a>/' | bc");
                 }
-                {
-                    let mut arena = arena.clone();
-                    let mut diff = a_plice.implies(&b_plice, &mut arena);
-                    diff.to_cnf_tseitin(&mut arena);
-                    removed = Clauses::from(diff.as_ref(&arena)).count();
-                }
-                // todo: do not clone arena, modify root id instead
-                {
-                    let mut arena = arena.clone();
-                    let mut diff = b_plice.implies(&a_plice, &mut arena);
-                    diff.to_cnf_tseitin(&mut arena);
-                    added = Clauses::from(diff.as_ref(&arena)).count();
-                }
-                {
-                    let mut arena = arena.clone();
-                    let mut diff = b_plice.implies(b, &mut arena);
-                    diff.to_cnf_tseitin(&mut arena);
-                    b_plice_to_b = Clauses::from(diff.as_ref(&arena)).count();
-                }
-                println!(
-                    "(((#+{a_plice_to_a})/2^{a_vars})-{removed}+{added})*2^{b_vars}-{b_plice_to_b}"
-                    // (((&count_a + &diffaap) / two.pow(ax)) - &removed + &added) * two.pow(bx) - &diffbpb
-                    // bin/clausy ... compare | sed 's/#/<model count of a>/' | bc
-                );
-                return;
             }
             _ => {
                 if file_exists(command) {
