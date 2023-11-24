@@ -76,7 +76,7 @@ pub fn main(mut commands: Vec<String>) {
             "to_nnf" => formula!(formulas).to_nnf(&mut arena),
             "to_cnf_dist" => formula!(formulas).to_cnf_dist(&mut arena),
             "to_cnf_tseitin" => {
-                formula!(formulas).to_cnf_tseitin(&mut arena);
+                formula!(formulas).to_cnf_tseitin(true, &mut arena);
             }
             "to_clauses" => clauses = Some(formula!(formulas).to_clauses(&mut arena)),
             "satisfy" => println!("{}", clauses!(clauses, arena, formulas).satisfy().unwrap()),
@@ -90,12 +90,12 @@ pub fn main(mut commands: Vec<String>) {
                     .assert_count(clauses);
             }
             "enumerate" => clauses!(clauses, arena, formulas).enumerate(),
-            "count_diff_pseudo_slice" => {
+            "count_diff" => {
                 debug_assert!(formulas.len() == 2);
                 let a = &formulas[0];
                 let b = &formulas[1];
                 let (a2_to_a, a_vars, removed, added, b_vars, b2_to_b) =
-                    a.count_diff_pseudo_slice(b, true, &mut arena);
+                    a.count_diff(b, true, &mut arena);
                 if parts.len() == 2 {
                     let count_a = BigUint::from_str(parts[1]).unwrap();
                     let two = 2.to_biguint().unwrap();

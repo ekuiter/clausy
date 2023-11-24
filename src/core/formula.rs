@@ -73,28 +73,11 @@ impl Formula {
         *root_id = arena.get_expr(&arena.exprs[*root_id]).unwrap();
     }
 
-    /// Adds a constraint to this formula.
-    pub(crate) fn add_constraint(&mut self, id: ExprId, arena: &mut Arena) {
+    /// Returns a formula that assumes an additional constraint.
+    pub(crate) fn assume(&mut self, id: ExprId, arena: &mut Arena) -> Formula {
         let mut expr = And(vec![self.root_id, id]);
         arena.flatten_expr(&mut expr);
-        self.root_id = arena.expr(expr);
-    }
-
-    /// Removes a constraint from this formula.
-    ///
-    /// Assumes that this formula is in proto-CNF; that is, it is a conjunction of constraints.
-    /// Useful for removing the root constraint of a Tseitin-transformed formula (see [Formula::to_cnf_tseitin]).
-    pub(crate) fn remove_constraint(&mut self, id: ExprId, arena: &mut Arena) {
-        if let And(child_ids) = &arena.exprs[self.root_id] {
-            let expr = And(child_ids
-                .clone()
-                .into_iter()
-                .filter(|_id| *_id != id)
-                .collect());
-            self.root_id = arena.expr(expr);
-        } else {
-            unreachable!()
-        }
+        Formula::new(self.sub_var_ids.clone(), arena.expr(expr), None)
     }
 
     /// Returns all sub-variables of this formula and their identifiers.
@@ -190,17 +173,17 @@ impl Formula {
     /// Also, no sub-expression will be abbreviated twice, so the number of auxiliary variables is equal to the number of sub-expressions.
     /// If this formula is not in canonical form, more auxiliary variables might be introduced.
     /// Note that we only abbreviate complex sub-expressions (i.e., [And] and [Or] expressions), as [Var] and [Not] expressions do not profit from abbrevation.
-    pub(crate) fn to_cnf_tseitin(&mut self, arena: &mut Arena) -> ExprId {
+    pub(crate) fn to_cnf_tseitin(&mut self, assume_root: bool, arena: &mut Arena) {
         arena.new_vars = Some(vec![]);
         arena.new_exprs = Some(vec![]);
         arena.postorder_rev(&mut self.root_id, Arena::cnf_tseitin_visitor);
         self.sub_var_ids.extend(arena.new_vars.take().unwrap());
-        let old_root_id = self.root_id;
-        arena.new_exprs.as_mut().unwrap().push(old_root_id);
+        if assume_root {
+            arena.new_exprs.as_mut().unwrap().push(self.root_id);
+        }
         let new_expr = And(arena.new_exprs.take().unwrap());
         let root_id = arena.expr(new_expr);
         self.root_id = root_id;
-        old_root_id
     }
 
     /// Returns a formula that only contains constraints of this formula that do not contain any given variable.
@@ -237,64 +220,8 @@ impl Formula {
         Formula::new(self.all_vars(other), self.implies_expr(other, arena), None)
     }
 
-    /// Returns a description of the difference between this formula's count and another's by means of a pseudo-slice.
-    pub(crate) fn count_diff_slice(
-        &self,
-        b: &Formula,
-        arena: &mut Arena,
-    ) -> (BigUint, u32, BigUint, BigUint, u32, BigUint) {
-        let a = self;
-        let a_var_ids = a.except_vars(b);
-        let b_var_ids = b.except_vars(a);
-        let common_var_ids = a.common_vars(b);
-        let mut a2 = a
-            .file
-            .as_ref()
-            .unwrap()
-            .slice_featureide(&common_var_ids, arena);
-        let mut b2 = b
-            .file
-            .as_ref()
-            .unwrap()
-            .slice_featureide(&common_var_ids, arena);
-        a2.sub_var_ids = common_var_ids.clone();
-        b2.sub_var_ids = common_var_ids.clone();
-        let a2_to_a;
-        let a_vars: u32 = a_var_ids.len().try_into().unwrap();
-        let removed;
-        let added;
-        let b_vars: u32 = b_var_ids.len().try_into().unwrap();
-        let b2_to_b;
-        {
-            let mut arena = arena.clone();
-            let mut diff = a2.implies(a, &mut arena);
-            diff.to_cnf_tseitin(&mut arena);
-            a2_to_a = diff.to_clauses(&arena).count();
-        }
-        {
-            let mut arena = arena.clone();
-            let mut diff = a2.implies(&b2, &mut arena);
-            diff.to_cnf_tseitin(&mut arena);
-            removed = diff.to_clauses(&arena).count();
-        }
-        // todo: do not clone arena, modify root id instead
-        {
-            let mut arena = arena.clone();
-            let mut diff = b2.implies(&a2, &mut arena);
-            diff.to_cnf_tseitin(&mut arena);
-            added = diff.to_clauses(&arena).count();
-        }
-        {
-            let mut arena = arena.clone();
-            let mut diff = b2.implies(b, &mut arena);
-            diff.to_cnf_tseitin(&mut arena);
-            b2_to_b = diff.to_clauses(&arena).count();
-        }
-        (a2_to_a, a_vars, removed, added, b_vars, b2_to_b)
-    }
-
-    /// Returns a description of the difference between this formula's count and another's by means of a pseudo-slice.
-    pub(crate) fn count_diff_pseudo_slice(
+    /// Returns a description of the difference between this formula's count and another's.
+    pub(crate) fn count_diff(
         &self,
         b: &Formula,
         diff_only: bool,
@@ -316,13 +243,13 @@ impl Formula {
             {
                 let mut arena = arena.clone();
                 let mut diff = a2.implies(a, &mut arena);
-                diff.to_cnf_tseitin(&mut arena);
+                diff.to_cnf_tseitin(true, &mut arena);
                 a2_to_a = diff.to_clauses(&arena).count();
             }
             {
                 let mut arena = arena.clone();
                 let mut diff = b2.implies(b, &mut arena);
-                diff.to_cnf_tseitin(&mut arena);
+                diff.to_cnf_tseitin(true, &mut arena);
                 b2_to_b = diff.to_clauses(&arena).count();
             }
         } else {
@@ -330,36 +257,34 @@ impl Formula {
             {
                 let mut arena = arena.clone();
                 let mut a2 = a2.clone();
-                a2.to_cnf_tseitin(&mut arena);
+                a2.to_cnf_tseitin(true, &mut arena);
                 tmp = a2.to_clauses(&arena).count();
             }
             {
                 let mut arena = arena.clone();
                 let mut a = a.clone();
-                a.to_cnf_tseitin(&mut arena);
+                a.to_cnf_tseitin(true, &mut arena);
                 a2_to_a = tmp - a.to_clauses(&arena).count();
             }
             {
                 let mut arena = arena.clone();
                 let mut b2 = b2.clone();
-                b2.to_cnf_tseitin(&mut arena);
+                b2.to_cnf_tseitin(true, &mut arena);
                 tmp = b2.to_clauses(&arena).count();
             }
             {
                 let mut arena = arena.clone();
                 let mut b = b.clone();
-                b.to_cnf_tseitin(&mut arena);
+                b.to_cnf_tseitin(true, &mut arena);
                 b2_to_b = tmp - b.to_clauses(&arena).count();
             }
         }
         a2.sub_var_ids = common_var_ids.clone();
         b2.sub_var_ids = common_var_ids.clone();
         let mut diff = a2.implies(&b2, arena);
-        let root_id = diff.to_cnf_tseitin(arena);
-        removed = diff.to_clauses(&arena).count();
-        diff.remove_constraint(root_id, arena);
-        diff.add_constraint(b2.implies_expr(&a2, arena), arena);
-        added = diff.to_clauses(&arena).count();
+        diff.to_cnf_tseitin(false, arena);
+        removed = diff.assume(a2.implies_expr(&b2, arena), arena).to_clauses(&arena).count();
+        added = diff.assume(b2.implies_expr(&a2, arena), arena).to_clauses(&arena).count();
         (a2_to_a, a_vars, removed, added, b_vars, b2_to_b)
     }
 }
