@@ -7,7 +7,7 @@ use std::{
     path::Path,
     process::{Command, Stdio}, str::FromStr,
 };
-use num_bigint::BigUint;
+use num_bigint::{BigUint, BigInt};
 use tempfile::NamedTempFile;
 
 /// Returns the path of a bundled external program.
@@ -65,7 +65,7 @@ pub(crate) fn kissat(dimacs: &str) -> Option<Vec<VarId>> {
 ///
 /// Runs the external model counter d4, which performs well on most small to medium size inputs.
 /// Returns the number as a string, as it will typically overflow otherwise.
-pub(crate) fn d4(dimacs: &str) -> BigUint {
+pub(crate) fn d4(dimacs: &str) -> BigInt {
     let mut tmp = NamedTempFile::new().unwrap();
     write!(tmp, "{}", dimacs).ok();
     let output = Command::new(path("d4"))
@@ -77,7 +77,7 @@ pub(crate) fn d4(dimacs: &str) -> BigUint {
         .arg("sharp-equiv")
         .output()
         .unwrap();
-    BigUint::from_str(&String::from(
+    BigInt::from_str(&String::from(
         String::from_utf8_lossy(&output.stdout)
             .lines()
             .find(|line| line.starts_with("s "))

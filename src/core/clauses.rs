@@ -1,6 +1,6 @@
 //! Clause representation of a feature-model formula.
 
-use num_bigint::BigUint;
+use num_bigint::{BigUint, BigInt};
 
 use super::{
     expr::{Expr::*, ExprId},
@@ -102,7 +102,7 @@ impl Clauses {
     }
 
     /// Counts the number of solutions of this clause representation.
-    pub(crate) fn count(&self) -> BigUint {
+    pub(crate) fn count(&self) -> BigInt {
         exec::d4(&self.to_string())
     }
 }

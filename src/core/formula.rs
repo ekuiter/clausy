@@ -1,6 +1,6 @@
 //! Defines a feature-model formula.
 
-use num_bigint::BigUint;
+use num_bigint::{BigUint, BigInt};
 
 use super::{
     arena::Arena,
@@ -226,7 +226,7 @@ impl Formula {
         b: &Formula,
         diff_only: bool,
         arena: &mut Arena,
-    ) -> (BigUint, u32, BigUint, BigUint, u32, BigUint) {
+    ) -> (BigInt, u32, BigInt, BigInt, u32, BigInt) {
         let a = self;
         let a_var_ids = a.except_vars(b);
         let b_var_ids = b.except_vars(a);

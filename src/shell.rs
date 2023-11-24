@@ -2,7 +2,7 @@
 
 use std::str::FromStr;
 
-use num_bigint::{BigUint, ToBigUint};
+use num_bigint::{BigUint, ToBigUint, ToBigInt, BigInt};
 
 use crate::core::clauses::Clauses;
 use crate::parser::sat_inline::SatInlineFormulaParser;
@@ -97,8 +97,8 @@ pub fn main(mut commands: Vec<String>) {
                 let (a2_to_a, a_vars, removed, added, b_vars, b2_to_b) =
                     a.count_diff(b, true, &mut arena);
                 if parts.len() == 2 {
-                    let count_a = BigUint::from_str(parts[1]).unwrap();
-                    let two = 2.to_biguint().unwrap();
+                    let count_a = BigInt::from_str(parts[1]).unwrap();
+                    let two = 2.to_bigint().unwrap();
                     println!(
                         "{}",
                         (((&count_a + &a2_to_a) / two.pow(a_vars)) - &removed + &added)
