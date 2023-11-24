@@ -1,6 +1,6 @@
 //! Defines a feature-model formula.
 
-use num_bigint::{BigUint, BigInt};
+use num::{BigInt, bigint::ToBigInt};
 
 use super::{
     arena::Arena,
@@ -71,13 +71,6 @@ impl Formula {
     /// we need to explicitly address the only expression that is not a child itself - the root expression.
     pub(super) fn reset_root_expr(arena: &Arena, root_id: &mut ExprId) {
         *root_id = arena.get_expr(&arena.exprs[*root_id]).unwrap();
-    }
-
-    /// Returns a formula that assumes an additional constraint.
-    pub(crate) fn assume(&mut self, id: ExprId, arena: &mut Arena) -> Formula {
-        let mut expr = And(vec![self.root_id, id]);
-        arena.flatten_expr(&mut expr);
-        Formula::new(self.sub_var_ids.clone(), arena.expr(expr), None)
     }
 
     /// Returns all sub-variables of this formula and their identifiers.
@@ -204,13 +197,31 @@ impl Formula {
         }
     }
 
-    /// Returns an expression that encodes whether this formula implies another formula
+    /// Returns a formula that assumes an additional constraint.
+    pub(crate) fn assume(&mut self, id: ExprId, arena: &mut Arena) -> Formula {
+        let mut expr = And(vec![self.root_id, id]);
+        arena.flatten_expr(&mut expr);
+        Formula::new(self.sub_var_ids.clone(), arena.expr(expr), None)
+    }
+
+    /// Returns an expression that encodes the common solutions of this and another formula.
+    pub(crate) fn and_expr(&self, other: &Formula, arena: &mut Arena) -> ExprId {
+        arena.expr(And(vec![self.root_id, other.root_id]))
+    }
+
+    /// Returns a formula that encodes the common solutions of this and another formula.
+    ///
+    /// Does not modify this formula.
+    pub(crate) fn and(&self, other: &Formula, arena: &mut Arena) -> Formula {
+        Formula::new(self.all_vars(other), self.and_expr(other, arena), None)
+    }
+
+    /// Returns an expression that encodes whether this formula implies another formula.
     ///
     /// Also encodes solutions gone in the other formula, if any.
     pub(crate) fn implies_expr(&self, other: &Formula, arena: &mut Arena) -> ExprId {
         let not_other = arena.expr(Not(other.root_id));
-        let root_id = arena.expr(And(vec![self.root_id, not_other]));
-        root_id
+        arena.expr(And(vec![self.root_id, not_other]))
     }
 
     /// Returns a formula that encodes whether this formula implies another formula.
@@ -226,15 +237,18 @@ impl Formula {
         b: &Formula,
         diff_only: bool,
         arena: &mut Arena,
-    ) -> (BigInt, u32, BigInt, BigInt, u32, BigInt) {
+    ) -> (BigInt, u32, BigInt, BigInt, BigInt, u32, BigInt) {
         let a = self;
         let a_var_ids = a.except_vars(b);
         let b_var_ids = b.except_vars(a);
         let common_var_ids = a.common_vars(b);
         let mut a2 = a.remove_constraints(&a_var_ids, arena);
+        //let mut a2 = a.file.as_ref().unwrap().slice_featureide(&b_var_ids, arena);
         let mut b2 = b.remove_constraints(&b_var_ids, arena);
+        //let mut b2 = b.file.as_ref().unwrap().slice_featureide(&a_var_ids, arena);
         let a2_to_a;
         let a_vars: u32 = a_var_ids.len().try_into().unwrap();
+        let common;
         let removed;
         let added;
         let b_vars: u32 = b_var_ids.len().try_into().unwrap();
@@ -281,10 +295,11 @@ impl Formula {
         }
         a2.sub_var_ids = common_var_ids.clone();
         b2.sub_var_ids = common_var_ids.clone();
-        let mut diff = a2.implies(&b2, arena);
+        let mut diff = a2.and(&b2, arena);
         diff.to_cnf_tseitin(false, arena);
+        common = diff.assume(arena.expr(And(vec![a2.root_id, b2.root_id])), arena).to_clauses(&arena).count();
         removed = diff.assume(a2.implies_expr(&b2, arena), arena).to_clauses(&arena).count();
         added = diff.assume(b2.implies_expr(&a2, arena), arena).to_clauses(&arena).count();
-        (a2_to_a, a_vars, removed, added, b_vars, b2_to_b)
+        (a2_to_a, a_vars, common, removed, added, b_vars, b2_to_b)
     }
 }

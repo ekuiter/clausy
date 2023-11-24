@@ -1,6 +1,6 @@
 //! Clause representation of a feature-model formula.
 
-use num_bigint::{BigUint, BigInt};
+use num::BigInt;
 
 use super::{
     expr::{Expr::*, ExprId},

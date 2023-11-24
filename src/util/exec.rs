@@ -1,13 +1,14 @@
 //! Utilities for executing external programs.
 
 use crate::core::var::VarId;
+use num::BigInt;
 use std::{
     env,
     io::{BufRead, BufReader, Read, Write},
     path::Path,
-    process::{Command, Stdio}, str::FromStr,
+    process::{Command, Stdio},
+    str::FromStr,
 };
-use num_bigint::{BigUint, BigInt};
 use tempfile::NamedTempFile;
 
 /// Returns the path of a bundled external program.
@@ -84,7 +85,8 @@ pub(crate) fn d4(dimacs: &str) -> BigInt {
             .unwrap()
             .split_at(2)
             .1,
-    )).unwrap()
+    ))
+    .unwrap()
 }
 
 /// Enumerates all solutions of some CNF in DIMACS format.

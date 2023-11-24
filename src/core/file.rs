@@ -2,7 +2,7 @@
 
 use std::collections::HashSet;
 
-use num_bigint::{BigUint, BigInt};
+use num::BigInt;
 
 use crate::{
     core::{clauses::Clauses, var::Var},
