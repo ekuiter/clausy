@@ -1,10 +1,9 @@
 //! Imperative shell for operating on feature-model formulas.
 
-use std::ops::Div;
 use std::str::FromStr;
 
-use num::BigRational;
-use num::{bigint::ToBigInt, BigInt, ToPrimitive};
+use num::bigint::ToBigInt;
+use num::{BigRational, ToPrimitive, BigInt};
 
 use crate::parser::sat_inline::SatInlineFormulaParser;
 use crate::{
@@ -96,26 +95,7 @@ pub fn main(mut commands: Vec<String>) {
                 debug_assert!(parts.len() == 2);
                 let a = &formulas[0];
                 let b = &formulas[1];
-                let (a2_to_a, a_vars, common, removed, added, b_vars, b2_to_b) =
-                    a.count_diff(b, true, &mut arena);
-                let all = &common + &removed + &added;
-                let common_ratio = BigRational::new(common.clone(), all.clone()).to_f64().unwrap();
-                let removed_ratio = BigRational::new(removed.clone(), all.clone()).to_f64().unwrap();
-                let added_ratio = BigRational::new(added.clone(), all.clone()).to_f64().unwrap();
-                match parts[1] {
-                    "csv" => println!("{a2_to_a},{a_vars},{common},{removed},{added},{b_vars},{b2_to_b},{},{},{}", common_ratio, removed_ratio, added_ratio),
-                    "bc" => println!("(((#+{a2_to_a})/2^{a_vars})-{removed}+{added})*2^{b_vars}-{b2_to_b}# | sed 's/#/<left model count>/' | bc"),
-                    count_a => {
-                        let count_a = BigInt::from_str(count_a).unwrap();
-                        let two = 2.to_bigint().unwrap();
-                        println!(
-                            "{}",
-                            (((&count_a + &a2_to_a) / two.pow(a_vars)) - &removed + &added)
-                                * two.pow(b_vars)
-                                - &b2_to_b
-                        );
-                    }
-                }
+                a.diff(b, true, false, parts[1], &mut arena);
             }
             _ => {
                 if file_exists(command) {

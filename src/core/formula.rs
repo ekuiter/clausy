@@ -1,6 +1,6 @@
 //! Defines a feature-model formula.
 
-use num::{BigInt, bigint::ToBigInt};
+use num::{bigint::ToBigInt, BigInt, BigRational, Signed, ToPrimitive};
 
 use super::{
     arena::Arena,
@@ -10,7 +10,7 @@ use super::{
     formula_ref::FormulaRef,
     var::{Var, VarId},
 };
-use std::collections::HashSet;
+use std::{collections::HashSet, str::FromStr};
 
 /// A feature-model formula.
 ///
@@ -197,6 +197,32 @@ impl Formula {
         }
     }
 
+    /// Returns the identifiers of all constraints not common to this and a given formula.
+    ///
+    /// Assumes that this formula is in proto-CNF; that is, it is a conjunction of constraints.
+    /// Does not modify this formula.
+    pub(crate) fn differing_constraints(&self, other: &Formula, arena: &mut Arena) -> (HashSet<ExprId>, HashSet<ExprId>) {
+        if let And(child_ids) = &arena.exprs[self.root_id] {
+            if let And(other_child_ids) = &arena.exprs[other.root_id] {
+                let child_ids: HashSet<ExprId> = child_ids
+                    .clone()
+                    .into_iter()
+                    .collect();
+                let other_child_ids: HashSet<ExprId> = other_child_ids
+                    .clone()
+                    .into_iter()
+                    .collect();
+                let a_constraints = child_ids.difference(&other_child_ids).into_iter().map(|id| *id).collect();
+                let b_constraints = other_child_ids.difference(&child_ids).into_iter().map(|id| *id).collect();
+                (a_constraints, b_constraints)
+            } else {
+                unreachable!()
+            }
+        } else {
+            unreachable!()
+        }
+    }
+
     /// Returns a formula that assumes an additional constraint.
     pub(crate) fn assume(&mut self, id: ExprId, arena: &mut Arena) -> Formula {
         let mut expr = And(vec![self.root_id, id]);
@@ -231,75 +257,140 @@ impl Formula {
         Formula::new(self.all_vars(other), self.implies_expr(other, arena), None)
     }
 
-    /// Returns a description of the difference between this formula's count and another's.
-    pub(crate) fn count_diff(
+    /// Returns the number of solutions of this formula.
+    ///
+    /// Uses a Tseitin transformation into CNF.
+    /// Does not modify this formula or the given arena.
+    pub(crate) fn count(&self, arena: &Arena) -> BigInt {
+        let mut clone = self.clone();
+        let mut arena = arena.clone();
+        clone.to_cnf_tseitin(true, &mut arena);
+        clone.to_clauses(&arena).count()
+    }
+
+    /// Computes a description of the difference between this formula's count and another's.
+    pub(crate) fn diff(
         &self,
         b: &Formula,
-        diff_only: bool,
+        slice: bool,
+        diff: bool,
+        command: &str,
         arena: &mut Arena,
-    ) -> (BigInt, u32, BigInt, BigInt, BigInt, u32, BigInt) {
+    ) {
         let a = self;
         let a_var_ids = a.except_vars(b);
         let b_var_ids = b.except_vars(a);
+        println!("removed variables");
+        for id in &a_var_ids {
+            let id: usize = (*id).try_into().unwrap();
+            println!("{}", arena.vars[id]);
+        }
+        println!();
+        println!("added variables");
+        for id in &b_var_ids {
+            let id: usize = (*id).try_into().unwrap();
+            println!("{}", arena.vars[id]);
+        }
+        let (a_constraints, b_constraints) = self.differing_constraints(b, arena);
+        println!();
+        println!("removed constraints");
+        for id in a_constraints {
+            println!("{}", arena.as_formula(id).as_ref(arena));
+        }
+        println!();
+        println!("added constraints");
+        for id in b_constraints {
+            println!("{}", arena.as_formula(id).as_ref(arena));
+        }
+        println!();
         let common_var_ids = a.common_vars(b);
-        let mut a2 = a.remove_constraints(&a_var_ids, arena);
-        //let mut a2 = a.file.as_ref().unwrap().slice_featureide(&b_var_ids, arena);
-        let mut b2 = b.remove_constraints(&b_var_ids, arena);
-        //let mut b2 = b.file.as_ref().unwrap().slice_featureide(&a_var_ids, arena);
-        let a2_to_a;
+        let common_vars: u32 = common_var_ids.len().try_into().unwrap();
         let a_vars: u32 = a_var_ids.len().try_into().unwrap();
-        let common;
-        let removed;
-        let added;
         let b_vars: u32 = b_var_ids.len().try_into().unwrap();
-        let b2_to_b;
-        if diff_only {
-            {
-                let mut arena = arena.clone();
-                let mut diff = a2.implies(a, &mut arena);
-                diff.to_cnf_tseitin(true, &mut arena);
-                a2_to_a = diff.to_clauses(&arena).count();
-            }
-            {
-                let mut arena = arena.clone();
-                let mut diff = b2.implies(b, &mut arena);
-                diff.to_cnf_tseitin(true, &mut arena);
-                b2_to_b = diff.to_clauses(&arena).count();
-            }
+        let mut a2;
+        let mut b2;
+        if slice {
+            a2 = a
+                .file
+                .as_ref()
+                .unwrap()
+                .slice_featureide(&common_var_ids, arena);
+            b2 = b
+                .file
+                .as_ref()
+                .unwrap()
+                .slice_featureide(&common_var_ids, arena);
         } else {
-            let mut tmp;
-            {
-                let mut arena = arena.clone();
-                let mut a2 = a2.clone();
-                a2.to_cnf_tseitin(true, &mut arena);
-                tmp = a2.to_clauses(&arena).count();
-            }
-            {
-                let mut arena = arena.clone();
-                let mut a = a.clone();
-                a.to_cnf_tseitin(true, &mut arena);
-                a2_to_a = tmp - a.to_clauses(&arena).count();
-            }
-            {
-                let mut arena = arena.clone();
-                let mut b2 = b2.clone();
-                b2.to_cnf_tseitin(true, &mut arena);
-                tmp = b2.to_clauses(&arena).count();
-            }
-            {
-                let mut arena = arena.clone();
-                let mut b = b.clone();
-                b.to_cnf_tseitin(true, &mut arena);
-                b2_to_b = tmp - b.to_clauses(&arena).count();
-            }
+            a2 = a.remove_constraints(&a_var_ids, arena);
+            b2 = b.remove_constraints(&b_var_ids, arena);
+        }
+        let mut cnt_a = -1.to_bigint().unwrap();
+        let mut cnt_b = -1.to_bigint().unwrap();
+        let mut cnt_a2 = -1.to_bigint().unwrap();
+        let mut cnt_b2 = -1.to_bigint().unwrap();
+        let cnt_a2_to_a;
+        let cnt_b2_to_b;
+        if slice && diff {
+            panic!();
+        } else if diff {
+            cnt_a2_to_a = a2.implies(a, arena).count(arena);
+            cnt_b2_to_b = b2.implies(b, arena).count(arena);
+        } else {
+            cnt_a = a.count(arena);
+            cnt_a2 = a2.count(arena);
+            cnt_a2_to_a = (&cnt_a2 - &cnt_a).abs();
+            cnt_b = b.count(arena);
+            cnt_b2 = b2.count(arena);
+            cnt_b2_to_b = (&cnt_b2 - &cnt_b).abs();
         }
         a2.sub_var_ids = common_var_ids.clone();
         b2.sub_var_ids = common_var_ids.clone();
         let mut diff = a2.and(&b2, arena);
         diff.to_cnf_tseitin(false, arena);
-        common = diff.assume(arena.expr(And(vec![a2.root_id, b2.root_id])), arena).to_clauses(&arena).count();
-        removed = diff.assume(a2.implies_expr(&b2, arena), arena).to_clauses(&arena).count();
-        added = diff.assume(b2.implies_expr(&a2, arena), arena).to_clauses(&arena).count();
-        (a2_to_a, a_vars, common, removed, added, b_vars, b2_to_b)
+        let cnt_common = diff
+            .assume(arena.expr(And(vec![a2.root_id, b2.root_id])), arena)
+            .to_clauses(&arena)
+            .count();
+        let cnt_removed = diff
+            .assume(a2.implies_expr(&b2, arena), arena)
+            .to_clauses(&arena)
+            .count();
+        let cnt_added = diff
+            .assume(b2.implies_expr(&a2, arena), arena)
+            .to_clauses(&arena)
+            .count();
+        let cnt_union = &cnt_common + &cnt_removed + &cnt_added;
+        let common_ratio = BigRational::new(cnt_common.clone(), cnt_union.clone())
+            .to_f64()
+            .unwrap();
+        let removed_ratio = BigRational::new(cnt_removed.clone(), cnt_union.clone())
+            .to_f64()
+            .unwrap();
+        let added_ratio = BigRational::new(cnt_added.clone(), cnt_union.clone())
+            .to_f64()
+            .unwrap();
+        match command {
+            "csv" => println!("{common_vars},{a_vars},{b_vars},{},{},{},{},{},{},{},{},{},{common_ratio},{removed_ratio},{added_ratio},{cnt_a},{cnt_b},{cnt_a2},{cnt_b2},{cnt_a2_to_a},{cnt_b2_to_b},{cnt_common},{cnt_removed},{cnt_added}",
+            cnt_a.to_string().len(), cnt_b.to_string().len(), cnt_a2.to_string().len(), cnt_b2.to_string().len(), cnt_a2_to_a.to_string().len(), cnt_b2_to_b.to_string().len(), cnt_common.to_string().len(), cnt_removed.to_string().len(), cnt_added.to_string().len()),
+            "bc" => {
+                if slice {
+                    panic!();
+                }
+                println!("(((#+{cnt_a2_to_a})/2^{a_vars})-{cnt_removed}+{cnt_added})*2^{b_vars}-{cnt_b2_to_b}# | sed 's/#/<left model count>/' | bc");
+            },
+            count_a => {
+                if slice {
+                    panic!();
+                }
+                let count_a = BigInt::from_str(count_a).unwrap();
+                let two = 2.to_bigint().unwrap();
+                println!(
+                    "{}",
+                    (((&count_a + &cnt_a2_to_a) / two.pow(a_vars)) - &cnt_removed + &cnt_added)
+                        * two.pow(b_vars)
+                        - &cnt_b2_to_b
+                );
+            }
+        }
     }
 }
