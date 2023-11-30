@@ -5,7 +5,7 @@ if [[ $# -ne 1 ]]; then
     exit 1
 fi
 
-make
+make >/dev/null 2>&1
 f=($(ls "$1"/*.model | sort -V | tr '\n' ' '))
 for ((i = 0; i < ${#f[@]}-1; i++)); do
     cmd=(bin/clausy "${f[i]}" "${f[i+1]}" 'diff y n n csv')
