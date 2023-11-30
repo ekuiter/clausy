@@ -1,10 +1,5 @@
 //! Imperative shell for operating on feature-model formulas.
 
-use std::str::FromStr;
-
-use num::bigint::ToBigInt;
-use num::{BigRational, ToPrimitive, BigInt};
-
 use crate::parser::sat_inline::SatInlineFormulaParser;
 use crate::{
     core::{arena::Arena, formula::Formula},
@@ -90,12 +85,19 @@ pub fn main(mut commands: Vec<String>) {
                     .assert_count(clauses);
             }
             "enumerate" => clauses!(clauses, arena, formulas).enumerate(),
-            "count_diff" => {
+            "diff" => {
                 debug_assert!(formulas.len() == 2);
                 debug_assert!(parts.len() == 5);
                 let a = &formulas[0];
                 let b = &formulas[1];
-                a.diff(b, parts[1] == "y", parts[2] == "y", parts[3] == "y", parts[4], &mut arena);
+                a.diff(
+                    b,
+                    parts[1] == "y",
+                    parts[2] == "y",
+                    parts[3] == "y",
+                    parts[4],
+                    &mut arena,
+                );
             }
             _ => {
                 if file_exists(command) {

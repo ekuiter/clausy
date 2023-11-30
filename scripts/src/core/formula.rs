@@ -10,7 +10,11 @@ use super::{
     formula_ref::FormulaRef,
     var::{Var, VarId},
 };
-use std::{collections::HashSet, str::FromStr};
+use std::{
+    collections::HashSet,
+    str::FromStr,
+    time::{Duration, Instant},
+};
 
 /// A feature-model formula.
 ///
@@ -290,6 +294,7 @@ impl Formula {
         command: &str,
         arena: &mut Arena,
     ) {
+        let start_total = Instant::now();
         let a = self;
         let a_var_ids = a.except_vars(b);
         let b_var_ids = b.except_vars(a);
@@ -328,56 +333,96 @@ impl Formula {
         }
         let mut a2;
         let mut b2;
+        let dur_a2;
+        let dur_b2;
         if slice {
+            let start = Instant::now();
             a2 = a
                 .file
                 .as_ref()
                 .unwrap()
                 .slice_featureide(&common_var_ids, arena);
+            dur_a2 = start.elapsed();
+            let start = Instant::now();
             b2 = b
                 .file
                 .as_ref()
                 .unwrap()
                 .slice_featureide(&common_var_ids, arena);
+            dur_b2 = start.elapsed();
         } else {
+            let start = Instant::now();
             a2 = a.remove_constraints(&a_var_ids, arena);
+            dur_a2 = start.elapsed();
+            let start = Instant::now();
             b2 = b.remove_constraints(&b_var_ids, arena);
+            dur_b2 = start.elapsed();
         }
         let mut cnt_a = -1.to_bigint().unwrap();
         let mut cnt_b = -1.to_bigint().unwrap();
         let mut cnt_a2 = -1.to_bigint().unwrap();
         let mut cnt_b2 = -1.to_bigint().unwrap();
+        let mut dur_cnt_a = Duration::ZERO;
+        let mut dur_cnt_b = Duration::ZERO;
+        let mut dur_cnt_a2 = Duration::ZERO;
+        let mut dur_cnt_b2 = Duration::ZERO;
+        let dur_cnt_a2_to_a;
+        let dur_cnt_b2_to_b;
         let cnt_a2_to_a;
         let cnt_b2_to_b;
         if slice && diff {
             panic!();
         } else if diff {
+            let start = Instant::now();
             cnt_a2_to_a = a2.implies(a, arena).count(arena);
+            dur_cnt_a2_to_a = start.elapsed();
+            let start = Instant::now();
             cnt_b2_to_b = b2.implies(b, arena).count(arena);
+            dur_cnt_b2_to_b = start.elapsed();
         } else {
+            let start = Instant::now();
             cnt_a = a.count(arena);
+            dur_cnt_a = start.elapsed();
+            let start = Instant::now();
             cnt_a2 = a2.count(arena);
+            dur_cnt_a2 = start.elapsed();
+            let start = Instant::now();
             cnt_a2_to_a = (&cnt_a2 - &cnt_a).abs();
+            dur_cnt_a2_to_a = start.elapsed();
+            let start = Instant::now();
             cnt_b = b.count(arena);
+            dur_cnt_b = start.elapsed();
+            let start = Instant::now();
             cnt_b2 = b2.count(arena);
+            dur_cnt_b2 = start.elapsed();
+            let start = Instant::now();
             cnt_b2_to_b = (&cnt_b2 - &cnt_b).abs();
+            dur_cnt_b2_to_b = start.elapsed();
         }
         a2.sub_var_ids = common_var_ids.clone();
         b2.sub_var_ids = common_var_ids.clone();
         let mut diff = a2.and(&b2, arena);
+        let start = Instant::now();
         diff.to_cnf_tseitin(false, arena);
+        let dur_tseitin = start.elapsed();
+        let start = Instant::now();
         let cnt_common = diff
             .assume(arena.expr(And(vec![a2.root_id, b2.root_id])), arena)
             .to_clauses(&arena)
             .count();
+        let dur_cnt_common = start.elapsed();
+        let start = Instant::now();
         let cnt_removed = diff
             .assume(a2.implies_expr(&b2, arena), arena)
             .to_clauses(&arena)
             .count();
+        let dur_cnt_removed = start.elapsed();
+        let start = Instant::now();
         let cnt_added = diff
             .assume(b2.implies_expr(&a2, arena), arena)
             .to_clauses(&arena)
             .count();
+        let dur_cnt_added = start.elapsed();
         let mut lost_ratio = -1f64;
         let mut gained_ratio = -1f64;
         // this currently only supports deleting/adding up to 1000 features due to f64 precision
@@ -409,8 +454,10 @@ impl Formula {
         let added_ratio = BigRational::new(cnt_added.clone(), cnt_union.clone())
             .to_f64()
             .unwrap();
+        let dur_total = start_total.elapsed();
         match command {
-                "csv" => println!("{common_vars},{a_vars},{b_vars},{common_constraints},{a_constraints},{b_constraints},{b_vars},{lost_ratio},{removed_ratio},{common_ratio},{added_ratio},{gained_ratio},{cnt_a},{cnt_b},{cnt_a2},{cnt_b2},{cnt_a2_to_a},{cnt_b2_to_b},{cnt_common},{cnt_removed},{cnt_added}"),
+                "csv" => println!("{common_vars},{a_vars},{b_vars},{common_constraints},{a_constraints},{b_constraints},{b_vars},{lost_ratio},{removed_ratio},{common_ratio},{added_ratio},{gained_ratio},{cnt_a},{cnt_b},{cnt_a2},{cnt_b2},{cnt_a2_to_a},{cnt_b2_to_b},{cnt_common},{cnt_removed},{cnt_added},{},{},{},{},{},{},{},{},{},{},{},{},{}",
+                dur_a2.as_nanos(), dur_b2.as_nanos(), dur_cnt_a.as_nanos(), dur_cnt_b.as_nanos(), dur_cnt_a2.as_nanos(), dur_cnt_b2.as_nanos(), dur_cnt_a2_to_a.as_nanos(), dur_cnt_b2_to_b.as_nanos(), dur_tseitin.as_nanos(), dur_cnt_common.as_nanos(), dur_cnt_removed.as_nanos(), dur_cnt_added.as_nanos(), dur_total.as_nanos()),
                 "bc" => {
                     if slice {
                         panic!();
