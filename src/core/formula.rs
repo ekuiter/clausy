@@ -201,20 +201,32 @@ impl Formula {
     ///
     /// Assumes that this formula is in proto-CNF; that is, it is a conjunction of constraints.
     /// Does not modify this formula.
-    pub(crate) fn differing_constraints(&self, other: &Formula, arena: &mut Arena) -> (HashSet<ExprId>, HashSet<ExprId>) {
+    pub(crate) fn diff_constraints(
+        &self,
+        other: &Formula,
+        arena: &mut Arena,
+    ) -> (HashSet<ExprId>, HashSet<ExprId>, HashSet<ExprId>) {
         if let And(child_ids) = &arena.exprs[self.root_id] {
             if let And(other_child_ids) = &arena.exprs[other.root_id] {
-                let child_ids: HashSet<ExprId> = child_ids
-                    .clone()
+                let child_ids: HashSet<ExprId> = child_ids.clone().into_iter().collect();
+                let other_child_ids: HashSet<ExprId> =
+                    other_child_ids.clone().into_iter().collect();
+                let common_constraint_ids = child_ids
+                    .intersection(&other_child_ids)
                     .into_iter()
+                    .map(|id| *id)
                     .collect();
-                let other_child_ids: HashSet<ExprId> = other_child_ids
-                    .clone()
+                let a_constraint_ids = child_ids
+                    .difference(&other_child_ids)
                     .into_iter()
+                    .map(|id| *id)
                     .collect();
-                let a_constraints = child_ids.difference(&other_child_ids).into_iter().map(|id| *id).collect();
-                let b_constraints = other_child_ids.difference(&child_ids).into_iter().map(|id| *id).collect();
-                (a_constraints, b_constraints)
+                let b_constraint_ids = other_child_ids
+                    .difference(&child_ids)
+                    .into_iter()
+                    .map(|id| *id)
+                    .collect();
+                (common_constraint_ids, a_constraint_ids, b_constraint_ids)
             } else {
                 unreachable!()
             }
@@ -274,39 +286,46 @@ impl Formula {
         b: &Formula,
         slice: bool,
         diff: bool,
+        verbose: bool,
         command: &str,
         arena: &mut Arena,
     ) {
         let a = self;
         let a_var_ids = a.except_vars(b);
         let b_var_ids = b.except_vars(a);
-        println!("removed variables");
-        for id in &a_var_ids {
-            let id: usize = (*id).try_into().unwrap();
-            println!("{}", arena.vars[id]);
-        }
-        println!();
-        println!("added variables");
-        for id in &b_var_ids {
-            let id: usize = (*id).try_into().unwrap();
-            println!("{}", arena.vars[id]);
-        }
-        let (a_constraints, b_constraints) = self.differing_constraints(b, arena);
-        println!();
-        println!("removed constraints");
-        for id in a_constraints {
-            println!("{}", arena.as_formula(id).as_ref(arena));
-        }
-        println!();
-        println!("added constraints");
-        for id in b_constraints {
-            println!("{}", arena.as_formula(id).as_ref(arena));
-        }
-        println!();
+        let (common_constraint_ids, a_constraint_ids, b_constraint_ids) =
+            self.diff_constraints(b, arena);
         let common_var_ids = a.common_vars(b);
         let common_vars: u32 = common_var_ids.len().try_into().unwrap();
         let a_vars: u32 = a_var_ids.len().try_into().unwrap();
         let b_vars: u32 = b_var_ids.len().try_into().unwrap();
+        let common_constraints: u32 = common_constraint_ids.len().try_into().unwrap();
+        let a_constraints: u32 = a_constraint_ids.len().try_into().unwrap();
+        let b_constraints: u32 = b_constraint_ids.len().try_into().unwrap();
+        if verbose {
+            println!("removed variables:");
+            for id in &a_var_ids {
+                let id: usize = (*id).try_into().unwrap();
+                println!("{}", arena.vars[id]);
+            }
+            println!();
+            println!("added variables:");
+            for id in &b_var_ids {
+                let id: usize = (*id).try_into().unwrap();
+                println!("{}", arena.vars[id]);
+            }
+            println!();
+            println!("removed constraints:");
+            for id in a_constraint_ids {
+                println!("{}", arena.as_formula(id).as_ref(arena));
+            }
+            println!();
+            println!("added constraints:");
+            for id in b_constraint_ids {
+                println!("{}", arena.as_formula(id).as_ref(arena));
+            }
+            println!();
+        }
         let mut a2;
         let mut b2;
         if slice {
@@ -359,6 +378,27 @@ impl Formula {
             .assume(b2.implies_expr(&a2, arena), arena)
             .to_clauses(&arena)
             .count();
+        let mut lost_ratio = -1f64;
+        let mut gained_ratio = -1f64;
+        // this currently only supports deleting/adding up to 1000 features due to f64 precision
+        if slice {
+            lost_ratio = BigRational::new(cnt_a.clone(), cnt_a2.clone())
+                .to_f64()
+                .unwrap()
+                .log2()
+                / a_vars.to_f64().unwrap();
+            if a_vars == 0 {
+                lost_ratio = 0.0;
+            }
+            gained_ratio = BigRational::new(cnt_b.clone(), cnt_b2.clone())
+                .to_f64()
+                .unwrap()
+                .log2()
+                / b_vars.to_f64().unwrap();
+            if b_vars == 0 {
+                gained_ratio = 0.0;
+            }
+        }
         let cnt_union = &cnt_common + &cnt_removed + &cnt_added;
         let common_ratio = BigRational::new(cnt_common.clone(), cnt_union.clone())
             .to_f64()
@@ -370,27 +410,26 @@ impl Formula {
             .to_f64()
             .unwrap();
         match command {
-            "csv" => println!("{common_vars},{a_vars},{b_vars},{},{},{},{},{},{},{},{},{},{common_ratio},{removed_ratio},{added_ratio},{cnt_a},{cnt_b},{cnt_a2},{cnt_b2},{cnt_a2_to_a},{cnt_b2_to_b},{cnt_common},{cnt_removed},{cnt_added}",
-            cnt_a.to_string().len(), cnt_b.to_string().len(), cnt_a2.to_string().len(), cnt_b2.to_string().len(), cnt_a2_to_a.to_string().len(), cnt_b2_to_b.to_string().len(), cnt_common.to_string().len(), cnt_removed.to_string().len(), cnt_added.to_string().len()),
-            "bc" => {
-                if slice {
-                    panic!();
+                "csv" => println!("{common_vars},{a_vars},{b_vars},{common_constraints},{a_constraints},{b_constraints},{b_vars},{lost_ratio},{removed_ratio},{common_ratio},{added_ratio},{gained_ratio},{cnt_a},{cnt_b},{cnt_a2},{cnt_b2},{cnt_a2_to_a},{cnt_b2_to_b},{cnt_common},{cnt_removed},{cnt_added}"),
+                "bc" => {
+                    if slice {
+                        panic!();
+                    }
+                    println!("(((#+{cnt_a2_to_a})/2^{a_vars})-{cnt_removed}+{cnt_added})*2^{b_vars}-{cnt_b2_to_b}# | sed 's/#/<left model count>/' | bc");
+                },
+                count_a => {
+                    if slice {
+                        panic!();
+                    }
+                    let count_a = BigInt::from_str(count_a).unwrap();
+                    let two = 2.to_bigint().unwrap();
+                    println!(
+                        "{}",
+                        (((&count_a + &cnt_a2_to_a) / two.pow(a_vars)) - &cnt_removed + &cnt_added)
+                            * two.pow(b_vars)
+                            - &cnt_b2_to_b
+                    );
                 }
-                println!("(((#+{cnt_a2_to_a})/2^{a_vars})-{cnt_removed}+{cnt_added})*2^{b_vars}-{cnt_b2_to_b}# | sed 's/#/<left model count>/' | bc");
-            },
-            count_a => {
-                if slice {
-                    panic!();
-                }
-                let count_a = BigInt::from_str(count_a).unwrap();
-                let two = 2.to_bigint().unwrap();
-                println!(
-                    "{}",
-                    (((&count_a + &cnt_a2_to_a) / two.pow(a_vars)) - &cnt_removed + &cnt_added)
-                        * two.pow(b_vars)
-                        - &cnt_b2_to_b
-                );
             }
-        }
     }
 }

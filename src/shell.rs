@@ -92,10 +92,10 @@ pub fn main(mut commands: Vec<String>) {
             "enumerate" => clauses!(clauses, arena, formulas).enumerate(),
             "count_diff" => {
                 debug_assert!(formulas.len() == 2);
-                debug_assert!(parts.len() == 2);
+                debug_assert!(parts.len() == 5);
                 let a = &formulas[0];
                 let b = &formulas[1];
-                a.diff(b, true, false, parts[1], &mut arena);
+                a.diff(b, parts[1] == "y", parts[2] == "y", parts[3] == "y", parts[4], &mut arena);
             }
             _ => {
                 if file_exists(command) {
