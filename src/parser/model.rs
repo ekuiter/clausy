@@ -56,10 +56,10 @@ fn parse_pair(pair: Pair<Rule>, arena: &mut Arena, var_ids: &mut HashSet<VarId>)
     }
 }
 
-fn parse_into(file: &str, arena: &mut Arena) -> Formula {
+fn parse_into(file: File, arena: &mut Arena) -> Formula {
     let mut child_ids = Vec::<ExprId>::new();
     let mut sub_var_ids = HashSet::<VarId>::new();
-    for line in file.lines() {
+    for line in file.contents.lines() {
         let pair = ModelFormulaParser::parse(Rule::line, line)
             .unwrap()
             .next()
@@ -71,11 +71,11 @@ fn parse_into(file: &str, arena: &mut Arena) -> Formula {
         }
     }
     let root_id = arena.expr(And(child_ids));
-    Formula::new(sub_var_ids, root_id, Some(File::new(file.to_string(), Some("model".to_string()))))
+    Formula::new(sub_var_ids, root_id, Some(file))
 }
 
 impl FormulaParser for ModelFormulaParser {
-    fn parse_into(&self, file: &str, arena: &mut Arena) -> Formula {
+    fn parse_into(&self, file: File, arena: &mut Arena) -> Formula {
         parse_into(file, arena)
     }
 }

@@ -1,6 +1,6 @@
 //! Utilities for executing external programs.
 
-use crate::core::var::VarId;
+use crate::core::{var::VarId, file::File};
 use num::BigInt;
 use std::{
     env,
@@ -117,15 +117,14 @@ pub(crate) fn bc_minisat_all(dimacs: &str) -> (impl Iterator<Item = Vec<VarId>>,
 ///
 /// Runs the tool FeatureIDE using the Java runtime environment.
 pub(crate) fn io(
-    input: &str,
-    input_format: &str,
+    file: &File,
     output_format: &str,
     variables: &[&str],
-) -> String {
+) -> File {
     let process = Command::new("java")
         .arg("-jar")
         .arg(path("io.jar"))
-        .arg(format!("-.{}", input_format))
+        .arg(&file.name)
         .arg(output_format)
         .arg(variables.join(","))
         .stdin(Stdio::piped())
@@ -133,7 +132,7 @@ pub(crate) fn io(
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    process.stdin.unwrap().write_all(input.as_bytes()).ok();
+    process.stdin.unwrap().write_all(file.contents.as_bytes()).ok();
     let mut output = String::new();
     let mut error = String::new();
     process.stdout.unwrap().read_to_string(&mut output).ok();
@@ -142,7 +141,7 @@ pub(crate) fn io(
         println!("{}", error);
     }
     debug_assert!(error.is_empty() && !output.is_empty());
-    output
+    File::new(format!("-.{}", output_format), output)
 }
 
 /// Transforms a given name into a form compatible with FeatureIDE.

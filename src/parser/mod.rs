@@ -2,6 +2,7 @@
 
 use self::{io::IoFormulaParser, model::ModelFormulaParser, sat::SatFormulaParser};
 use crate::core::arena::Arena;
+use crate::core::file::File;
 use crate::core::formula::Formula;
 
 mod io;
@@ -15,10 +16,10 @@ pub(crate) trait FormulaParser {
     ///
     /// Returns the parsed [Formula].
     /// Does not modify the sub-expressions of any other formula in the arena.
-    fn parse_into(&self, file: &str, arena: &mut Arena) -> Formula;
+    fn parse_into(&self, file: File, arena: &mut Arena) -> Formula;
 
     /// Parses a feature-model formula file into a new [Arena].
-    fn parse_new(&self, file: &str) -> (Arena, Formula) {
+    fn parse_new(&self, file: File) -> (Arena, Formula) {
         let mut arena = Arena::new();
         let formula = self.parse_into(file, &mut arena);
         (arena, formula)
@@ -30,7 +31,7 @@ pub(crate) trait FormulaParser {
 /// Only implemented for [Arena].
 pub(crate) trait FormulaParsee {
     /// Parses a feature-model formula into this object.
-    fn parse(&mut self, file: &str, parser: Box<dyn FormulaParser>) -> Formula;
+    fn parse(&mut self, file: File, parser: Box<dyn FormulaParser>) -> Formula;
 }
 
 /// Returns the appropriate parser for a file extension.
@@ -39,25 +40,25 @@ pub(crate) fn parser(extension: Option<String>) -> Box<dyn FormulaParser> {
         Some(extension) => match extension.as_str() {
             "sat" => Box::new(SatFormulaParser),
             "model" => Box::new(ModelFormulaParser),
-            _ => Box::new(IoFormulaParser::new(extension)),
+            _ => Box::new(IoFormulaParser),
         },
         None => Box::new(SatFormulaParser),
     }
 }
 
 /// Creates a feature-model formula from a feature-model formula file and parser.
-impl<'a, T> From<(&str, T)> for Formula
+impl<'a, T> From<(File, T)> for Formula
 where
     T: FormulaParser,
 {
-    fn from(file_and_parser: (&str, T)) -> Self {
+    fn from(file_and_parser: (File, T)) -> Self {
         let (file, parser) = file_and_parser;
         parser.parse_new(file).1
     }
 }
 
 impl FormulaParsee for Arena {
-    fn parse(&mut self, file: &str, parser: Box<dyn FormulaParser>) -> Formula {
+    fn parse(&mut self, file: File, parser: Box<dyn FormulaParser>) -> Formula {
         parser.parse_into(file, self)
     }
 }

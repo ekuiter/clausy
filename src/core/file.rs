@@ -1,6 +1,6 @@
 //! Defines a feature-model formula file.
 
-use std::collections::HashSet;
+use std::{collections::HashSet, io::Read, path::Path, fs};
 
 use num::BigInt;
 
@@ -12,37 +12,56 @@ use crate::{
 
 use super::{arena::Arena, formula::Formula, var::VarId};
 
-/// The contents of a feature-model formula file.
+/// A feature-model formula file.
 ///
 /// Every [Formula] may be parsed from an existing input [File].
 #[derive(Clone)]
 pub(crate) struct File {
+    /// The name of the file the associated formula was originally parsed from.
+    pub(crate) name: String,
+
     /// The contents of the file the associated formula was originally parsed from.
     pub(crate) contents: String,
-
-    /// The extension of the file the associated formula was originally parsed from, if any.
-    pub(crate) extension: Option<String>,
 }
 
 impl File {
     /// Creates a new file.
-    pub(crate) fn new(contents: String, extension: Option<String>) -> Self {
-        Self {
-            contents,
-            extension,
-        }
+    pub(crate) fn new(name: String, contents: String) -> Self {
+        Self { name, contents }
+    }
+
+    /// Returns whether a file exists at a given path.
+    ///
+    /// Also allows the special value - for referring to standard input.
+    pub(crate) fn exists(file_name: &str) -> bool {
+        Path::new(file_name).exists() || file_name.starts_with("-")
+    }
+
+    /// Reads the contents and extension of a file.
+    pub(crate) fn read(name: &str) -> File {
+        let mut contents;
+        if name.starts_with("-") {
+            contents = String::new();
+            std::io::stdin().read_to_string(&mut contents).unwrap();
+        } else {
+            contents = fs::read_to_string(name).unwrap();
+        };
+        File::new(name.to_string(), contents)
+    }
+
+    /// Returns the extension of this file, if any.
+    pub(crate) fn extension(&self) -> Option<String> {
+        Path::new(self.name.as_str())
+            .extension()
+            .map_or(None, |e| e.to_str())
+            .map(|e| e.to_string())
     }
 
     /// Counts the number of solutions of the formula this file represents using FeatureIDE.
     ///
     /// The file extension must be given so FeatureIDE can detect the correct format.
     pub(crate) fn count_featureide(&self) -> BigInt {
-        exec::d4(&exec::io(
-            self.contents.as_str(),
-            self.extension.as_ref().unwrap(),
-            "dimacs",
-            &[],
-        ))
+        exec::d4(&exec::io(self, "dimacs", &[]).contents)
     }
 
     /// Panics if the formula this file represents has a different model count than that of the given clauses.
@@ -68,14 +87,9 @@ impl File {
             })
             .collect::<Vec<String>>();
         let vars = vars.iter().map(|s| &**s).collect::<Vec<&str>>();
-        let slice = exec::io(
-            &self.contents.as_str(),
-            self.extension.as_ref().unwrap(),
-            "sat",
-            &vars,
-        );
-        let slice = exec::name_from_io(&slice);
-        let mut formula = arena.parse(&slice, parser(Some("sat".to_string())));
+        let slice = exec::io(&self, "sat", &vars);
+        let slice = Self::new("-.sat".to_string(), exec::name_from_io(&slice.contents));
+        let mut formula = arena.parse(slice, parser(Some("sat".to_string())));
         formula.sub_var_ids = var_ids.clone();
         formula
     }

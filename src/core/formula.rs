@@ -299,10 +299,10 @@ impl Formula {
     pub(crate) fn diff(
         &self,
         b: &Formula,
+        command: &str,
         slice: bool,
         diff: bool,
         verbose: bool,
-        command: &str,
         arena: &mut Arena,
     ) {
         let start_total = Instant::now();

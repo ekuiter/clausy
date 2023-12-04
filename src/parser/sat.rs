@@ -60,8 +60,8 @@ fn parse_pair(pair: Pair<Rule>, vars: &[ExprId], arena: &mut Arena) -> ExprId {
 }
 
 impl FormulaParser for SatFormulaParser {
-    fn parse_into(&self, file: &str, arena: &mut Arena) -> Formula {
-        let mut pairs = SatFormulaParser::parse(Rule::file, file).unwrap();
+    fn parse_into(&self, file: File, arena: &mut Arena) -> Formula {
+        let mut pairs = SatFormulaParser::parse(Rule::file, &file.contents).unwrap();
 
         let mut sub_var_ids = HashSet::<VarId>::new();
         let mut variable_names = HashMap::<VarId, &str>::new();
@@ -101,6 +101,6 @@ impl FormulaParser for SatFormulaParser {
         debug_assert!(variable_names.is_empty());
 
         let root_id = parse_pair(pairs.next().unwrap(), &vars, arena);
-        Formula::new(sub_var_ids, root_id, Some(File::new(file.to_string(), Some("sat".to_string()))))
+        Formula::new(sub_var_ids, root_id, Some(file))
     }
 }

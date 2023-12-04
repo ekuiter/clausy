@@ -1,10 +1,10 @@
 //! Imperative shell for operating on feature-model formulas.
 
+use crate::core::file::File;
 use crate::parser::sat_inline::SatInlineFormulaParser;
 use crate::{
     core::{arena::Arena, formula::Formula},
     parser::{parser, FormulaParsee},
-    util::{file_exists, read_contents},
 };
 
 /// Whether to print identifiers of expressions.
@@ -46,7 +46,7 @@ pub fn main(mut commands: Vec<String>) {
         commands.push("-".to_string());
     }
 
-    if commands.len() == 1 && file_exists(&commands[0]) {
+    if commands.len() == 1 && File::exists(&commands[0]) {
         commands.push("to_cnf_dist".to_string());
         commands.push("to_clauses".to_string());
         commands.push("print".to_string());
@@ -87,22 +87,23 @@ pub fn main(mut commands: Vec<String>) {
             "enumerate" => clauses!(clauses, arena, formulas).enumerate(),
             "diff" => {
                 debug_assert!(formulas.len() == 2);
-                debug_assert!(parts.len() == 5);
+                debug_assert!(parts.len() <= 5);
                 let a = &formulas[0];
                 let b = &formulas[1];
                 a.diff(
                     b,
-                    parts[1] == "y",
-                    parts[2] == "y",
-                    parts[3] == "y",
-                    parts[4],
+                    if parts.len() < 2 { "csv" } else { parts[1] },
+                    if parts.len() < 3 { true } else { parts[2] == "y" },
+                    if parts.len() < 4 { false } else { parts[3] == "y" },
+                    if parts.len() < 5 { false } else { parts[4] == "y" },
                     &mut arena,
                 );
             }
             _ => {
-                if file_exists(command) {
-                    let (file, extension) = read_contents(command);
-                    formulas.push(arena.parse(&file, parser(extension.clone())));
+                if File::exists(command) {
+                    let file = File::read(command);
+                    let extension = file.extension();
+                    formulas.push(arena.parse(file, parser(extension)));
                 } else if SatInlineFormulaParser::can_parse(command) {
                     formulas.push(
                         // todo: what does this implement? a comparison as in Thüm 2009?
