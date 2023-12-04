@@ -41,17 +41,14 @@ pub fn main(mut commands: Vec<String>) {
     let mut arena = Arena::new();
     let mut formulas = Vec::<Formula>::new();
     let mut clauses = None;
-
     if commands.is_empty() {
         commands.push("-".to_string());
     }
-
     if commands.len() == 1 && File::exists(&commands[0]) {
         commands.push("to_cnf_dist".to_string());
         commands.push("to_clauses".to_string());
         commands.push("print".to_string());
     }
-
     for command in &commands {
         let parts: Vec<&str> = command.split_whitespace().collect();
         match parts[0] {
