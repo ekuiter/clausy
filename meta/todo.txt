@@ -76,6 +76,7 @@ evaluate this:
 - measure time + max heap size
 - measure time of parsing, preprocessing, and DPLL/CDCL (instrument solvers?)
 - Constraint Complexity? welche constraints von linux sind schwierig, warum, und sind die wichtig (was drücken die aus, kann man die approximieren)?
+- slice visitor? duplicate node, then go bottom up on each and replace? (better comparability than if we use featureide)
 
 reasoning 2.0:
 - count diffs of models in parallel
@@ -89,3 +90,9 @@ reasoning 2.0:
 - challenge 1: the idea of incremental counting is inherently flawed, as differences in model counts are bounded by the larger model count and therefore they grow exponentially. instead, we need a division: #sat(a) * (#sat(b)/#sat(a)) = #sat(b), which is difficult (impossible?) to compute efficiently and would probably require an efficient slicing algorithm, probably not on cnf (i.e., and then make a prime factorization of the formula and 'cancelling' common factors. this is only trivial for unconstrained features, where we can cancel a 2 for each one). the subtraction approach will at most allow us to count a little bit further than normal #sat. there is one way this can maybe still work: hoping that the large differences are occuring in #sat(x)-#sat(slice(x)), and hoping that that can be counted more easily (how?)
 - challenge 2: how to count the difference of a model and its slice? not trivial to find out which configurations are duplicate.
 - optimize current slice/plice approach to not use multiple tseitin transformations, but only one (would need to track where each tseitin constraint belongs to, probably by storing them in the formulas)
+
+implement
+- plice (#sat directly)
+- better plice (#sat inc + directly (does this work)?)
+- real slice (#sat inc + directly (does this work)?)
+- TBK's original algorithm (with and without simplified reasoning)

@@ -38,7 +38,7 @@ echo '(!def(a)|def(b))' | bin/clausy -.model to_cnf_dist satisfy
 
 # prove model equivalence
 ! bin/clausy a.model b.model '+(*(-1 2) *(1 -2))' to_cnf_tseitin satisfy &>/dev/null
-
+b
 # run tests
 make test
 
