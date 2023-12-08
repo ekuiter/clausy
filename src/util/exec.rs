@@ -43,9 +43,9 @@ pub(crate) fn kissat(dimacs: &str) -> Option<Vec<VarId>> {
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    process.stdin.unwrap().write_all(dimacs.as_bytes()).ok();
+    process.stdin.unwrap().write_all(dimacs.as_bytes()).unwrap();
     let mut output = String::new();
-    process.stdout.unwrap().read_to_string(&mut output).ok();
+    process.stdout.unwrap().read_to_string(&mut output).unwrap();
     debug_assert!(!output.is_empty());
     let solution: Vec<VarId> = output
         .lines()
@@ -68,7 +68,7 @@ pub(crate) fn kissat(dimacs: &str) -> Option<Vec<VarId>> {
 /// Returns the number as a string, as it will typically overflow otherwise.
 pub(crate) fn d4(dimacs: &str) -> BigInt {
     let mut tmp = NamedTempFile::new().unwrap();
-    write!(tmp, "{}", dimacs).ok();
+    write!(tmp, "{}", dimacs).unwrap();
     let output = Command::new(path("d4"))
         .arg("-i")
         .arg(tmp.path())
@@ -95,7 +95,7 @@ pub(crate) fn d4(dimacs: &str) -> BigInt {
 /// This does not currently output solutions for fully indeterminate (i.e., unconstrained) variables.
 pub(crate) fn bc_minisat_all(dimacs: &str) -> (impl Iterator<Item = Vec<VarId>>, NamedTempFile) {
     let mut tmp_in = NamedTempFile::new().unwrap();
-    write!(tmp_in, "{}", dimacs).ok();
+    write!(tmp_in, "{}", dimacs).unwrap();
     let process = Command::new(path("bc_minisat_all_static"))
         .arg(tmp_in.path())
         .stdin(Stdio::piped())
@@ -132,11 +132,13 @@ pub(crate) fn io(
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    process.stdin.unwrap().write_all(file.contents.as_bytes()).ok();
+    if file.name.starts_with("-.") {
+        process.stdin.unwrap().write_all(file.contents.as_bytes()).unwrap();
+    }
     let mut output = String::new();
     let mut error = String::new();
-    process.stdout.unwrap().read_to_string(&mut output).ok();
-    process.stderr.unwrap().read_to_string(&mut error).ok();
+    process.stdout.unwrap().read_to_string(&mut output).unwrap();
+    process.stderr.unwrap().read_to_string(&mut error).unwrap();
     if !error.is_empty() {
         println!("{}", error);
     }
