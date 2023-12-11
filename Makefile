@@ -7,7 +7,6 @@ SRC_FILES := $(wildcard src/* src/*/* .cargo/* Cargo.*)
 CMD_NOT_FOUND = $(error Required command $(1) could not be found, please install it)
 CHECK_CMD = $(if $(shell command -v $(1)),,$(call CMD_NOT_FOUND,$(1)))
 CHECK_CARGO = if ! command -v cargo; then \
-	require-command curl; \
 	curl https://sh.rustup.rs -sSf | sh; \
 	source "$HOME/.cargo/env"; \
 fi
@@ -18,10 +17,12 @@ clean:
 	rm -rf bin
 
 test:
+	$(call CHECK_CMD,curl)
 	$(call CHECK_CARGO)
 	cargo test
 
 doc:
+	$(call CHECK_CMD,curl)
 	$(call CHECK_CARGO)
 	cargo doc --no-deps --open
 
@@ -31,6 +32,7 @@ doc-live:
 	# npm install -g browser-sync
 	$(call CHECK_CMD,inotifywait)
 	$(call CHECK_CMD,browser-sync)
+	$(call CHECK_CMD,curl)
 	$(call CHECK_CARGO)
 	while inotifywait -re close_write,moved_to,create src; do \
 		cargo doc --no-deps; \
@@ -70,6 +72,7 @@ bin/io.jar:
 
 bin/clausy: $(SRC_FILES) bin/kissat_MAB-HyWalk bin/d4 bin/bc_minisat_all_static bin/io.jar
 	$(call CHECK_CMD,cc)
+	$(call CHECK_CMD,curl)
 	$(call CHECK_CARGO)
 	cargo build --release
 	cp target/release/clausy bin/clausy
