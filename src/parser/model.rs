@@ -4,8 +4,9 @@ use super::FormulaParser;
 use crate::core::{
     arena::Arena,
     expr::{Expr::*, ExprId},
+    file::File,
     formula::Formula,
-    var::VarId, file::File,
+    var::VarId,
 };
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
@@ -37,6 +38,11 @@ fn parse_pair(pair: Pair<Rule>, arena: &mut Arena, var_ids: &mut HashSet<VarId>)
                     .trim()
                     .to_string(),
             );
+            var_ids.insert(var_id);
+            expr_id
+        }
+        Rule::unsupported => {
+            let (expr_id, var_id) = arena.var_expr_with_id("unsupported".to_string());
             var_ids.insert(var_id);
             expr_id
         }

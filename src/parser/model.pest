@@ -2,7 +2,7 @@ char = { !("(" | ")") ~ ANY }
 name = @{ char+ }
 
 var = { "def" ~ "(" ~ name ~ ")" }
-unsupported = _{ "<unsupported>" }
+unsupported = { "<unsupported>" }
 not = { "!" ~ expr }
 and = { "(" ~ expr ~ "&" ~ expr ~ ("&" ~ expr)* ~ ")" }
 or = { "(" ~ expr ~ "|" ~ expr ~ ("|" ~ expr)* ~ ")" }
