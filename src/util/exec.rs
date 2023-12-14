@@ -74,8 +74,6 @@ pub(crate) fn d4(dimacs: &str) -> BigInt {
         .arg(tmp.path())
         .arg("-m")
         .arg("counting")
-        .arg("-p")
-        .arg("sharp-equiv")
         .output()
         .unwrap();
     BigInt::from_str(&String::from(
