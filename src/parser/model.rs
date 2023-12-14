@@ -42,7 +42,7 @@ fn parse_pair(pair: Pair<Rule>, arena: &mut Arena, var_ids: &mut HashSet<VarId>)
             expr_id
         }
         Rule::unsupported => {
-            let (expr_id, var_id) = arena.var_expr_with_id("unsupported".to_string());
+            let (expr_id, var_id) = arena.var_expr_with_id("<unsupported>".to_string());
             var_ids.insert(var_id);
             expr_id
         }
