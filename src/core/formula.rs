@@ -286,12 +286,14 @@ impl Formula {
 
     /// Returns the number of solutions of this formula.
     ///
-    /// Uses a Tseitin transformation into CNF.
+    /// Optionally uses a Tseitin transformation into CNF.
     /// Does not modify this formula or the given arena.
-    pub(crate) fn count(&self, arena: &Arena) -> BigInt {
+    pub(crate) fn count(&self, arena: &Arena, use_tseitin: bool) -> BigInt {
         let mut clone = self.clone();
         let mut arena = arena.clone();
-        clone.to_cnf_tseitin(true, &mut arena);
+        if use_tseitin {
+            clone.to_cnf_tseitin(true, &mut arena);
+        }
         clone.to_clauses(&arena).count()
     }
 
@@ -387,26 +389,26 @@ impl Formula {
             panic!();
         } else if diff {
             let start = Instant::now();
-            cnt_a2_to_a = a2.implies(a, arena).count(arena);
+            cnt_a2_to_a = a2.implies(a, arena).count(arena, true);
             dur_cnt_a2_to_a = start.elapsed();
             let start = Instant::now();
-            cnt_b2_to_b = b2.implies(b, arena).count(arena);
+            cnt_b2_to_b = b2.implies(b, arena).count(arena, true);
             dur_cnt_b2_to_b = start.elapsed();
         } else {
             let start = Instant::now();
-            cnt_a = a.count(arena);
+            cnt_a = a.count(arena, true);
             dur_cnt_a = start.elapsed();
             let start = Instant::now();
-            cnt_a2 = a2.count(arena);
+            cnt_a2 = a2.count(arena, false);
             dur_cnt_a2 = start.elapsed();
             let start = Instant::now();
             cnt_a2_to_a = (&cnt_a2 - &cnt_a).abs();
             dur_cnt_a2_to_a = start.elapsed();
             let start = Instant::now();
-            cnt_b = b.count(arena);
+            cnt_b = b.count(arena, true);
             dur_cnt_b = start.elapsed();
             let start = Instant::now();
-            cnt_b2 = b2.count(arena);
+            cnt_b2 = b2.count(arena, false);
             dur_cnt_b2 = start.elapsed();
             let start = Instant::now();
             cnt_b2_to_b = (&cnt_b2 - &cnt_b).abs();

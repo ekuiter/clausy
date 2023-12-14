@@ -11,10 +11,17 @@ import de.ovgu.featureide.fm.core.io.xml.XmlFeatureModelFormat;
 import de.ovgu.featureide.fm.core.job.LongRunningMethod;
 import de.ovgu.featureide.fm.core.job.LongRunningWrapper;
 import de.ovgu.featureide.fm.core.job.SliceFeatureModel;
+import de.ovgu.featureide.fm.core.analysis.cnf.manipulator.remove.CNFSlicer;
+import de.ovgu.featureide.fm.core.analysis.cnf.formula.FeatureModelFormula;
+import de.ovgu.featureide.fm.core.analysis.cnf.formula.CNFCreator;
+import de.ovgu.featureide.fm.core.analysis.cnf.CNF;
+import de.ovgu.featureide.fm.core.base.FeatureUtils;
+import de.ovgu.featureide.fm.core.io.dimacs.DimacsWriter;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Scanner;
@@ -47,14 +54,30 @@ public class Main {
             throw new RuntimeException("failed to load feature model");
 
         if (args.length == 3) {
-            Collection<String> features = Arrays.stream(args[2].split(","))
-                    .filter(s -> !s.trim().isEmpty())
-                    .collect(Collectors.toSet());
-            if (!features.isEmpty()) {
-                final LongRunningMethod<IFeatureModel> method = new SliceFeatureModel(featureModel, features, true, false);
-                featureModel = LongRunningWrapper.runMethod(method);
-                if (featureModel.getStructure().getRoot().getChildren().size() == 1) {
-                    featureModel.getStructure().replaceRoot(featureModel.getStructure().getRoot().removeLastChild());
+            if (args[1].equals("dimacs")) {
+                Collection<String> features = Arrays.stream(args[2].split(","))
+                        .filter(s -> !s.trim().isEmpty())
+                        .collect(Collectors.toSet());
+                if (!features.isEmpty()) {
+                    ArrayList<String> removeFeatures = new ArrayList<>(FeatureUtils.getFeatureNames(featureModel));
+                    removeFeatures.removeAll(features);
+                    FeatureModelFormula formula = FeatureModelManager.getInstance(featureModel).getVariableFormula();
+                    final CNFSlicer slicer = new CNFSlicer(formula.getElement(new CNFCreator()), removeFeatures);
+                    CNF cnf = LongRunningWrapper.runMethod(slicer);
+                    String output = new DimacsWriter(cnf).write();
+                    System.out.print(output);
+                    return;
+                }
+            } else {
+                Collection<String> features = Arrays.stream(args[2].split(","))
+                        .filter(s -> !s.trim().isEmpty())
+                        .collect(Collectors.toSet());
+                if (!features.isEmpty()) {
+                    final LongRunningMethod<IFeatureModel> method = new SliceFeatureModel(featureModel, features, true, false);
+                    featureModel = LongRunningWrapper.runMethod(method);
+                    if (featureModel.getStructure().getRoot().getChildren().size() == 1) {
+                        featureModel.getStructure().replaceRoot(featureModel.getStructure().getRoot().removeLastChild());
+                    }
                 }
             }
         }
