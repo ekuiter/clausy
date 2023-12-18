@@ -36,7 +36,7 @@ fn parse_pair(pair: Pair<Rule>, vars: &[ExprId], arena: &mut Arena) -> ExprId {
                 .as_str()
                 .parse()
                 .unwrap();
-            let var: usize = var.try_into().unwrap();
+            let var: usize = var.unsigned_abs().try_into().unwrap();
             if pair.as_str().starts_with("-") {
                 arena.expr(Not(vars[var]))
             } else {

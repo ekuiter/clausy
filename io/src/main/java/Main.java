@@ -54,11 +54,11 @@ public class Main {
             throw new RuntimeException("failed to load feature model");
 
         if (args.length == 3) {
-            if (args[1].equals("dimacs")) {
-                Collection<String> features = Arrays.stream(args[2].split(","))
+            Collection<String> features = Arrays.stream(args[2].split(","))
                         .filter(s -> !s.trim().isEmpty())
                         .collect(Collectors.toSet());
-                if (!features.isEmpty()) {
+            if (!features.isEmpty()) {
+                if (args[1].equals("cnf") || args[1].equals("dimacs")) {
                     ArrayList<String> removeFeatures = new ArrayList<>(FeatureUtils.getFeatureNames(featureModel));
                     removeFeatures.removeAll(features);
                     FeatureModelFormula formula = FeatureModelManager.getInstance(featureModel).getVariableFormula();
@@ -67,12 +67,7 @@ public class Main {
                     String output = new DimacsWriter(cnf).write();
                     System.out.print(output);
                     return;
-                }
-            } else {
-                Collection<String> features = Arrays.stream(args[2].split(","))
-                        .filter(s -> !s.trim().isEmpty())
-                        .collect(Collectors.toSet());
-                if (!features.isEmpty()) {
+                } else {
                     final LongRunningMethod<IFeatureModel> method = new SliceFeatureModel(featureModel, features, true, false);
                     featureModel = LongRunningWrapper.runMethod(method);
                     if (featureModel.getStructure().getRoot().getChildren().size() == 1) {

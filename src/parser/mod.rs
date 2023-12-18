@@ -1,10 +1,12 @@
 //! Parsers for feature-model formula files.
 
+use self::cnf::CnfFormulaParser;
 use self::{io::IoFormulaParser, model::ModelFormulaParser, sat::SatFormulaParser};
 use crate::core::arena::Arena;
 use crate::core::file::File;
 use crate::core::formula::Formula;
 
+mod cnf;
 mod io;
 mod model;
 mod sat;
@@ -38,8 +40,9 @@ pub(crate) trait FormulaParsee {
 pub(crate) fn parser(extension: Option<String>) -> Box<dyn FormulaParser> {
     match extension {
         Some(extension) => match extension.as_str() {
-            "sat" => Box::new(SatFormulaParser),
+            "cnf" | "dimacs" => Box::new(CnfFormulaParser),
             "model" => Box::new(ModelFormulaParser),
+            "sat" => Box::new(SatFormulaParser),
             _ => Box::new(IoFormulaParser),
         },
         None => Box::new(SatFormulaParser),

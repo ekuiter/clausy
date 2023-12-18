@@ -87,10 +87,9 @@ impl File {
             })
             .collect::<Vec<String>>();
         let vars = vars.iter().map(|s| &**s).collect::<Vec<&str>>();
-        let slice = exec::io(&self, "dimacs", &[]);
-        let slice = exec::io(&slice, "sat", &vars);
-        let slice = Self::new("-.sat".to_string(), exec::name_from_io(&slice.contents));
-        let mut formula = arena.parse(slice, parser(Some("sat".to_string())));
+        let slice = exec::io(&self, "cnf", &vars);
+        let slice = Self::new("-.cnf".to_string(), exec::name_from_io(&slice.contents));
+        let mut formula = arena.parse(slice, parser(Some("cnf".to_string())));
         formula.sub_var_ids = var_ids.clone();
         formula
     }

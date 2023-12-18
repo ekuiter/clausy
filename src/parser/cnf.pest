@@ -1,0 +1,14 @@
+space = _{ " " | "\t" }
+WHITESPACE = _{ " " | "\t" | NEWLINE }
+number = @{ ASCII_DIGIT+ }
+non_leading_zero_number = @{ !"0" ~ ASCII_DIGIT+ }
+
+comment_text = { (!NEWLINE ~ ANY)* }
+comment_var = { space* ~ number ~ space* ~ comment_text }
+comment = ${ "c" ~ (comment_var | comment_text) ~ NEWLINE }
+problem = { "p" ~ "cnf" ~ number ~ number }
+
+var = ${ "-"? ~ non_leading_zero_number }
+clause = { var* ~ "0" }
+
+file = _{ SOI ~ comment* ~ problem ~ clause* ~ EOI }
