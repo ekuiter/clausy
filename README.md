@@ -27,7 +27,7 @@ Documentation for clausy is available [online](https://ekuiter.github.io/clausy/
 # equivalent to the above, but more verbose
 bin/clausy meta/test.sat to_cnf_dist print
 
-# read from standard input and count solutions with tseitin transformation
+# read from standard input and count solutions with Tseitin transformation
 cat model.uvl | bin/clausy -.uvl to_cnf_tseitin count
 
 # read from command line and find some solution
@@ -38,6 +38,9 @@ echo '(!def(a)|def(b))' | bin/clausy -.model to_cnf_dist satisfy
 
 # prove model equivalence
 ! bin/clausy a.model b.model '+(*(-1 2) *(1 -2))' to_cnf_tseitin satisfy &>/dev/null
+
+# simplify a given CNF
+bin/clausy model.dimacs
 
 # run tests
 make test

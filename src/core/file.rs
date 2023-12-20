@@ -1,13 +1,13 @@
 //! Defines a feature-model formula file.
 
-use std::{collections::HashSet, io::Read, path::Path, fs};
+use std::{collections::HashSet, fs, io::Read, path::Path};
 
 use num::BigInt;
 
 use crate::{
     core::{clauses::Clauses, var::Var},
     parser::{parser, FormulaParsee},
-    util::exec,
+    util::{exec, io},
 };
 
 use super::{arena::Arena, formula::Formula, var::VarId};
@@ -61,26 +61,31 @@ impl File {
     ///
     /// The file extension must be given so FeatureIDE can detect the correct format.
     pub(crate) fn count_featureide(&self) -> BigInt {
-        exec::d4(&exec::io(self, "dimacs", &[]).contents)
+        exec::d4(&exec::io(self, "cnf", &[]).contents)
     }
 
     /// Panics if the formula this file represents has a different model count than that of the given clauses.
     ///
     /// Useful for checking the correctness of count-preserving algorithms (e.g., [super::formula::Formula::to_cnf_tseitin]).
     pub(crate) fn assert_count(&self, clauses: &Clauses) {
-        assert_eq!(clauses.count(), self.count_featureide());
+        assert_eq!(clauses.count(false).0, self.count_featureide());
     }
 
     /// Slices the formula this file represents such that only the given variables remain.
     ///
     /// Internally, this uses FeatureIDE, so it operates on an intermediate CNF representation created by distributive transformation.
-    pub(crate) fn slice_featureide(&self, var_ids: &HashSet<VarId>, arena: &mut Arena) -> Formula {
+    pub(crate) fn slice_featureide(
+        &self,
+        var_ids: &HashSet<VarId>,
+        arena: &mut Arena,
+        uvl: bool,
+    ) -> (Formula, Option<File>) {
         let vars = var_ids
             .iter()
             .map(|var_id| {
                 let var_id: usize = var_id.unsigned_abs().try_into().unwrap();
                 if let Var::Named(name) = &arena.vars[var_id] {
-                    exec::name_to_io(name)
+                    io::name_to_io(name)
                 } else {
                     unreachable!()
                 }
@@ -88,9 +93,13 @@ impl File {
             .collect::<Vec<String>>();
         let vars = vars.iter().map(|s| &**s).collect::<Vec<&str>>();
         let slice = exec::io(&self, "cnf", &vars);
-        let slice = Self::new("-.cnf".to_string(), exec::name_from_io(&slice.contents));
+        let mut uvl_file = None;
+        if uvl {
+            uvl_file = Some(exec::io(&self, "uvl", &vars));
+        }
+        let slice = Self::new("-.cnf".to_string(), io::name_from_io(&slice.contents));
         let mut formula = arena.parse(slice, parser(Some("cnf".to_string())));
         formula.sub_var_ids = var_ids.clone();
-        formula
+        (formula, uvl_file)
     }
 }

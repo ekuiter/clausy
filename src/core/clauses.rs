@@ -7,7 +7,7 @@ use super::{
     formula_ref::FormulaRef,
     var::{Var, VarId},
 };
-use crate::util::exec;
+use crate::{core::file::File, util::{exec, io}};
 use std::{collections::HashMap, fmt, slice};
 
 /// A [super::formula::Formula] in its clause representation.
@@ -18,12 +18,12 @@ pub(crate) struct Clauses {
     ///
     /// A clause is a [Vec] of literals, each given as an absolute-value index into [Clauses::vars].
     /// Negative values indicate negated variable occurrences.
-    clauses: Vec<Vec<VarId>>,
+    pub(crate) clauses: Vec<Vec<VarId>>,
 
     /// The variables of this clause representation.
     ///
     /// This list is indexed into by the absolute values stored in [Clauses::clauses].
-    vars: Vec<Var>,
+    pub(crate) vars: Vec<Var>,
 }
 
 impl Clauses {
@@ -102,8 +102,15 @@ impl Clauses {
     }
 
     /// Counts the number of solutions of this clause representation.
-    pub(crate) fn count(&self) -> BigInt {
-        exec::d4(&self.to_string())
+    pub(crate) fn count(&self, serialize: bool) -> (BigInt, Option<String>, Option<String>) {
+        let file = File::new("-.dimacs".to_string(), self.to_string());
+        let mut uvl_file = None;
+        let mut xml_file = None;
+        if serialize {
+            uvl_file = Some(io::to_uvl_string(self));
+            xml_file = Some(io::to_xml_string(self));
+        }
+        (exec::d4(&file.contents), uvl_file, xml_file)
     }
 }
 

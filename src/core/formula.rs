@@ -2,6 +2,8 @@
 
 use num::{bigint::ToBigInt, BigInt, BigRational, Signed, ToPrimitive};
 
+use crate::util::{exec, io};
+
 use super::{
     arena::Arena,
     clauses::Clauses,
@@ -288,13 +290,18 @@ impl Formula {
     ///
     /// Optionally uses a Tseitin transformation into CNF.
     /// Does not modify this formula or the given arena.
-    pub(crate) fn count(&self, arena: &Arena, use_tseitin: bool) -> BigInt {
+    pub(crate) fn count(
+        &self,
+        arena: &Arena,
+        use_tseitin: bool,
+        serialize: bool,
+    ) -> (BigInt, Option<String>, Option<String>) {
         let mut clone = self.clone();
         let mut arena = arena.clone();
         if use_tseitin {
             clone.to_cnf_tseitin(true, &mut arena);
         }
-        clone.to_clauses(&arena).count()
+        clone.to_clauses(&arena).count(serialize)
     }
 
     /// Computes a description of the difference between this formula's count and another's.
@@ -348,22 +355,24 @@ impl Formula {
         }
         let mut a2;
         let mut b2;
+        let mut a2_uvl = None;
+        let mut b2_uvl = None;
         let dur_a2;
         let dur_b2;
         if slice {
             let start = Instant::now();
-            a2 = a
-                .file
-                .as_ref()
-                .unwrap()
-                .slice_featureide(&common_var_ids, arena);
+            (a2, a2_uvl) =
+                a.file
+                    .as_ref()
+                    .unwrap()
+                    .slice_featureide(&common_var_ids, arena, command == "uvl");
             dur_a2 = start.elapsed();
             let start = Instant::now();
-            b2 = b
-                .file
-                .as_ref()
-                .unwrap()
-                .slice_featureide(&common_var_ids, arena);
+            (b2, b2_uvl) =
+                b.file
+                    .as_ref()
+                    .unwrap()
+                    .slice_featureide(&common_var_ids, arena, command == "uvl");
             dur_b2 = start.elapsed();
         } else {
             let start = Instant::now();
@@ -389,26 +398,26 @@ impl Formula {
             panic!();
         } else if diff {
             let start = Instant::now();
-            cnt_a2_to_a = a2.implies(a, arena).count(arena, true);
+            cnt_a2_to_a = a2.implies(a, arena).count(arena, true, false).0;
             dur_cnt_a2_to_a = start.elapsed();
             let start = Instant::now();
-            cnt_b2_to_b = b2.implies(b, arena).count(arena, true);
+            cnt_b2_to_b = b2.implies(b, arena).count(arena, true, false).0;
             dur_cnt_b2_to_b = start.elapsed();
         } else {
             let start = Instant::now();
-            cnt_a = a.count(arena, true);
+            cnt_a = a.count(arena, true, false).0;
             dur_cnt_a = start.elapsed();
             let start = Instant::now();
-            cnt_a2 = a2.count(arena, false);
+            cnt_a2 = a2.count(arena, false, false).0;
             dur_cnt_a2 = start.elapsed();
             let start = Instant::now();
             cnt_a2_to_a = (&cnt_a2 - &cnt_a).abs();
             dur_cnt_a2_to_a = start.elapsed();
             let start = Instant::now();
-            cnt_b = b.count(arena, true);
+            cnt_b = b.count(arena, true, false).0;
             dur_cnt_b = start.elapsed();
             let start = Instant::now();
-            cnt_b2 = b2.count(arena, false);
+            cnt_b2 = b2.count(arena, false, false).0;
             dur_cnt_b2 = start.elapsed();
             let start = Instant::now();
             cnt_b2_to_b = (&cnt_b2 - &cnt_b).abs();
@@ -421,22 +430,22 @@ impl Formula {
         diff.to_cnf_tseitin(false, arena);
         let dur_tseitin = start.elapsed();
         let start = Instant::now();
-        let cnt_common = diff
+        let (cnt_common, uvl_common, xml_common) = diff
             .assume(arena.expr(And(vec![a2.root_id, b2.root_id])), arena)
             .to_clauses(&arena)
-            .count();
+            .count(command == "uvl");
         let dur_cnt_common = start.elapsed();
         let start = Instant::now();
-        let cnt_removed = diff
+        let (cnt_removed, uvl_removed, xml_removed) = diff
             .assume(a2.implies_expr(&b2, arena), arena)
             .to_clauses(&arena)
-            .count();
+            .count(command == "uvl");
         let dur_cnt_removed = start.elapsed();
         let start = Instant::now();
-        let cnt_added = diff
+        let (cnt_added, uvl_added, xml_added) = diff
             .assume(b2.implies_expr(&a2, arena), arena)
             .to_clauses(&arena)
-            .count();
+            .count(command == "uvl");
         let dur_cnt_added = start.elapsed();
         let mut lost_ratio = -1f64;
         let mut gained_ratio = -1f64;
@@ -479,6 +488,14 @@ impl Formula {
                     }
                     println!("(((#+{cnt_a2_to_a})/2^{a_vars})-{cnt_removed}+{cnt_added})*2^{b_vars}-{cnt_b2_to_b}# | sed 's/#/<left model count>/' | bc");
                 },
+                "uvl" => {
+                    let uvl_added = io::uvl_with_constraints(&b2_uvl.as_ref().unwrap().contents, &uvl_added.unwrap());
+                    println!("{}", uvl_added);
+                    println!("{}", io::xml_with_constraints(
+                        &exec::io(&File::new("-.uvl".to_string(), io::uvl_remove_constraints(&uvl_added).to_string()), "xml", &[]).contents,
+                        &xml_added.unwrap()
+                    ));
+                }
                 count_a => {
                     if slice {
                         panic!();

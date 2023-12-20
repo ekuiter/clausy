@@ -36,17 +36,17 @@ fn path(file_name: &str) -> String {
 /// Attempts to find a solution of some CNF in DIMACS format.
 ///
 /// Runs the external satisfiability solver counter kissat, which performs well on all known feature-model formulas.
-pub(crate) fn kissat(dimacs: &str) -> Option<Vec<VarId>> {
+pub(crate) fn kissat(cnf: &str) -> Option<Vec<VarId>> {
     let process = Command::new(path("kissat_MAB-HyWalk"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    process.stdin.unwrap().write_all(dimacs.as_bytes()).unwrap();
+    process.stdin.unwrap().write_all(cnf.as_bytes()).unwrap();
     let mut output = String::new();
     process.stdout.unwrap().read_to_string(&mut output).unwrap();
-    debug_assert!(!output.is_empty());
+    assert!(!output.is_empty());
     let solution: Vec<VarId> = output
         .lines()
         .filter(|line| line.starts_with("v "))
@@ -66,9 +66,9 @@ pub(crate) fn kissat(dimacs: &str) -> Option<Vec<VarId>> {
 ///
 /// Runs the external model counter d4, which performs well on most small to medium size inputs.
 /// Returns the number as a string, as it will typically overflow otherwise.
-pub(crate) fn d4(dimacs: &str) -> BigInt {
+pub(crate) fn d4(cnf: &str) -> BigInt {
     let mut tmp = NamedTempFile::new().unwrap();
-    write!(tmp, "{}", dimacs).unwrap();
+    write!(tmp, "{}", cnf).unwrap();
     let output = Command::new(path("d4"))
         .arg("-i")
         .arg(tmp.path())
@@ -91,9 +91,9 @@ pub(crate) fn d4(dimacs: &str) -> BigInt {
 ///
 /// Runs an external AllSAT solver, which is only suitable for formulas with few solutions.
 /// This does not currently output solutions for fully indeterminate (i.e., unconstrained) variables.
-pub(crate) fn bc_minisat_all(dimacs: &str) -> (impl Iterator<Item = Vec<VarId>>, NamedTempFile) {
+pub(crate) fn bc_minisat_all(cnf: &str) -> (impl Iterator<Item = Vec<VarId>>, NamedTempFile) {
     let mut tmp_in = NamedTempFile::new().unwrap();
-    write!(tmp_in, "{}", dimacs).unwrap();
+    write!(tmp_in, "{}", cnf).unwrap();
     let process = Command::new(path("bc_minisat_all_static"))
         .arg(tmp_in.path())
         .stdin(Stdio::piped())
@@ -137,33 +137,12 @@ pub(crate) fn io(
     let mut error = String::new();
     process.stdout.unwrap().read_to_string(&mut output).unwrap();
     process.stderr.unwrap().read_to_string(&mut error).unwrap();
+    if error.trim() == "No path set for model. Can't load imported models." {
+        error = String::new();
+    }
     if !error.is_empty() {
         println!("{}", error);
     }
-    debug_assert!(error.is_empty() && !output.is_empty());
+    assert!(error.is_empty() && !output.is_empty());
     File::new(format!("-.{}", output_format), output)
-}
-
-/// Transforms a given name into a form compatible with FeatureIDE.
-pub(crate) fn name_to_io(str: &str) -> String {
-    str.replace("=", "__EQUALS__")
-        .replace(":", "__COLON__")
-        .replace(".", "__DOT__")
-        .replace(",", "__COMMA__")
-        .replace("/", "__SLASH__")
-        .replace("\\", "__BACKSLASH__")
-        .replace(" ", "__SPACE__")
-        .replace("-", "__DASH__")
-}
-
-/// Retrieves a name from a given form compatible with FeatureIDE.
-pub(crate) fn name_from_io(str: &str) -> String {
-    str.replace("__EQUALS__", "=")
-        .replace("__COLON__", ":")
-        .replace("__DOT__", ".")
-        .replace("__COMMA__", ",")
-        .replace("__SLASH__", "/")
-        .replace("__BACKSLASH__", "\\")
-        .replace("__SPACE__", " ")
-        .replace("__DASH__", "-")
 }

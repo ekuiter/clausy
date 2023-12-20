@@ -72,7 +72,7 @@ pub fn main(mut commands: Vec<String>) {
             }
             "to_clauses" => clauses = Some(formula!(formulas).to_clauses(&mut arena)),
             "satisfy" => println!("{}", clauses!(clauses, arena, formulas).satisfy().unwrap()),
-            "count" => println!("{}", clauses!(clauses, arena, formulas).count()),
+            "count" => println!("{}", clauses!(clauses, arena, formulas).count(false).0),
             "assert_count" => {
                 let clauses = clauses!(clauses, arena, formulas);
                 formula!(formulas)
@@ -83,8 +83,8 @@ pub fn main(mut commands: Vec<String>) {
             }
             "enumerate" => clauses!(clauses, arena, formulas).enumerate(),
             "diff" => {
-                debug_assert!(formulas.len() == 2);
-                debug_assert!(parts.len() <= 5);
+                assert!(formulas.len() == 2);
+                assert!(parts.len() <= 5);
                 let a = &formulas[0];
                 let b = &formulas[1];
                 a.diff(

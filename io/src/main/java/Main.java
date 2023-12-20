@@ -39,6 +39,9 @@ public class Main {
         IFeatureModel featureModel;
         if (args.length > 0 && !args[0].startsWith("-")) {
             Path inputPath = Paths.get(args[0]);
+            if (!inputPath.toFile().isAbsolute()) {
+                inputPath = Paths.get(".").resolve(inputPath);
+            }
             featureModel = FeatureModelManager.load(inputPath);
         } else {
             StringBuilder sb = new StringBuilder();
