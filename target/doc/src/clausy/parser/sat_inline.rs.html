@@ -140,7 +140,7 @@
             .iter()
             .flat_map(|formula| formula.sub_var_ids.clone())
             .collect();
-        Formula::new(sub_var_ids, root_id)
+        Formula::new(sub_var_ids, root_id, <span class="prelude-val">None</span>)
     }
 
     <span class="kw">fn </span>parse_children(<span class="kw-2">&amp;</span><span class="self">self</span>, pair: Pair&lt;Rule&gt;, arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; Vec&lt;ExprId&gt; {

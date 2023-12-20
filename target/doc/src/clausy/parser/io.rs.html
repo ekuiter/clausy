@@ -17,47 +17,23 @@
 <a href="#17" id="17">17</a>
 <a href="#18" id="18">18</a>
 <a href="#19" id="19">19</a>
-<a href="#20" id="20">20</a>
-<a href="#21" id="21">21</a>
-<a href="#22" id="22">22</a>
-<a href="#23" id="23">23</a>
-<a href="#24" id="24">24</a>
-<a href="#25" id="25">25</a>
-<a href="#26" id="26">26</a>
-<a href="#27" id="27">27</a>
-<a href="#28" id="28">28</a>
-<a href="#29" id="29">29</a>
-<a href="#30" id="30">30</a>
-<a href="#31" id="31">31</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parser for any file format accepted by FeatureIDE.
 
 </span><span class="kw">use super</span>::{sat::SatFormulaParser, FormulaParser};
 <span class="kw">use crate</span>::{
-    core::{arena::Arena, formula::Formula},
+    core::{arena::Arena, formula::Formula, file::File},
     util,
 };
 
 <span class="doccomment">/// Parses feature-model formula files in any file format accepted by FeatureIDE.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>IoFormulaParser {
-    <span class="doccomment">/// The extension of the parsed file.
-    ///
-    /// Used by FeatureIDE to determine the file format.
-    </span>extension: String,
-}
-
-<span class="kw">impl </span>IoFormulaParser {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(extension: String) -&gt; <span class="self">Self </span>{
-        IoFormulaParser { extension }
-    }
-}
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>IoFormulaParser;
 
 <span class="kw">impl </span>FormulaParser <span class="kw">for </span>IoFormulaParser {
-    <span class="kw">fn </span>preprocess(<span class="kw-2">&amp;</span><span class="self">self</span>, file: String) -&gt; String {
-        util::exec::io(<span class="kw-2">&amp;</span>file, <span class="kw-2">&amp;</span><span class="self">self</span>.extension, <span class="string">&quot;sat&quot;</span>, <span class="kw-2">&amp;</span>[])
-    }
-
-    <span class="kw">fn </span>parse_into(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str, arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; Formula {
-        SatFormulaParser.parse_into(file, arena)
+    <span class="kw">fn </span>parse_into(<span class="kw-2">&amp;</span><span class="self">self</span>, file: File, arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; Formula {
+        <span class="kw">let </span>sat_file = util::exec::io(<span class="kw-2">&amp;</span>file, <span class="string">&quot;sat&quot;</span>, <span class="kw-2">&amp;</span>[]);
+        <span class="kw">let </span><span class="kw-2">mut </span>formula = SatFormulaParser.parse_into(sat_file, arena);
+        formula.file = <span class="prelude-val">Some</span>(file);
+        formula
     }
 }
 </code></pre></div></section></main></body></html>

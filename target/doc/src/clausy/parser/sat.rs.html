@@ -111,7 +111,7 @@
     arena::Arena,
     expr::{Expr::<span class="kw-2">*</span>, ExprId},
     formula::Formula,
-    var::VarId,
+    var::VarId, file::File,
 };
 <span class="kw">use </span>pest::{iterators::Pair, Parser};
 <span class="kw">use </span>pest_derive::Parser;
@@ -142,7 +142,7 @@
                 .as_str()
                 .parse()
                 .unwrap();
-            <span class="kw">let </span>var: usize = var.try_into().unwrap();
+            <span class="kw">let </span>var: usize = var.unsigned_abs().try_into().unwrap();
             <span class="kw">if </span>pair.as_str().starts_with(<span class="string">&quot;-&quot;</span>) {
                 arena.expr(Not(vars[var]))
             } <span class="kw">else </span>{
@@ -166,8 +166,8 @@
 }
 
 <span class="kw">impl </span>FormulaParser <span class="kw">for </span>SatFormulaParser {
-    <span class="kw">fn </span>parse_into(<span class="kw-2">&amp;</span><span class="self">self</span>, file: <span class="kw-2">&amp;</span>str, arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; Formula {
-        <span class="kw">let </span><span class="kw-2">mut </span>pairs = SatFormulaParser::parse(Rule::file, file).unwrap();
+    <span class="kw">fn </span>parse_into(<span class="kw-2">&amp;</span><span class="self">self</span>, file: File, arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; Formula {
+        <span class="kw">let </span><span class="kw-2">mut </span>pairs = SatFormulaParser::parse(Rule::file, <span class="kw-2">&amp;</span>file.contents).unwrap();
 
         <span class="kw">let </span><span class="kw-2">mut </span>sub_var_ids = HashSet::&lt;VarId&gt;::new();
         <span class="kw">let </span><span class="kw-2">mut </span>variable_names = HashMap::&lt;VarId, <span class="kw-2">&amp;</span>str&gt;::new();
@@ -207,7 +207,7 @@
         <span class="macro">debug_assert!</span>(variable_names.is_empty());
 
         <span class="kw">let </span>root_id = parse_pair(pairs.next().unwrap(), <span class="kw-2">&amp;</span>vars, arena);
-        Formula::new(sub_var_ids, root_id)
+        Formula::new(sub_var_ids, root_id, <span class="prelude-val">Some</span>(file))
     }
 }
 </code></pre></div></section></main></body></html>

@@ -136,14 +136,26 @@
 <a href="#136" id="136">136</a>
 <a href="#137" id="137">137</a>
 <a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Utilities for executing external programs.
 
-</span><span class="kw">use </span><span class="kw">crate</span>::core::var::VarId;
+</span><span class="kw">use </span><span class="kw">crate</span>::core::{var::VarId, file::File};
+<span class="kw">use </span>num::BigInt;
 <span class="kw">use </span>std::{
     env,
     io::{BufRead, BufReader, Read, Write},
     path::Path,
     process::{Command, Stdio},
+    str::FromStr,
 };
 <span class="kw">use </span>tempfile::NamedTempFile;
 
@@ -172,17 +184,17 @@
 <span class="doccomment">/// Attempts to find a solution of some CNF in DIMACS format.
 ///
 /// Runs the external satisfiability solver counter kissat, which performs well on all known feature-model formulas.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>kissat(dimacs: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;VarId&gt;&gt; {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>kissat(cnf: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;VarId&gt;&gt; {
     <span class="kw">let </span>process = Command::new(path(<span class="string">&quot;kissat_MAB-HyWalk&quot;</span>))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    process.stdin.unwrap().write_all(dimacs.as_bytes()).ok();
+    process.stdin.unwrap().write_all(cnf.as_bytes()).unwrap();
     <span class="kw">let </span><span class="kw-2">mut </span>output = String::new();
-    process.stdout.unwrap().read_to_string(<span class="kw-2">&amp;mut </span>output).ok();
-    <span class="macro">debug_assert!</span>(!output.is_empty());
+    process.stdout.unwrap().read_to_string(<span class="kw-2">&amp;mut </span>output).unwrap();
+    <span class="macro">assert!</span>(!output.is_empty());
     <span class="kw">let </span>solution: Vec&lt;VarId&gt; = output
         .lines()
         .filter(|line| line.starts_with(<span class="string">&quot;v &quot;</span>))
@@ -202,35 +214,34 @@
 ///
 /// Runs the external model counter d4, which performs well on most small to medium size inputs.
 /// Returns the number as a string, as it will typically overflow otherwise.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>d4(dimacs: <span class="kw-2">&amp;</span>str) -&gt; String {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>d4(cnf: <span class="kw-2">&amp;</span>str) -&gt; BigInt {
     <span class="kw">let </span><span class="kw-2">mut </span>tmp = NamedTempFile::new().unwrap();
-    <span class="macro">write!</span>(tmp, <span class="string">&quot;{}&quot;</span>, dimacs).ok();
+    <span class="macro">write!</span>(tmp, <span class="string">&quot;{}&quot;</span>, cnf).unwrap();
     <span class="kw">let </span>output = Command::new(path(<span class="string">&quot;d4&quot;</span>))
         .arg(<span class="string">&quot;-i&quot;</span>)
         .arg(tmp.path())
         .arg(<span class="string">&quot;-m&quot;</span>)
         .arg(<span class="string">&quot;counting&quot;</span>)
-        .arg(<span class="string">&quot;-p&quot;</span>)
-        .arg(<span class="string">&quot;sharp-equiv&quot;</span>)
         .output()
         .unwrap();
-    String::from(
+    BigInt::from_str(<span class="kw-2">&amp;</span>String::from(
         String::from_utf8_lossy(<span class="kw-2">&amp;</span>output.stdout)
             .lines()
             .find(|line| line.starts_with(<span class="string">&quot;s &quot;</span>))
             .unwrap()
             .split_at(<span class="number">2</span>)
             .<span class="number">1</span>,
-    )
+    ))
+    .unwrap()
 }
 
 <span class="doccomment">/// Enumerates all solutions of some CNF in DIMACS format.
 ///
 /// Runs an external AllSAT solver, which is only suitable for formulas with few solutions.
 /// This does not currently output solutions for fully indeterminate (i.e., unconstrained) variables.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bc_minisat_all(dimacs: <span class="kw-2">&amp;</span>str) -&gt; (<span class="kw">impl </span>Iterator&lt;Item = Vec&lt;VarId&gt;&gt;, NamedTempFile) {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bc_minisat_all(cnf: <span class="kw-2">&amp;</span>str) -&gt; (<span class="kw">impl </span>Iterator&lt;Item = Vec&lt;VarId&gt;&gt;, NamedTempFile) {
     <span class="kw">let </span><span class="kw-2">mut </span>tmp_in = NamedTempFile::new().unwrap();
-    <span class="macro">write!</span>(tmp_in, <span class="string">&quot;{}&quot;</span>, dimacs).ok();
+    <span class="macro">write!</span>(tmp_in, <span class="string">&quot;{}&quot;</span>, cnf).unwrap();
     <span class="kw">let </span>process = Command::new(path(<span class="string">&quot;bc_minisat_all_static&quot;</span>))
         .arg(tmp_in.path())
         .stdin(Stdio::piped())
@@ -252,26 +263,34 @@
 ///
 /// Runs the tool FeatureIDE using the Java runtime environment.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>io(
-    input: <span class="kw-2">&amp;</span>str,
-    input_format: <span class="kw-2">&amp;</span>str,
+    file: <span class="kw-2">&amp;</span>File,
     output_format: <span class="kw-2">&amp;</span>str,
-    features: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str],
-) -&gt; String {
+    variables: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str],
+) -&gt; File {
     <span class="kw">let </span>process = Command::new(<span class="string">&quot;java&quot;</span>)
         .arg(<span class="string">&quot;-jar&quot;</span>)
         .arg(path(<span class="string">&quot;io.jar&quot;</span>))
-        .arg(<span class="macro">format!</span>(<span class="string">&quot;-.{}&quot;</span>, input_format))
+        .arg(<span class="kw-2">&amp;</span>file.name)
         .arg(output_format)
-        .arg(features.join(<span class="string">&quot;,&quot;</span>))
+        .arg(variables.join(<span class="string">&quot;,&quot;</span>))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    process.stdin.unwrap().write_all(input.as_bytes()).ok();
+    <span class="kw">if </span>file.name.starts_with(<span class="string">&quot;-.&quot;</span>) {
+        process.stdin.unwrap().write_all(file.contents.as_bytes()).unwrap();
+    }
     <span class="kw">let </span><span class="kw-2">mut </span>output = String::new();
-    process.stdout.unwrap().read_to_string(<span class="kw-2">&amp;mut </span>output).ok();
-    <span class="macro">debug_assert!</span>(!output.is_empty());
-    output
-}
-</code></pre></div></section></main></body></html>
+    <span class="kw">let </span><span class="kw-2">mut </span>error = String::new();
+    process.stdout.unwrap().read_to_string(<span class="kw-2">&amp;mut </span>output).unwrap();
+    process.stderr.unwrap().read_to_string(<span class="kw-2">&amp;mut </span>error).unwrap();
+    <span class="kw">if </span>error.trim() == <span class="string">&quot;No path set for model. Can&#39;t load imported models.&quot; </span>{
+        error = String::new();
+    }
+    <span class="kw">if </span>!error.is_empty() {
+        <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, error);
+    }
+    <span class="macro">assert!</span>(error.is_empty() &amp;&amp; !output.is_empty());
+    File::new(<span class="macro">format!</span>(<span class="string">&quot;-.{}&quot;</span>, output_format), output)
+}</code></pre></div></section></main></body></html>
