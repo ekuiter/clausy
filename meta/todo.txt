@@ -99,3 +99,7 @@ implement
 - better plice (#sat inc + directly (does this work)?)
 - real slice (#sat inc + directly (does this work)?)
 - TBK's original algorithm (with and without simplified reasoning)
+
+integrate z3 tseitin + fide distrib into clausy for quick comparison and reproduction of ASE (maybe even KCR)
+is it possible to use z3 for full tseitin? how does standard z3 compare to my equivalent partial transformation?
+is one full transformation indeed cheaper than three partial z3/clausy transformations?
