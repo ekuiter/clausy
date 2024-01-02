@@ -57,6 +57,11 @@ impl File {
             .map(|e| e.to_string())
     }
 
+    /// Writes this file to its destination.
+    pub(crate) fn write(&self) {
+        fs::write(&self.name, &self.contents).unwrap();
+    }
+
     /// Counts the number of solutions of the formula this file represents using FeatureIDE.
     ///
     /// The file extension must be given so FeatureIDE can detect the correct format.

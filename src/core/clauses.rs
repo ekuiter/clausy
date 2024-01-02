@@ -142,9 +142,9 @@ impl fmt::Display for Clauses {
             if let Var::Named(name) = var {
                 debug_assert!(!name.is_empty());
             }
-            write!(f, "c {} {var}\n", i)?;
+            writeln!(f, "c {} {var}", i)?;
         }
-        write!(f, "p cnf {} {}\n", self.vars.len() - 1, self.clauses.len())?;
+        writeln!(f, "p cnf {} {}", self.vars.len() - 1, self.clauses.len())?;
         for clause in &self.clauses {
             for literal in clause {
                 let var: usize = literal.unsigned_abs().try_into().unwrap();
@@ -152,7 +152,7 @@ impl fmt::Display for Clauses {
                 debug_assert!(var < self.vars.len());
                 write!(f, "{} ", literal)?;
             }
-            write!(f, "0\n")?;
+            writeln!(f, "0")?;
         }
         write!(f, "")
     }

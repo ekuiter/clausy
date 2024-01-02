@@ -1,6 +1,7 @@
 //! Imperative shell for operating on feature-model formulas.
 
 use crate::core::file::File;
+use crate::core::formula::DiffCommand;
 use crate::parser::sat_inline::SatInlineFormulaParser;
 use crate::{
     core::{arena::Arena, formula::Formula},
@@ -50,8 +51,10 @@ pub fn main(mut commands: Vec<String>) {
         commands.push("print".to_string());
     }
     for command in &commands {
-        let parts: Vec<&str> = command.split_whitespace().collect();
-        match parts[0] {
+        let mut arguments: Vec<&str> = command.split_whitespace().collect();
+        let action = arguments[0];
+        arguments.remove(0);
+        match action {
             "print" => {
                 if clauses.is_some() {
                     print!("{}", clauses.as_ref().unwrap());
@@ -84,21 +87,20 @@ pub fn main(mut commands: Vec<String>) {
             "enumerate" => clauses!(clauses, arena, formulas).enumerate(),
             "diff" => {
                 assert!(formulas.len() == 2);
-                assert!(parts.len() <= 5);
+                assert!(arguments.len() <= 2);
                 let a = &formulas[0];
                 let b = &formulas[1];
-                a.diff(
-                    b,
-                    if parts.len() < 2 { "csv" } else { parts[1] },
-                    if parts.len() < 3 { true } else { parts[2] == "y" },
-                    if parts.len() < 4 { false } else { parts[3] == "y" },
-                    if parts.len() < 5 { false } else { parts[4] == "y" },
-                    &mut arena,
-                );
+                let mut arguments = arguments.into_iter();
+                let command = match arguments.next() {
+                    Some("count") => DiffCommand::Count,
+                    Some("strict") => DiffCommand::Strict,
+                    Some("weak") | _ => DiffCommand::Weak,
+                };
+                a.diff(b, command, arguments.next(), &mut arena);
             }
             _ => {
-                if File::exists(command) {
-                    let file = File::read(command);
+                if File::exists(action) {
+                    let file = File::read(action);
                     let extension = file.extension();
                     formulas.push(arena.parse(file, parser(extension)));
                 } else if SatInlineFormulaParser::can_parse(command) {

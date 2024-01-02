@@ -1,8 +1,8 @@
 //! Defines a feature-model formula.
 
-use num::{bigint::ToBigInt, BigInt, BigRational, Signed, ToPrimitive};
+use num::{bigint::ToBigInt, BigInt, BigRational, ToPrimitive};
 
-use crate::util::{exec, io};
+use crate::util::io;
 
 use super::{
     arena::Arena,
@@ -14,9 +14,23 @@ use super::{
 };
 use std::{
     collections::HashSet,
+    fmt::Write,
     str::FromStr,
     time::{Duration, Instant},
 };
+
+/// Commands for computing differences of feature-model formulas.
+pub(crate) enum DiffCommand {
+    /// Count the number of solutions of the second formula based on the number of solutions of the first formula.
+    Count,
+
+    /// Computes the difference of both formulas, considering a solution as common if it satisfies both formulas.
+    Strict,
+
+    /// Computes the difference of both formulas, considering a solution as common if it satisfies the slices
+    /// of both formulas down to their common variables.
+    Weak,
+}
 
 /// A feature-model formula.
 ///
@@ -304,17 +318,24 @@ impl Formula {
         clone.to_clauses(&arena).count(serialize)
     }
 
-    /// Computes a description of the difference between this formula's count and another's.
+    /// Computes a description of the difference between this formula and another.
     pub(crate) fn diff(
         &self,
         b: &Formula,
-        command: &str,
-        slice: bool,
-        diff: bool,
-        verbose: bool,
+        command: DiffCommand,
+        argument: Option<&str>,
         arena: &mut Arena,
     ) {
         let start_total = Instant::now();
+        let verbose = match command {
+            DiffCommand::Count => false,
+            _ => argument.is_some() && !argument.unwrap().is_empty(),
+        };
+        let left_model_count = match command {
+            DiffCommand::Count => argument.map(|argument| BigInt::from_str(argument).unwrap()),
+            _ => None,
+        };
+        let file_name = |name: &str| format!("{}{}", argument.unwrap().to_string(), name);
         let a = self;
         let a_var_ids = a.except_vars(b);
         let b_var_ids = b.except_vars(a);
@@ -330,28 +351,27 @@ impl Formula {
         a.assert_proto_cnf(arena);
         b.assert_proto_cnf(arena);
         if verbose {
-            println!("removed variables:");
-            for id in &a_var_ids {
-                let id: usize = (*id).try_into().unwrap();
-                println!("{}", arena.vars[id]);
-            }
-            println!();
-            println!("added variables:");
-            for id in &b_var_ids {
-                let id: usize = (*id).try_into().unwrap();
-                println!("{}", arena.vars[id]);
-            }
-            println!();
-            println!("removed constraints:");
-            for id in a_constraint_ids {
-                println!("{}", arena.as_formula(id).as_ref(arena));
-            }
-            println!();
-            println!("added constraints:");
-            for id in b_constraint_ids {
-                println!("{}", arena.as_formula(id).as_ref(arena));
-            }
-            println!();
+            let write_features = |name, var_ids: &HashSet<VarId>| {
+                let mut f = String::new();
+                for id in var_ids {
+                    let id: usize = (*id).try_into().unwrap();
+                    writeln!(f, "{}", arena.vars[id]).unwrap();
+                }
+                File::new(file_name(name), f).write();
+            };
+            write_features(".common.features", &common_var_ids);
+            write_features(".removed.features", &a_var_ids);
+            write_features(".added.features", &b_var_ids);
+            let write_constraints = |name, constraint_ids: &HashSet<ExprId>| {
+                let mut f = String::new();
+                for id in constraint_ids {
+                    writeln!(f, "{}", arena.as_formula(*id).as_ref(arena)).unwrap();
+                }
+                File::new(file_name(name), f).write();
+            };
+            write_constraints(".common.constraints", &common_constraint_ids);
+            write_constraints(".removed.constraints", &a_constraint_ids);
+            write_constraints(".added.constraints", &b_constraint_ids);
         }
         let mut a2;
         let mut b2;
@@ -359,69 +379,71 @@ impl Formula {
         let mut b2_uvl = None;
         let dur_a2;
         let dur_b2;
-        if slice {
-            let start = Instant::now();
-            (a2, a2_uvl) =
-                a.file
-                    .as_ref()
-                    .unwrap()
-                    .slice_featureide(&common_var_ids, arena, command == "uvl");
-            dur_a2 = start.elapsed();
-            let start = Instant::now();
-            (b2, b2_uvl) =
-                b.file
-                    .as_ref()
-                    .unwrap()
-                    .slice_featureide(&common_var_ids, arena, command == "uvl");
-            dur_b2 = start.elapsed();
-        } else {
-            let start = Instant::now();
-            a2 = a.remove_constraints(&a_var_ids, arena);
-            dur_a2 = start.elapsed();
-            let start = Instant::now();
-            b2 = b.remove_constraints(&b_var_ids, arena);
-            dur_b2 = start.elapsed();
+        match command {
+            DiffCommand::Count => {
+                // todo: compute a2_uvl, b2_uvl
+                let start = Instant::now();
+                a2 = a.remove_constraints(&a_var_ids, arena);
+                dur_a2 = start.elapsed();
+                let start = Instant::now();
+                b2 = b.remove_constraints(&b_var_ids, arena);
+                dur_b2 = start.elapsed();
+            }
+            DiffCommand::Strict => todo!(),
+            // todo: implement command strict (set dead backbone variables)
+            // todo: make counting optional so we can serialize linux as well
+            DiffCommand::Weak => {
+                let start = Instant::now();
+                (a2, a2_uvl) =
+                    a.file
+                        .as_ref()
+                        .unwrap()
+                        .slice_featureide(&common_var_ids, arena, verbose);
+                dur_a2 = start.elapsed();
+                let start = Instant::now();
+                (b2, b2_uvl) =
+                    b.file
+                        .as_ref()
+                        .unwrap()
+                        .slice_featureide(&common_var_ids, arena, verbose);
+                dur_b2 = start.elapsed();
+            }
         }
         let mut cnt_a = -1.to_bigint().unwrap();
         let mut cnt_b = -1.to_bigint().unwrap();
         let mut cnt_a2 = -1.to_bigint().unwrap();
         let mut cnt_b2 = -1.to_bigint().unwrap();
+        let mut cnt_a2_to_a = -1.to_bigint().unwrap();
+        let mut cnt_b2_to_b = -1.to_bigint().unwrap();
         let mut dur_cnt_a = Duration::ZERO;
         let mut dur_cnt_b = Duration::ZERO;
         let mut dur_cnt_a2 = Duration::ZERO;
         let mut dur_cnt_b2 = Duration::ZERO;
-        let dur_cnt_a2_to_a;
-        let dur_cnt_b2_to_b;
-        let cnt_a2_to_a;
-        let cnt_b2_to_b;
-        if slice && diff {
-            panic!();
-        } else if diff {
-            let start = Instant::now();
-            cnt_a2_to_a = a2.implies(a, arena).count(arena, true, false).0;
-            dur_cnt_a2_to_a = start.elapsed();
-            let start = Instant::now();
-            cnt_b2_to_b = b2.implies(b, arena).count(arena, true, false).0;
-            dur_cnt_b2_to_b = start.elapsed();
-        } else {
-            let start = Instant::now();
-            cnt_a = a.count(arena, true, false).0;
-            dur_cnt_a = start.elapsed();
-            let start = Instant::now();
-            cnt_a2 = a2.count(arena, false, false).0;
-            dur_cnt_a2 = start.elapsed();
-            let start = Instant::now();
-            cnt_a2_to_a = (&cnt_a2 - &cnt_a).abs();
-            dur_cnt_a2_to_a = start.elapsed();
-            let start = Instant::now();
-            cnt_b = b.count(arena, true, false).0;
-            dur_cnt_b = start.elapsed();
-            let start = Instant::now();
-            cnt_b2 = b2.count(arena, false, false).0;
-            dur_cnt_b2 = start.elapsed();
-            let start = Instant::now();
-            cnt_b2_to_b = (&cnt_b2 - &cnt_b).abs();
-            dur_cnt_b2_to_b = start.elapsed();
+        let mut _dur_cnt_a2_to_a = Duration::ZERO;
+        let mut _dur_cnt_b2_to_b = Duration::ZERO;
+        match command {
+            DiffCommand::Count => {
+                let start = Instant::now();
+                cnt_a2_to_a = a2.implies(a, arena).count(arena, true, false).0;
+                _dur_cnt_a2_to_a = start.elapsed();
+                let start = Instant::now();
+                cnt_b2_to_b = b2.implies(b, arena).count(arena, true, false).0;
+                _dur_cnt_b2_to_b = start.elapsed();
+            }
+            _ => {
+                let start = Instant::now();
+                cnt_a = a.count(arena, true, false).0;
+                dur_cnt_a = start.elapsed();
+                let start = Instant::now();
+                cnt_a2 = a2.count(arena, false, false).0;
+                dur_cnt_a2 = start.elapsed();
+                let start = Instant::now();
+                cnt_b = b.count(arena, true, false).0;
+                dur_cnt_b = start.elapsed();
+                let start = Instant::now();
+                cnt_b2 = b2.count(arena, false, false).0;
+                dur_cnt_b2 = start.elapsed();
+            }
         }
         a2.sub_var_ids = common_var_ids.clone();
         b2.sub_var_ids = common_var_ids.clone();
@@ -433,40 +455,36 @@ impl Formula {
         let (cnt_common, uvl_common, xml_common) = diff
             .assume(arena.expr(And(vec![a2.root_id, b2.root_id])), arena)
             .to_clauses(&arena)
-            .count(command == "uvl");
+            .count(verbose);
         let dur_cnt_common = start.elapsed();
         let start = Instant::now();
         let (cnt_removed, uvl_removed, xml_removed) = diff
             .assume(a2.implies_expr(&b2, arena), arena)
             .to_clauses(&arena)
-            .count(command == "uvl");
+            .count(verbose);
         let dur_cnt_removed = start.elapsed();
         let start = Instant::now();
         let (cnt_added, uvl_added, xml_added) = diff
             .assume(b2.implies_expr(&a2, arena), arena)
             .to_clauses(&arena)
-            .count(command == "uvl");
+            .count(verbose);
         let dur_cnt_added = start.elapsed();
         let mut lost_ratio = -1f64;
         let mut gained_ratio = -1f64;
         // this currently only supports deleting/adding up to 1000 features due to f64 precision
-        if slice {
+        if a_vars > 0 {
             lost_ratio = BigRational::new(cnt_a.clone(), cnt_a2.clone())
                 .to_f64()
                 .unwrap()
                 .log2()
                 / a_vars.to_f64().unwrap();
-            if a_vars == 0 {
-                lost_ratio = 0.0;
-            }
+        }
+        if b_vars > 0 {
             gained_ratio = BigRational::new(cnt_b.clone(), cnt_b2.clone())
                 .to_f64()
                 .unwrap()
                 .log2()
                 / b_vars.to_f64().unwrap();
-            if b_vars == 0 {
-                gained_ratio = 0.0;
-            }
         }
         let cnt_union = &cnt_common + &cnt_removed + &cnt_added;
         let common_ratio = BigRational::new(cnt_common.clone(), cnt_union.clone())
@@ -479,36 +497,50 @@ impl Formula {
             .to_f64()
             .unwrap();
         let dur_total = start_total.elapsed();
+        if verbose {
+            io::write_uvl_and_xml(
+                file_name(".common.left"),
+                &a2_uvl.as_ref().unwrap().contents,
+                &uvl_common.as_ref().unwrap(),
+                &xml_common.as_ref().unwrap(),
+            );
+            io::write_uvl_and_xml(
+                file_name(".common.right"),
+                &b2_uvl.as_ref().unwrap().contents,
+                &uvl_common.unwrap(),
+                &xml_common.as_ref().unwrap(),
+            );
+            io::write_uvl_and_xml(
+                file_name(".removed"),
+                &a2_uvl.as_ref().unwrap().contents,
+                &uvl_removed.as_ref().unwrap(),
+                &xml_removed.as_ref().unwrap(),
+            );
+            io::write_uvl_and_xml(
+                file_name(".added"),
+                &b2_uvl.as_ref().unwrap().contents,
+                &uvl_added.as_ref().unwrap(),
+                &xml_added.as_ref().unwrap(),
+            );
+        }
         match command {
-                "csv" => println!("{common_vars},{a_vars},{b_vars},{common_constraints},{a_constraints},{b_constraints},{lost_ratio},{removed_ratio},{common_ratio},{added_ratio},{gained_ratio},{cnt_a},{cnt_b},{cnt_a2},{cnt_b2},{cnt_a2_to_a},{cnt_b2_to_b},{cnt_common},{cnt_removed},{cnt_added},{},{},{},{},{},{},{},{},{},{},{},{},{}",
-                dur_a2.as_nanos(), dur_b2.as_nanos(), dur_cnt_a.as_nanos(), dur_cnt_b.as_nanos(), dur_cnt_a2.as_nanos(), dur_cnt_b2.as_nanos(), dur_cnt_a2_to_a.as_nanos(), dur_cnt_b2_to_b.as_nanos(), dur_tseitin.as_nanos(), dur_cnt_common.as_nanos(), dur_cnt_removed.as_nanos(), dur_cnt_added.as_nanos(), dur_total.as_nanos()),
-                "bc" => {
-                    if slice {
-                        panic!();
-                    }
-                    println!("(((#+{cnt_a2_to_a})/2^{a_vars})-{cnt_removed}+{cnt_added})*2^{b_vars}-{cnt_b2_to_b}# | sed 's/#/<left model count>/' | bc");
-                },
-                "uvl" => {
-                    let uvl_added = io::uvl_with_constraints(&b2_uvl.as_ref().unwrap().contents, &uvl_added.unwrap());
-                    println!("{}", uvl_added);
-                    println!("{}", io::xml_with_constraints(
-                        &exec::io(&File::new("-.uvl".to_string(), io::uvl_remove_constraints(&uvl_added).to_string()), "xml", &[]).contents,
-                        &xml_added.unwrap()
-                    ));
-                }
-                count_a => {
-                    if slice {
-                        panic!();
-                    }
-                    let count_a = BigInt::from_str(count_a).unwrap();
+            DiffCommand::Count => {
+                if left_model_count.is_some() {
                     let two = 2.to_bigint().unwrap();
                     println!(
                         "{}",
-                        (((&count_a + &cnt_a2_to_a) / two.pow(a_vars)) - &cnt_removed + &cnt_added)
+                        (((&left_model_count.unwrap() + &cnt_a2_to_a) / two.pow(a_vars))
+                            - &cnt_removed
+                            + &cnt_added)
                             * two.pow(b_vars)
                             - &cnt_b2_to_b
                     );
+                } else {
+                    println!("(((#+{cnt_a2_to_a})/2^{a_vars})-{cnt_removed}+{cnt_added})*2^{b_vars}-{cnt_b2_to_b}# | sed 's/#/<left model count>/' | bc");
                 }
             }
+            _ => println!("{common_vars},{a_vars},{b_vars},{common_constraints},{a_constraints},{b_constraints},{lost_ratio},{removed_ratio},{common_ratio},{added_ratio},{gained_ratio},{cnt_a},{cnt_b},{cnt_a2},{cnt_b2},{cnt_common},{cnt_removed},{cnt_added},{},{},{},{},{},{},{},{},{},{},{}",
+            dur_a2.as_nanos(), dur_b2.as_nanos(), dur_cnt_a.as_nanos(), dur_cnt_b.as_nanos(), dur_cnt_a2.as_nanos(), dur_cnt_b2.as_nanos(), dur_tseitin.as_nanos(), dur_cnt_common.as_nanos(), dur_cnt_removed.as_nanos(), dur_cnt_added.as_nanos(), dur_total.as_nanos())
+        }
     }
 }

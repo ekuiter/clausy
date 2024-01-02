@@ -1,7 +1,9 @@
 //! Utilities for handling UVL and XML files.
 
-use crate::core::{clauses::Clauses, var::Var};
+use crate::core::{clauses::Clauses, var::Var, file::File};
 use std::fmt::Write;
+
+use super::exec;
 
 /// Transforms a given name into a form compatible with FeatureIDE.
 pub(crate) fn name_to_io(str: &str) -> String {
@@ -41,19 +43,19 @@ pub(crate) fn uvl_with_constraints(uvl: &str, constraints: &str) -> String {
 ///
 /// This string is to be appended to an existing UVL feature hierarchy.
 pub(crate) fn to_uvl_string(clauses: &Clauses) -> String {
-    let mut uvl = "".to_string();
-    write!(uvl, "\t\tmandatory\n").unwrap();
-    write!(uvl, "\t\t\t\"Auxiliary Variables\" {{abstract}}\n").unwrap();
-    write!(uvl, "\t\t\t\toptional\n").unwrap();
+    let mut uvl = String::new();
+    writeln!(uvl, "\t\tmandatory").unwrap();
+    writeln!(uvl, "\t\t\t\"Auxiliary Variables\" {{abstract}}").unwrap();
+    writeln!(uvl, "\t\t\t\toptional").unwrap();
     for (i, var) in clauses.vars.iter().enumerate() {
         if i == 0 {
             continue;
         }
         if let Var::Aux(_) = var {
-            write!(uvl, "\t\t\t\t\t\"{var}\" {{abstract}}\n").unwrap();
+            writeln!(uvl, "\t\t\t\t\t\"{var}\" {{abstract}}").unwrap();
         }
     }
-    write!(uvl, "\nconstraints\n").unwrap();
+    writeln!(uvl, "\nconstraints").unwrap();
     for clause in &clauses.clauses {
         write!(uvl, "\t").unwrap();
         for literal in clause {
@@ -73,7 +75,7 @@ pub(crate) fn to_uvl_string(clauses: &Clauses) -> String {
         } else {
             write!(uvl, "false").unwrap();
         }
-        write!(uvl, "\n").unwrap();
+        writeln!(uvl).unwrap();
     }
     uvl.truncate(uvl.trim_end().len());
     uvl
@@ -100,7 +102,31 @@ pub(crate) fn to_xml_string(clauses: &Clauses) -> String {
             )
             .unwrap();
         }
-        write!(xml, "</disj></rule>\n").unwrap();
+        writeln!(xml, "</disj></rule>").unwrap();
     }
     xml + "\t</constraints>"
+}
+
+/// Writes a UVL and XML file with a given prefix.
+pub(crate) fn write_uvl_and_xml(
+    prefix: String,
+    uvl_features: &String,
+    uvl_constraints: &String,
+    xml_constraints: &String,
+) {
+    let uvl = uvl_with_constraints(uvl_features, uvl_constraints);
+    let xml = xml_with_constraints(
+        &exec::io(
+            &File::new(
+                "-.uvl".to_string(),
+                uvl_remove_constraints(&uvl).to_string(),
+            ),
+            "xml",
+            &[],
+        )
+        .contents,
+        &xml_constraints,
+    );
+    File::new(format!("{prefix}.uvl"), uvl).write();
+    File::new(format!("{prefix}.xml"), xml).write();
 }
