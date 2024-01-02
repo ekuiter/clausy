@@ -391,7 +391,7 @@ impl Formula {
             }
             DiffCommand::Strict => todo!(),
             // todo: implement command strict (set dead backbone variables)
-            // todo: make counting optional so we can serialize linux as well
+            // todo: make counting optional so we can serialize linux as well (which is probably not possible with TBK)
             DiffCommand::Weak => {
                 let start = Instant::now();
                 (a2, a2_uvl) =
