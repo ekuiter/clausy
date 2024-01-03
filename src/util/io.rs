@@ -1,7 +1,13 @@
 //! Utilities for handling UVL, XML, and other files.
 
-use crate::core::{clauses::Clauses, file::File, var::{Var, VarId}, arena::Arena, expr::ExprId};
-use std::{fmt::Write, collections::HashSet};
+use crate::core::{
+    arena::Arena,
+    clauses::Clauses,
+    expr::ExprId,
+    file::File,
+    var::{Var, VarId},
+};
+use std::{collections::HashSet, fmt::Write};
 
 use super::exec;
 
@@ -39,22 +45,47 @@ pub(crate) fn uvl_with_constraints(uvl: &str, constraints: &str) -> String {
     format!("{}\n{}", uvl_remove_constraints(uvl), &constraints)
 }
 
+/// Appends variables as abstract features to an existing UVL feature hierarchy.
+pub(crate) fn uvl_add_vars(label: &str, vars: &[Var]) -> String {
+    let mut uvl = String::new();
+    writeln!(uvl, "\t\tmandatory").unwrap();
+    writeln!(uvl, "\t\t\t\"{label}\" {{abstract}}").unwrap();
+    writeln!(uvl, "\t\t\t\toptional").unwrap();
+    for var in vars {
+        writeln!(uvl, "\t\t\t\t\t\"{var}\" {{abstract}}").unwrap();
+    }
+    uvl
+}
+
+/// Appends variables by their identifiers to an existing UVL file.
+pub(crate) fn uvl_file_add_vars(
+    file: &mut File,
+    label: &str,
+    var_ids: HashSet<i32>,
+    arena: &mut Arena,
+) {
+    let other_vars: Vec<Var> = arena
+        .vars(|var_id, _| var_ids.contains(&var_id))
+        .into_iter()
+        .map(|(_, var)| var)
+        .collect();
+    file.contents = uvl_with_constraints(&file.contents, &uvl_add_vars(label, &other_vars));
+}
+
 /// Expresses a clause representation as a string of UVL features and constraints.
 ///
 /// This string is to be appended to an existing UVL feature hierarchy.
 pub(crate) fn to_uvl_string(clauses: &Clauses) -> String {
     let mut uvl = String::new();
-    writeln!(uvl, "\t\tmandatory").unwrap();
-    writeln!(uvl, "\t\t\t\"Auxiliary Variables\" {{abstract}}").unwrap();
-    writeln!(uvl, "\t\t\t\toptional").unwrap();
-    for (i, var) in clauses.vars.iter().enumerate() {
-        if i == 0 {
-            continue;
-        }
-        if let Var::Aux(_) = var {
-            writeln!(uvl, "\t\t\t\t\t\"{var}\" {{abstract}}").unwrap();
-        }
-    }
+    let vars: Vec<Var> = clauses.vars[1..]
+        .iter()
+        .filter(|var| match var {
+            Var::Named(_) => false,
+            Var::Aux(_) => true,
+        })
+        .map(|var| var.clone())
+        .collect();
+    writeln!(uvl, "{}", uvl_add_vars("Auxiliary Variables", &vars)).unwrap();
     writeln!(uvl, "\nconstraints").unwrap();
     for clause in &clauses.clauses {
         write!(uvl, "\t").unwrap();

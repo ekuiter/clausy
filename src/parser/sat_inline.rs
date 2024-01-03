@@ -17,14 +17,14 @@ use pest_derive::Parser;
 #[grammar = "parser/sat_inline.pest"]
 pub(crate) struct SatInlineFormulaParser<'a> {
     formulas: &'a Vec<Formula>,
-    add_backbone_literals: bool,
+    force_foreign_vars: Option<bool>,
 }
 
 impl<'a> SatInlineFormulaParser<'a> {
-    pub(crate) fn new(formulas: &'a Vec<Formula>, add_backbone_literals: bool) -> Self {
+    pub(crate) fn new(formulas: &'a Vec<Formula>, force_foreign_vars: Option<bool>) -> Self {
         SatInlineFormulaParser {
             formulas,
-            add_backbone_literals,
+            force_foreign_vars,
         }
     }
 
@@ -35,11 +35,14 @@ impl<'a> SatInlineFormulaParser<'a> {
     pub(crate) fn parse_into(&self, file: &String, arena: &mut Arena) -> Formula {
         let mut pairs = SatInlineFormulaParser::parse(Rule::file, file).unwrap();
         let root_id = self.parse_pair(pairs.next().unwrap(), arena);
-        let sub_var_ids = self
-            .formulas
-            .iter()
-            .flat_map(|formula| formula.sub_var_ids.clone())
-            .collect();
+        let sub_var_ids = if self.force_foreign_vars.is_some() {
+            arena.var_ids()
+        } else {
+            self.formulas
+                .iter()
+                .flat_map(|formula| formula.sub_var_ids.clone())
+                .collect()
+        };
         Formula::new(sub_var_ids, root_id, None)
     }
 
@@ -63,18 +66,10 @@ impl<'a> SatInlineFormulaParser<'a> {
                 let idx: usize = arg.try_into().unwrap();
                 let formula = &self.formulas[idx - 1];
                 let mut root_id = formula.root_id;
-                if self.add_backbone_literals {
-                    let mut ids = vec![root_id];
-                    ids.extend(
-                        arena
-                            .vars(|var_id, _| !formula.sub_var_ids.contains(&var_id))
-                            .into_iter()
-                            .map(|(var_id, _)| {
-                                let expr = arena.expr(Var(var_id));
-                                arena.expr(Not(expr))
-                            }),
-                    );
-                    root_id = arena.expr(And(ids));
+                if self.force_foreign_vars.is_some() {
+                    root_id = formula
+                        .force_foreign_vars(self.force_foreign_vars.unwrap(), arena)
+                        .root_id;
                 }
                 if pair.as_str().starts_with("-") {
                     arena.expr(Not(root_id))

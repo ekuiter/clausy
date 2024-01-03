@@ -2,7 +2,7 @@
 
 use num::{bigint::ToBigInt, BigInt, BigRational, ToPrimitive};
 
-use crate::util::io;
+use crate::util::{exec, io};
 
 use super::{
     arena::Arena,
@@ -19,9 +19,9 @@ use std::{
 };
 
 /// Commands for computing differences of feature-model formulas.
-pub(crate) enum DiffCommand {
+pub(crate) enum DiffKind {
     /// Computes the difference of both formulas, considering a solution as common if it satisfies both formulas.
-    Strong,
+    BottomStrong,
 
     /// Computes the difference of both formulas, considering a solution as common if it satisfies the slices
     /// of both formulas down to their common variables.
@@ -85,8 +85,29 @@ impl Formula {
     /// If the root expression is mutated with [Arena::set_expr], structural sharing might be violated.
     /// Because [Arena::set_expr] can only address this issue for children,
     /// we need to explicitly address the only expression that is not a child itself - the root expression.
-    pub(super) fn reset_root_expr(arena: &Arena, root_id: &mut ExprId) {
+    pub(super) fn reset_root_expr(root_id: &mut ExprId, arena: &Arena) {
         *root_id = arena.get_expr(&arena.exprs[*root_id]).unwrap();
+    }
+
+    /// Returns a formula that forces all variables only occurring in the given arena to true or false.
+    ///
+    /// Does not modify this formula.
+    pub(crate) fn force_foreign_vars(&self, top: bool, arena: &mut Arena) -> Formula {
+        let mut ids = vec![self.root_id];
+        ids.extend(
+            arena
+                .vars(|var_id, _| !self.sub_var_ids.contains(&var_id))
+                .into_iter()
+                .map(|(var_id, _)| {
+                    let expr = arena.expr(Var(var_id));
+                    if top {
+                        expr
+                    } else {
+                        arena.expr(Not(expr))
+                    }
+                }),
+        );
+        Self::new(arena.var_ids(), arena.expr(And(ids)), None)
     }
 
     /// Returns all sub-variables of this formula and their identifiers.
@@ -376,18 +397,18 @@ impl Formula {
     pub(crate) fn diff(
         &self,
         b: &Formula,
-        command: DiffCommand,
-        argument: Option<&str>,
+        command: DiffKind,
+        prefix: Option<&str>,
         arena: &mut Arena,
     ) -> String {
         let a = self;
         a.assert_proto_cnf(arena);
         b.assert_proto_cnf(arena);
-        let verbose = argument.is_some() && !argument.unwrap().is_empty();
-        let file_name = |name: &str| format!("{}{}", argument.unwrap().to_string(), name);
+        let verbose = prefix.is_some() && !prefix.unwrap().is_empty();
+        let file_name = |name: &str| format!("{}{}", prefix.unwrap().to_string(), name);
         let (common_var_ids, a_var_ids, b_var_ids) = a.diff_vars(b);
         let (common_constraint_ids, a_constraint_ids, b_constraint_ids) =
-            self.diff_constraints(b, arena);
+            a.diff_constraints(b, arena);
         let common_vars: u32 = common_var_ids.len().try_into().unwrap();
         let a_vars: u32 = a_var_ids.len().try_into().unwrap();
         let b_vars: u32 = b_var_ids.len().try_into().unwrap();
@@ -420,11 +441,27 @@ impl Formula {
         let mut a2_uvl = None;
         let mut b2_uvl = None;
         match command {
-            DiffCommand::Strong => {
-                a2 = a.clone(); // todo
-                b2 = b.clone();
+            DiffKind::BottomStrong => {
+                a2 = a.force_foreign_vars(false, arena);
+                b2 = b.force_foreign_vars(false, arena);
+                if verbose {
+                    a2_uvl = Some(exec::io(a.file.as_ref().unwrap(), "uvl", &[]));
+                    b2_uvl = Some(exec::io(b.file.as_ref().unwrap(), "uvl", &[]));
+                    io::uvl_file_add_vars(
+                        &mut a2_uvl.as_mut().unwrap(),
+                        "Added Features",
+                        b_var_ids,
+                        arena,
+                    );
+                    io::uvl_file_add_vars(
+                        &mut b2_uvl.as_mut().unwrap(),
+                        "Removed Features",
+                        a_var_ids,
+                        arena,
+                    );
+                }
             }
-            DiffCommand::Weak => {
+            DiffKind::Weak => {
                 (a2, a2_uvl) = measure_time!(a.file.as_ref().unwrap().slice_featureide(
                     &common_var_ids,
                     arena,
@@ -442,8 +479,8 @@ impl Formula {
         let mut cnt_a2 = -1.to_bigint().unwrap();
         let mut cnt_b2 = -1.to_bigint().unwrap();
         match command {
-            DiffCommand::Strong => {}
-            DiffCommand::Weak => {
+            DiffKind::BottomStrong => {}
+            DiffKind::Weak => {
                 cnt_a = measure_time!(a.count(arena, true, false).0);
                 cnt_a2 = measure_time!(a2.count(arena, false, false).0);
                 cnt_b = measure_time!(b.count(arena, true, false).0);

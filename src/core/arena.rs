@@ -205,6 +205,11 @@ impl Arena {
         (var_id, self.expr(Var(var_id)))
     }
 
+    /// Returns all variable identifiers in this arena.
+    pub(crate) fn var_ids(&self) -> HashSet<VarId> {
+        (0..self.vars.len().try_into().unwrap()).collect()
+    }
+
     /// Returns all variables and their identifiers in this arena that match a given predicate.
     pub(crate) fn vars(&self, predicate: impl Fn(VarId, &Var) -> bool) -> Vec<(VarId, Var)> {
         self.vars
@@ -399,7 +404,7 @@ impl Arena {
     /// The created formula references all variables of this arena, use [Formula::new] for more fine-grained sub-variables.
     pub(crate) fn as_formula<'a>(&'a self, root_id: ExprId) -> Formula {
         Formula::new(
-            (0..self.vars.len().try_into().unwrap()).collect(),
+            self.var_ids(),
             root_id,
             None,
         )
@@ -428,7 +433,7 @@ impl Arena {
                 visited_ids.insert(id);
             }
         }
-        Formula::reset_root_expr(&self, root_id);
+        Formula::reset_root_expr(root_id, &self);
     }
 
     /// Visits all sub-expressions of a given root expression using a reverse postorder traversal.
@@ -458,7 +463,7 @@ impl Arena {
                 remaining_ids.pop();
             }
         }
-        Formula::reset_root_expr(&self, root_id);
+        Formula::reset_root_expr(root_id, &self);
     }
 
     /// Visits all sub-expressions of a given root expression using a combined reverse pre- and postorder traversal.
@@ -493,7 +498,7 @@ impl Arena {
                 remaining_ids.pop();
             }
         }
-        Formula::reset_root_expr(&self, root_id);
+        Formula::reset_root_expr(root_id, &self);
     }
 
     /// Transforms an expression into canonical form (see [Formula::to_canon]).

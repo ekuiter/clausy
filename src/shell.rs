@@ -1,7 +1,7 @@
 //! Imperative shell for operating on feature-model formulas.
 
 use crate::core::file::File;
-use crate::core::formula::DiffCommand;
+use crate::core::formula::DiffKind;
 use crate::parser::sat_inline::SatInlineFormulaParser;
 use crate::{
     core::{arena::Arena, formula::Formula},
@@ -93,8 +93,8 @@ pub fn main(mut commands: Vec<String>) {
                 let [a, b] = &formulas[..] else { panic!() };
                 let mut arguments = arguments.into_iter();
                 let command = match arguments.next() {
-                    Some("strict") => DiffCommand::Strong,
-                    Some("weak") | None => DiffCommand::Weak,
+                    Some("strict") => DiffKind::BottomStrong,
+                    Some("weak") | None => DiffKind::Weak,
                     _ => panic!()
                 };
                 println!("{}", a.diff(b, command, arguments.next(), &mut arena));
@@ -106,8 +106,7 @@ pub fn main(mut commands: Vec<String>) {
                     formulas.push(arena.parse(file, parser(extension)));
                 } else if SatInlineFormulaParser::can_parse(command) {
                     formulas.push(
-                        // todo: what does this implement? a comparison as in Thüm 2009?
-                        SatInlineFormulaParser::new(&formulas, true)
+                        SatInlineFormulaParser::new(&formulas, Some(false))
                             .parse_into(&command, &mut arena),
                     );
                 } else {
