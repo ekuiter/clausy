@@ -1,7 +1,7 @@
-//! Utilities for handling UVL and XML files.
+//! Utilities for handling UVL, XML, and other files.
 
-use crate::core::{clauses::Clauses, var::Var, file::File};
-use std::fmt::Write;
+use crate::core::{clauses::Clauses, file::File, var::{Var, VarId}, arena::Arena, expr::ExprId};
+use std::{fmt::Write, collections::HashSet};
 
 use super::exec;
 
@@ -129,4 +129,23 @@ pub(crate) fn write_uvl_and_xml(
     );
     File::new(format!("{prefix}.uvl"), uvl).write();
     File::new(format!("{prefix}.xml"), xml).write();
+}
+
+/// Writes variables to a file.
+pub(crate) fn write_vars(name: String, arena: &Arena, var_ids: &HashSet<VarId>) {
+    let mut f = String::new();
+    for id in var_ids {
+        let id: usize = (*id).try_into().unwrap();
+        writeln!(f, "{}", arena.vars[id]).unwrap();
+    }
+    File::new(name, f).write();
+}
+
+/// Writes constraints to a file.
+pub(crate) fn write_constraints(name: String, arena: &Arena, constraint_ids: &HashSet<ExprId>) {
+    let mut f = String::new();
+    for id in constraint_ids {
+        writeln!(f, "{}", arena.as_formula(*id).as_ref(arena)).unwrap();
+    }
+    File::new(name, f).write();
 }

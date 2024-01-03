@@ -85,18 +85,19 @@ pub fn main(mut commands: Vec<String>) {
                     .assert_count(clauses);
             }
             "enumerate" => clauses!(clauses, arena, formulas).enumerate(),
+            "count_inc" => {
+                let [a, b] = &formulas[..] else { panic!() };
+                println!("{}", a.count_inc(b, arguments.into_iter().next(), &mut arena));
+            }
             "diff" => {
-                assert!(formulas.len() == 2);
-                assert!(arguments.len() <= 2);
-                let a = &formulas[0];
-                let b = &formulas[1];
+                let [a, b] = &formulas[..] else { panic!() };
                 let mut arguments = arguments.into_iter();
                 let command = match arguments.next() {
-                    Some("count") => DiffCommand::Count,
-                    Some("strict") => DiffCommand::Strict,
-                    Some("weak") | _ => DiffCommand::Weak,
+                    Some("strict") => DiffCommand::Strong,
+                    Some("weak") | None => DiffCommand::Weak,
+                    _ => panic!()
                 };
-                a.diff(b, command, arguments.next(), &mut arena);
+                println!("{}", a.diff(b, command, arguments.next(), &mut arena));
             }
             _ => {
                 if File::exists(action) {
