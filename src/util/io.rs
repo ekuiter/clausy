@@ -9,8 +9,6 @@ use crate::core::{
 };
 use std::{collections::HashSet, fmt::Write};
 
-use super::exec;
-
 /// Transforms a given name into a form compatible with FeatureIDE.
 pub(crate) fn name_to_io(str: &str) -> String {
     str.replace("=", "__EQUALS__")
