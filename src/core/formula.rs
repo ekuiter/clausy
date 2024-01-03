@@ -413,6 +413,10 @@ impl Formula {
     }
 
     /// Returns a description of the difference between this formula and another.
+    /// 
+    /// Assumes that common variables are considered equal (e.g., equal features have equal names),
+    /// that the input formulas contains no auxiliary variables,
+    /// and that the input formulas are in proto-CNF.
     pub(crate) fn diff(
         &self,
         b: &Formula,
