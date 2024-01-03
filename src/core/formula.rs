@@ -2,7 +2,7 @@
 
 use num::{bigint::ToBigInt, BigInt, BigRational, ToPrimitive};
 
-use crate::util::{exec, io};
+use crate::util::io;
 
 use super::{
     arena::Arena,
@@ -93,7 +93,12 @@ impl Formula {
     /// Returns a formula that forces all variables only occurring in the given arena to true or false.
     ///
     /// Does not modify this formula.
-    pub(crate) fn force_foreign_vars(&self, top: bool, exclude_vars: &HashSet<VarId>, arena: &mut Arena) -> Formula {
+    pub(crate) fn force_foreign_vars(
+        &self,
+        top: bool,
+        exclude_vars: &HashSet<VarId>,
+        arena: &mut Arena,
+    ) -> Formula {
         let mut ids;
         if let And(child_ids) = &arena.exprs[self.root_id] {
             ids = child_ids.clone();
@@ -102,7 +107,9 @@ impl Formula {
         }
         ids.extend(
             arena
-                .vars(|var_id, _| !self.sub_var_ids.contains(&var_id) && !exclude_vars.contains(&var_id))
+                .vars(|var_id, _| {
+                    !self.sub_var_ids.contains(&var_id) && !exclude_vars.contains(&var_id)
+                })
                 .into_iter()
                 .map(|(var_id, _)| {
                     let expr = arena.expr(Var(var_id));
@@ -113,7 +120,11 @@ impl Formula {
                     }
                 }),
         );
-        let sub_var_ids = arena.var_ids().difference(exclude_vars).map(|var| *var).collect();
+        let sub_var_ids = arena
+            .var_ids()
+            .difference(exclude_vars)
+            .map(|var| *var)
+            .collect();
         let root_id = arena.expr(And(ids));
         Self::new(sub_var_ids, root_id, None)
     }
@@ -447,17 +458,17 @@ impl Formula {
         }
         let mut a2 = a.clone();
         let mut b2 = b.clone();
-        let mut a2_uvl = None;
-        let mut b2_uvl = None;
+        let mut a2_file = a2.file.clone();
+        let mut b2_file = b2.file.clone();
         if let DiffKind::Weak = left_diff_kind {
-            (a2, a2_uvl) = measure_time!(a2.file.as_ref().unwrap().slice_featureide(
+            (a2, a2_file) = measure_time!(a2_file.as_ref().unwrap().slice_featureide(
                 &common_var_ids,
                 arena,
                 verbose
             ));
         }
         if let DiffKind::Weak = right_diff_kind {
-            (b2, b2_uvl) = measure_time!(b2.file.as_ref().unwrap().slice_featureide(
+            (b2, b2_file) = measure_time!(b2_file.as_ref().unwrap().slice_featureide(
                 &common_var_ids,
                 arena,
                 verbose
@@ -466,19 +477,22 @@ impl Formula {
         if let DiffKind::Strong(top) = left_diff_kind {
             b2 = b2.force_foreign_vars(top, &b_var_ids, arena);
             if verbose {
-                // todo: fix uvl
-                let mut b2_uvl_file = exec::io(b.file.as_ref().unwrap(), "uvl", &[]);
-                io::uvl_file_add_vars(&mut b2_uvl_file, "Removed Features", &a_var_ids, arena);
-                b2_uvl = Some(b2_uvl_file);
+                let mut file = b2_file.as_ref().unwrap().convert("uvl");
+                io::uvl_file_add_vars(&mut file, "Removed Features", &a_var_ids, arena);
+                b2_file = Some(file);
             }
         }
         if let DiffKind::Strong(top) = right_diff_kind {
             a2 = a2.force_foreign_vars(top, &a_var_ids, arena);
             if verbose {
-                let mut a2_uvl_file = exec::io(a.file.as_ref().unwrap(), "uvl", &[]);
-                io::uvl_file_add_vars(&mut a2_uvl_file, "Added Features", &b_var_ids, arena);
-                a2_uvl = Some(a2_uvl_file);
+                let mut file = a2_file.as_ref().unwrap().convert("uvl");
+                io::uvl_file_add_vars(&mut file, "Added Features", &b_var_ids, arena);
+                a2_file = Some(file);
             }
+        }
+        if verbose {
+            a2_file = Some(a2_file.as_ref().unwrap().convert("uvl"));
+            b2_file = Some(b2_file.as_ref().unwrap().convert("uvl"));
         }
         let minus_one = -1.to_bigint().unwrap();
         let mut cnt_a = minus_one.clone();
@@ -532,25 +546,25 @@ impl Formula {
         if verbose {
             io::write_uvl_and_xml(
                 file_name(".common.left"),
-                &a2_uvl.as_ref().unwrap().contents,
+                &a2_file.as_ref().unwrap().contents,
                 &uvl_common.as_ref().unwrap(),
                 &xml_common.as_ref().unwrap(),
             );
             io::write_uvl_and_xml(
                 file_name(".common.right"),
-                &b2_uvl.as_ref().unwrap().contents,
+                &b2_file.as_ref().unwrap().contents,
                 &uvl_common.unwrap(),
                 &xml_common.as_ref().unwrap(),
             );
             io::write_uvl_and_xml(
                 file_name(".removed"),
-                &a2_uvl.as_ref().unwrap().contents,
+                &a2_file.as_ref().unwrap().contents,
                 &uvl_removed.as_ref().unwrap(),
                 &xml_removed.as_ref().unwrap(),
             );
             io::write_uvl_and_xml(
                 file_name(".added"),
-                &b2_uvl.as_ref().unwrap().contents,
+                &b2_file.as_ref().unwrap().contents,
                 &uvl_added.as_ref().unwrap(),
                 &xml_added.as_ref().unwrap(),
             );

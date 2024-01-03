@@ -40,9 +40,9 @@ pub(crate) fn uvl_remove_constraints(uvl: &str) -> &str {
     uvl.split("\nconstraints\n").nth(0).unwrap().trim()
 }
 
-/// Given a UVL file with a feature hierarchy and given constraints, creates a merged UVL file.
-pub(crate) fn uvl_with_constraints(uvl: &str, constraints: &str) -> String {
-    format!("{}\n{}", uvl_remove_constraints(uvl), &constraints)
+/// Given a UVL file with a feature hierarchy and given features or constraints, creates a merged UVL file.
+pub(crate) fn uvl_append(uvl: &str, appendix: &str) -> String {
+    format!("{}\n{}", uvl_remove_constraints(uvl), &appendix)
 }
 
 /// Appends variables as abstract features to an existing UVL feature hierarchy.
@@ -69,7 +69,7 @@ pub(crate) fn uvl_file_add_vars(
         .into_iter()
         .map(|(_, var)| var)
         .collect();
-    file.contents = uvl_with_constraints(&file.contents, &uvl_add_vars(label, &other_vars));
+    file.contents = uvl_append(&file.contents, &uvl_add_vars(label, &other_vars));
 }
 
 /// Expresses a clause representation as a string of UVL features and constraints.
@@ -145,16 +145,13 @@ pub(crate) fn write_uvl_and_xml(
     uvl_constraints: &String,
     xml_constraints: &String,
 ) {
-    let uvl = uvl_with_constraints(uvl_features, uvl_constraints);
+    let uvl = uvl_append(uvl_features, uvl_constraints);
     let xml = xml_with_constraints(
-        &exec::io(
-            &File::new(
-                "-.uvl".to_string(),
-                uvl_remove_constraints(&uvl).to_string(),
-            ),
-            "xml",
-            &[],
+        &File::new(
+            "-.uvl".to_string(),
+            uvl_remove_constraints(&uvl).to_string(),
         )
+        .convert("xml")
         .contents,
         &xml_constraints,
     );

@@ -66,7 +66,7 @@ impl File {
     ///
     /// The file extension must be given so FeatureIDE can detect the correct format.
     pub(crate) fn count_featureide(&self) -> BigInt {
-        exec::d4(&exec::io(self, "cnf", &[]).contents)
+        exec::d4(&self.convert("cnf").contents)
     }
 
     /// Panics if the formula this file represents has a different model count than that of the given clauses.
@@ -74,6 +74,19 @@ impl File {
     /// Useful for checking the correctness of count-preserving algorithms (e.g., [super::formula::Formula::to_cnf_tseitin]).
     pub(crate) fn assert_count(&self, clauses: &Clauses) {
         assert_eq!(clauses.count(false).0, self.count_featureide());
+    }
+
+    /// Converts this file into a given format, if necessary.
+    pub(crate) fn convert(&self, output_format: &str) -> File {
+        if self
+            .extension()
+            .filter(|extension|  extension == output_format)
+            .is_none()
+        {
+            exec::io(&self, output_format, &[])
+        } else {
+            self.clone()
+        }
     }
 
     /// Slices the formula this file represents such that only the given variables remain.
