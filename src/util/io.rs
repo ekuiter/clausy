@@ -61,7 +61,7 @@ pub(crate) fn uvl_add_vars(label: &str, vars: &[Var]) -> String {
 pub(crate) fn uvl_file_add_vars(
     file: &mut File,
     label: &str,
-    var_ids: HashSet<i32>,
+    var_ids: &HashSet<i32>,
     arena: &mut Arena,
 ) {
     let other_vars: Vec<Var> = arena

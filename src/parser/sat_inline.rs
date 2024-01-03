@@ -1,5 +1,7 @@
 //! Parser for inline input in a .sat-like format.
 
+use std::collections::HashSet;
+
 use crate::core::{
     arena::Arena,
     expr::{Expr::*, ExprId},
@@ -68,7 +70,7 @@ impl<'a> SatInlineFormulaParser<'a> {
                 let mut root_id = formula.root_id;
                 if self.force_foreign_vars.is_some() {
                     root_id = formula
-                        .force_foreign_vars(self.force_foreign_vars.unwrap(), arena)
+                        .force_foreign_vars(self.force_foreign_vars.unwrap(), &HashSet::new(), arena)
                         .root_id;
                 }
                 if pair.as_str().starts_with("-") {

@@ -20,8 +20,9 @@ use std::{
 
 /// Commands for computing differences of feature-model formulas.
 pub(crate) enum DiffKind {
-    /// Computes the difference of both formulas, considering a solution as common if it satisfies both formulas.
-    BottomStrong,
+    /// Computes the difference of both formulas, considering a solution as common if it satisfies both formulas
+    /// extended to all variables of both formulas, either by true or by false.
+    Strong(bool),
 
     /// Computes the difference of both formulas, considering a solution as common if it satisfies the slices
     /// of both formulas down to their common variables.
@@ -92,11 +93,16 @@ impl Formula {
     /// Returns a formula that forces all variables only occurring in the given arena to true or false.
     ///
     /// Does not modify this formula.
-    pub(crate) fn force_foreign_vars(&self, top: bool, arena: &mut Arena) -> Formula {
-        let mut ids = vec![self.root_id];
+    pub(crate) fn force_foreign_vars(&self, top: bool, exclude_vars: &HashSet<VarId>, arena: &mut Arena) -> Formula {
+        let mut ids;
+        if let And(child_ids) = &arena.exprs[self.root_id] {
+            ids = child_ids.clone();
+        } else {
+            ids = vec![self.root_id];
+        }
         ids.extend(
             arena
-                .vars(|var_id, _| !self.sub_var_ids.contains(&var_id))
+                .vars(|var_id, _| !self.sub_var_ids.contains(&var_id) && !exclude_vars.contains(&var_id))
                 .into_iter()
                 .map(|(var_id, _)| {
                     let expr = arena.expr(Var(var_id));
@@ -107,7 +113,9 @@ impl Formula {
                     }
                 }),
         );
-        Self::new(arena.var_ids(), arena.expr(And(ids)), None)
+        let sub_var_ids = arena.var_ids().difference(exclude_vars).map(|var| *var).collect();
+        let root_id = arena.expr(And(ids));
+        Self::new(sub_var_ids, root_id, None)
     }
 
     /// Returns all sub-variables of this formula and their identifiers.
@@ -397,7 +405,8 @@ impl Formula {
     pub(crate) fn diff(
         &self,
         b: &Formula,
-        command: DiffKind,
+        left_diff_kind: DiffKind,
+        right_diff_kind: DiffKind,
         prefix: Option<&str>,
         arena: &mut Arena,
     ) -> String {
@@ -436,55 +445,64 @@ impl Formula {
                 result
             }};
         }
-        let a2;
-        let b2;
+        let mut a2 = a.clone();
+        let mut b2 = b.clone();
         let mut a2_uvl = None;
         let mut b2_uvl = None;
-        match command {
-            DiffKind::BottomStrong => {
-                a2 = a.force_foreign_vars(false, arena);
-                b2 = b.force_foreign_vars(false, arena);
-                if verbose {
-                    a2_uvl = Some(exec::io(a.file.as_ref().unwrap(), "uvl", &[]));
-                    b2_uvl = Some(exec::io(b.file.as_ref().unwrap(), "uvl", &[]));
-                    io::uvl_file_add_vars(
-                        &mut a2_uvl.as_mut().unwrap(),
-                        "Added Features",
-                        b_var_ids,
-                        arena,
-                    );
-                    io::uvl_file_add_vars(
-                        &mut b2_uvl.as_mut().unwrap(),
-                        "Removed Features",
-                        a_var_ids,
-                        arena,
-                    );
-                }
-            }
-            DiffKind::Weak => {
-                (a2, a2_uvl) = measure_time!(a.file.as_ref().unwrap().slice_featureide(
-                    &common_var_ids,
-                    arena,
-                    verbose
-                ));
-                (b2, b2_uvl) = measure_time!(b.file.as_ref().unwrap().slice_featureide(
-                    &common_var_ids,
-                    arena,
-                    verbose
-                ));
+        if let DiffKind::Weak = left_diff_kind {
+            (a2, a2_uvl) = measure_time!(a2.file.as_ref().unwrap().slice_featureide(
+                &common_var_ids,
+                arena,
+                verbose
+            ));
+        }
+        if let DiffKind::Weak = right_diff_kind {
+            (b2, b2_uvl) = measure_time!(b2.file.as_ref().unwrap().slice_featureide(
+                &common_var_ids,
+                arena,
+                verbose
+            ));
+        }
+        if let DiffKind::Strong(top) = left_diff_kind {
+            b2 = b2.force_foreign_vars(top, &b_var_ids, arena);
+            if verbose {
+                // todo: fix uvl
+                let mut b2_uvl_file = exec::io(b.file.as_ref().unwrap(), "uvl", &[]);
+                io::uvl_file_add_vars(&mut b2_uvl_file, "Removed Features", &a_var_ids, arena);
+                b2_uvl = Some(b2_uvl_file);
             }
         }
-        let mut cnt_a = -1.to_bigint().unwrap();
-        let mut cnt_b = -1.to_bigint().unwrap();
-        let mut cnt_a2 = -1.to_bigint().unwrap();
-        let mut cnt_b2 = -1.to_bigint().unwrap();
-        match command {
-            DiffKind::BottomStrong => {}
-            DiffKind::Weak => {
-                cnt_a = measure_time!(a.count(arena, true, false).0);
-                cnt_a2 = measure_time!(a2.count(arena, false, false).0);
-                cnt_b = measure_time!(b.count(arena, true, false).0);
-                cnt_b2 = measure_time!(b2.count(arena, false, false).0);
+        if let DiffKind::Strong(top) = right_diff_kind {
+            a2 = a2.force_foreign_vars(top, &a_var_ids, arena);
+            if verbose {
+                let mut a2_uvl_file = exec::io(a.file.as_ref().unwrap(), "uvl", &[]);
+                io::uvl_file_add_vars(&mut a2_uvl_file, "Added Features", &b_var_ids, arena);
+                a2_uvl = Some(a2_uvl_file);
+            }
+        }
+        let minus_one = -1.to_bigint().unwrap();
+        let mut cnt_a = minus_one.clone();
+        let mut cnt_a2 = minus_one.clone();
+        let mut cnt_b = minus_one.clone();
+        let mut cnt_b2 = minus_one.clone();
+        let mut lost_ratio = -1f64;
+        let mut gained_ratio = -1f64;
+        // this currently only supports deleting/adding up to 1000 features due to f64 precision
+        let ratio = |a, b, vars: u32| {
+            BigRational::new(a, b).to_f64().unwrap().log2() / vars.to_f64().unwrap()
+        };
+        if let DiffKind::Weak = left_diff_kind {
+            cnt_a = measure_time!(a.count(arena, true, false).0);
+            cnt_a2 = measure_time!(a2.count(arena, false, false).0);
+            if a_vars > 0 {
+                lost_ratio = ratio(cnt_a.clone(), cnt_a2.clone(), a_vars);
+            }
+        }
+        if let DiffKind::Weak = right_diff_kind {
+            cnt_b = measure_time!(b.count(arena, true, false).0);
+            cnt_b2 = measure_time!(b2.count(arena, false, false).0);
+            if b_vars > 0 {
+                gained_ratio = ratio(cnt_b.clone(), cnt_b2.clone(), b_vars);
             }
         }
         let mut diff = a2.and(&b2, arena);
@@ -501,23 +519,6 @@ impl Formula {
             .assume(b2.implies_expr(&a2, arena), arena)
             .to_clauses(&arena)
             .count(verbose));
-        let mut lost_ratio = -1f64;
-        let mut gained_ratio = -1f64;
-        // this currently only supports deleting/adding up to 1000 features due to f64 precision
-        if a_vars > 0 {
-            lost_ratio = BigRational::new(cnt_a.clone(), cnt_a2.clone())
-                .to_f64()
-                .unwrap()
-                .log2()
-                / a_vars.to_f64().unwrap();
-        }
-        if b_vars > 0 {
-            gained_ratio = BigRational::new(cnt_b.clone(), cnt_b2.clone())
-                .to_f64()
-                .unwrap()
-                .log2()
-                / b_vars.to_f64().unwrap();
-        }
         let cnt_union = &cnt_common + &cnt_removed + &cnt_added;
         let common_ratio = BigRational::new(cnt_common.clone(), cnt_union.clone())
             .to_f64()
@@ -559,6 +560,6 @@ impl Formula {
             .map(|duration| duration.as_nanos().to_string())
             .collect();
         let durations = durations.join(",");
-        format!("{common_vars},{a_vars},{b_vars},{common_constraints},{a_constraints},{b_constraints},{lost_ratio},{removed_ratio},{common_ratio},{added_ratio},{gained_ratio},{cnt_a},{cnt_b},{cnt_a2},{cnt_b2},{cnt_common},{cnt_removed},{cnt_added},{durations}")
+        format!("{common_vars},{a_vars},{b_vars},{common_constraints},{a_constraints},{b_constraints},{lost_ratio},{removed_ratio},{common_ratio},{added_ratio},{gained_ratio},{cnt_a},{cnt_a2},{cnt_b},{cnt_b2},{cnt_common},{cnt_removed},{cnt_added},{durations}")
     }
 }

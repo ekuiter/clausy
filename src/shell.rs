@@ -92,12 +92,13 @@ pub fn main(mut commands: Vec<String>) {
             "diff" => {
                 let [a, b] = &formulas[..] else { panic!() };
                 let mut arguments = arguments.into_iter();
-                let command = match arguments.next() {
-                    Some("strict") => DiffKind::BottomStrong,
+                let mut parse_argument = || match arguments.next() {
+                    Some("top-strong") => DiffKind::Strong(true),
+                    Some("bottom-strong") | Some("strong") => DiffKind::Strong(false),
                     Some("weak") | None => DiffKind::Weak,
                     _ => panic!()
                 };
-                println!("{}", a.diff(b, command, arguments.next(), &mut arena));
+                println!("{}", a.diff(b, parse_argument(), parse_argument(), arguments.next(), &mut arena));
             }
             _ => {
                 if File::exists(action) {
