@@ -352,22 +352,36 @@ impl Formula {
         Formula::new(self.all_vars(other), self.implies_expr(other, arena), None)
     }
 
-    /// Returns the number of solutions of this formula.
+    /// Returns the number of solutions of this formula or serializes it.
     ///
     /// Optionally uses a Tseitin transformation into CNF.
     /// Does not modify this formula or the given arena.
-    pub(crate) fn count(
+    pub(crate) fn analyze(
         &self,
         arena: &Arena,
         use_tseitin: bool,
+        count: bool,
         serialize: bool,
     ) -> (BigInt, Option<String>, Option<String>) {
-        let mut clone = self.clone();
-        let mut arena = arena.clone();
-        if use_tseitin {
-            clone.to_cnf_tseitin(true, &mut arena);
+        let minus_one = -1.to_bigint().unwrap();
+        if !count && !serialize {
+            (minus_one, None, None)
+        } else {
+            let clauses;
+            if use_tseitin {
+                let mut clone = self.clone();
+                let mut arena = arena.clone();
+                clone.to_cnf_tseitin(true, &mut arena);
+                clauses = clone.to_clauses(&arena);
+            } else {
+                clauses = self.to_clauses(arena);
+            }
+            (
+                count.then(|| clauses.count()).unwrap_or(minus_one),
+                serialize.then(|| io::to_uvl_string(&clauses)),
+                serialize.then(|| io::to_xml_string(&clauses)),
+            )
         }
-        clone.to_clauses(&arena).count(serialize)
     }
 
     /// Returns a mathematical term that, given the number of solutions of this formula, calculates the number of solutions of another formula.
@@ -386,18 +400,18 @@ impl Formula {
         let b_vars: u32 = b_var_ids.len().try_into().unwrap();
         let a2 = a.remove_constraints(&a_var_ids, arena);
         let b2 = b.remove_constraints(&b_var_ids, arena);
-        let cnt_a2_to_a = a2.implies(a, arena).count(arena, true, false).0;
-        let cnt_b2_to_b = b2.implies(b, arena).count(arena, true, false).0;
+        let cnt_a2_to_a = a2.implies(a, arena).analyze(arena, true, true, false).0;
+        let cnt_b2_to_b = b2.implies(b, arena).analyze(arena, true, true, false).0;
         let mut diff = a2.and(&b2, arena);
         diff.to_cnf_tseitin(false, arena);
-        let (cnt_removed, _, _) = diff
+        let cnt_removed = diff
             .assume(a2.implies_expr(&b2, arena), arena)
-            .to_clauses(&arena)
-            .count(false);
-        let (cnt_added, _, _) = diff
+            .analyze(arena, false, true, false)
+            .0;
+        let cnt_added = diff
             .assume(b2.implies_expr(&a2, arena), arena)
-            .to_clauses(&arena)
-            .count(false);
+            .analyze(arena, false, true, false)
+            .0;
         if left_model_count.is_some() {
             let two = 2.to_bigint().unwrap();
             format!(
@@ -413,7 +427,7 @@ impl Formula {
     }
 
     /// Returns a description of the difference between this formula and another.
-    /// 
+    ///
     /// Assumes that common variables are considered equal (e.g., equal features have equal names),
     /// that the input formulas contains no auxiliary variables,
     /// and that the input formulas are in proto-CNF.
@@ -428,7 +442,7 @@ impl Formula {
         let a = self;
         a.assert_proto_cnf(arena);
         b.assert_proto_cnf(arena);
-        let verbose = prefix.is_some() && !prefix.unwrap().is_empty();
+        let write_files = prefix.is_some() && !prefix.unwrap().is_empty();
         let file_name = |name: &str| format!("{}{}", prefix.unwrap().to_string(), name);
         let (common_var_ids, a_var_ids, b_var_ids) = a.diff_vars(b);
         let (common_constraint_ids, a_constraint_ids, b_constraint_ids) =
@@ -439,7 +453,7 @@ impl Formula {
         let common_constraints: u32 = common_constraint_ids.len().try_into().unwrap();
         let a_constraints: u32 = a_constraint_ids.len().try_into().unwrap();
         let b_constraints: u32 = b_constraint_ids.len().try_into().unwrap();
-        if verbose {
+        if write_files {
             io::write_vars(file_name(".common.features"), arena, &common_var_ids);
             io::write_vars(file_name(".removed.features"), arena, &a_var_ids);
             io::write_vars(file_name(".added.features"), arena, &b_var_ids);
@@ -460,6 +474,11 @@ impl Formula {
                 result
             }};
         }
+        macro_rules! no_duration {
+            () => {{
+                durations.push(Duration::ZERO)
+            }};
+        }
         let mut a2 = a.clone();
         let mut b2 = b.clone();
         let mut a2_file = a2.file.clone();
@@ -468,19 +487,23 @@ impl Formula {
             (a2, a2_file) = measure_time!(a2_file.as_ref().unwrap().slice_featureide(
                 &common_var_ids,
                 arena,
-                verbose
+                write_files
             ));
+        } else {
+            no_duration!();
         }
         if let DiffKind::Weak = right_diff_kind {
             (b2, b2_file) = measure_time!(b2_file.as_ref().unwrap().slice_featureide(
                 &common_var_ids,
                 arena,
-                verbose
+                write_files
             ));
+        } else {
+            no_duration!();
         }
         if let DiffKind::Strong(top) = left_diff_kind {
             b2 = b2.force_foreign_vars(top, &b_var_ids, arena);
-            if verbose {
+            if write_files {
                 let mut file = b2_file.as_ref().unwrap().convert("uvl");
                 io::uvl_file_add_vars(&mut file, "Removed Features", &a_var_ids, arena);
                 b2_file = Some(file);
@@ -488,13 +511,13 @@ impl Formula {
         }
         if let DiffKind::Strong(top) = right_diff_kind {
             a2 = a2.force_foreign_vars(top, &a_var_ids, arena);
-            if verbose {
+            if write_files {
                 let mut file = a2_file.as_ref().unwrap().convert("uvl");
                 io::uvl_file_add_vars(&mut file, "Added Features", &b_var_ids, arena);
                 a2_file = Some(file);
             }
         }
-        if verbose {
+        if write_files {
             a2_file = Some(a2_file.as_ref().unwrap().convert("uvl"));
             b2_file = Some(b2_file.as_ref().unwrap().convert("uvl"));
         }
@@ -510,33 +533,36 @@ impl Formula {
             BigRational::new(a, b).to_f64().unwrap().log2() / vars.to_f64().unwrap()
         };
         if let DiffKind::Weak = left_diff_kind {
-            cnt_a = measure_time!(a.count(arena, true, false).0);
-            cnt_a2 = measure_time!(a2.count(arena, false, false).0);
+            cnt_a = measure_time!(a.analyze(arena, true, !write_files, false).0);
+            cnt_a2 = measure_time!(a2.analyze(arena, false, !write_files, false).0);
             if a_vars > 0 {
                 lost_ratio = ratio(cnt_a.clone(), cnt_a2.clone(), a_vars);
             }
+        } else {
+            no_duration!();
+            no_duration!();
         }
         if let DiffKind::Weak = right_diff_kind {
-            cnt_b = measure_time!(b.count(arena, true, false).0);
-            cnt_b2 = measure_time!(b2.count(arena, false, false).0);
+            cnt_b = measure_time!(b.analyze(arena, true, !write_files, false).0);
+            cnt_b2 = measure_time!(b2.analyze(arena, false, !write_files, false).0);
             if b_vars > 0 {
                 gained_ratio = ratio(cnt_b.clone(), cnt_b2.clone(), b_vars);
             }
+        } else {
+            no_duration!();
+            no_duration!();
         }
         let mut diff = a2.and(&b2, arena);
         measure_time!(diff.to_cnf_tseitin(false, arena));
         let (cnt_common, uvl_common, xml_common) = measure_time!(diff
             .assume(arena.expr(And(vec![a2.root_id, b2.root_id])), arena)
-            .to_clauses(&arena)
-            .count(verbose));
+            .analyze(arena, false, !write_files, write_files));
         let (cnt_removed, uvl_removed, xml_removed) = measure_time!(diff
             .assume(a2.implies_expr(&b2, arena), arena)
-            .to_clauses(&arena)
-            .count(verbose));
+            .analyze(arena, false, !write_files, write_files));
         let (cnt_added, uvl_added, xml_added) = measure_time!(diff
             .assume(b2.implies_expr(&a2, arena), arena)
-            .to_clauses(&arena)
-            .count(verbose));
+            .analyze(arena, false, !write_files, write_files));
         let cnt_union = &cnt_common + &cnt_removed + &cnt_added;
         let common_ratio = BigRational::new(cnt_common.clone(), cnt_union.clone())
             .to_f64()
@@ -547,7 +573,7 @@ impl Formula {
         let added_ratio = BigRational::new(cnt_added.clone(), cnt_union.clone())
             .to_f64()
             .unwrap();
-        if verbose {
+        if write_files {
             io::write_uvl_and_xml(
                 file_name(".common.left"),
                 &a2_file.as_ref().unwrap().contents,
@@ -572,12 +598,14 @@ impl Formula {
                 &uvl_added.as_ref().unwrap(),
                 &xml_added.as_ref().unwrap(),
             );
+            String::new()
+        } else {
+            let durations: Vec<String> = durations
+                .iter()
+                .map(|duration| duration.as_nanos().to_string())
+                .collect();
+            let durations = durations.join(",");
+            format!("{common_vars},{a_vars},{b_vars},{common_constraints},{a_constraints},{b_constraints},{lost_ratio},{removed_ratio},{common_ratio},{added_ratio},{gained_ratio},{cnt_a},{cnt_a2},{cnt_b},{cnt_b2},{cnt_common},{cnt_removed},{cnt_added},{durations}")
         }
-        let durations: Vec<String> = durations
-            .iter()
-            .map(|duration| duration.as_nanos().to_string())
-            .collect();
-        let durations = durations.join(",");
-        format!("{common_vars},{a_vars},{b_vars},{common_constraints},{a_constraints},{b_constraints},{lost_ratio},{removed_ratio},{common_ratio},{added_ratio},{gained_ratio},{cnt_a},{cnt_a2},{cnt_b},{cnt_b2},{cnt_common},{cnt_removed},{cnt_added},{durations}")
     }
 }

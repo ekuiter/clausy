@@ -7,7 +7,7 @@ use super::{
     formula_ref::FormulaRef,
     var::{Var, VarId},
 };
-use crate::{core::file::File, util::{exec, io}};
+use crate::{core::file::File, util::exec};
 use std::{collections::HashMap, fmt, slice};
 
 /// A [super::formula::Formula] in its clause representation.
@@ -102,15 +102,9 @@ impl Clauses {
     }
 
     /// Counts the number of solutions of this clause representation.
-    pub(crate) fn count(&self, serialize: bool) -> (BigInt, Option<String>, Option<String>) {
+    pub(crate) fn count(&self) -> BigInt {
         let file = File::new("-.dimacs".to_string(), self.to_string());
-        let mut uvl_file = None;
-        let mut xml_file = None;
-        if serialize {
-            uvl_file = Some(io::to_uvl_string(self));
-            xml_file = Some(io::to_xml_string(self));
-        }
-        (exec::d4(&file.contents), uvl_file, xml_file)
+        exec::d4(&file.contents)
     }
 }
 

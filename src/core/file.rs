@@ -49,17 +49,17 @@ impl File {
         File::new(name.to_string(), contents)
     }
 
+    /// Writes this file to its destination.
+    pub(crate) fn write(&self) {
+        fs::write(&self.name, &self.contents).unwrap();
+    }
+
     /// Returns the extension of this file, if any.
     pub(crate) fn extension(&self) -> Option<String> {
         Path::new(self.name.as_str())
             .extension()
             .map_or(None, |e| e.to_str())
             .map(|e| e.to_string())
-    }
-
-    /// Writes this file to its destination.
-    pub(crate) fn write(&self) {
-        fs::write(&self.name, &self.contents).unwrap();
     }
 
     /// Counts the number of solutions of the formula this file represents using FeatureIDE.
@@ -73,7 +73,7 @@ impl File {
     ///
     /// Useful for checking the correctness of count-preserving algorithms (e.g., [super::formula::Formula::to_cnf_tseitin]).
     pub(crate) fn assert_count(&self, clauses: &Clauses) {
-        assert_eq!(clauses.count(false).0, self.count_featureide());
+        assert_eq!(clauses.count(), self.count_featureide());
     }
 
     /// Converts this file into a given format, if necessary.

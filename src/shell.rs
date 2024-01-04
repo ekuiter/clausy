@@ -75,7 +75,7 @@ pub fn main(mut commands: Vec<String>) {
             }
             "to_clauses" => clauses = Some(formula!(formulas).to_clauses(&mut arena)),
             "satisfy" => println!("{}", clauses!(clauses, arena, formulas).satisfy().unwrap()),
-            "count" => println!("{}", clauses!(clauses, arena, formulas).count(false).0),
+            "count" => println!("{}", clauses!(clauses, arena, formulas).count()),
             "assert_count" => {
                 let clauses = clauses!(clauses, arena, formulas);
                 formula!(formulas)
