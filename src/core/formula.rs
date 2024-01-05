@@ -15,7 +15,7 @@ use super::{
 use std::{
     collections::HashSet,
     str::FromStr,
-    time::{Duration, Instant},
+    time::{Duration, Instant}, io::Write,
 };
 
 /// Commands for computing differences of feature-model formulas.
@@ -426,7 +426,7 @@ impl Formula {
         }
     }
 
-    /// Returns a description of the difference between this formula and another.
+    /// Prints or serializes a description of the difference between this formula and another.
     ///
     /// Assumes that common variables are considered equal (e.g., equal features have equal names),
     /// that the input formulas contains no auxiliary variables,
@@ -438,7 +438,7 @@ impl Formula {
         right_diff_kind: DiffKind,
         prefix: Option<&str>,
         arena: &mut Arena,
-    ) -> String {
+    ) {
         let a = self;
         a.assert_proto_cnf(arena);
         b.assert_proto_cnf(arena);
@@ -464,6 +464,9 @@ impl Formula {
             );
             io::write_constraints(file_name(".removed.constraints"), arena, &a_constraint_ids);
             io::write_constraints(file_name(".added.constraints"), arena, &b_constraint_ids);
+        } else {
+            print!("{common_vars},{a_vars},{b_vars},{common_constraints},{a_constraints},{b_constraints}");
+            std::io::stdout().flush().unwrap();
         }
         let mut durations: Vec<Duration> = vec![];
         macro_rules! measure_time {
@@ -598,14 +601,13 @@ impl Formula {
                 &uvl_added.as_ref().unwrap(),
                 &xml_added.as_ref().unwrap(),
             );
-            String::new()
         } else {
             let durations: Vec<String> = durations
                 .iter()
                 .map(|duration| duration.as_nanos().to_string())
                 .collect();
             let durations = durations.join(",");
-            format!("{common_vars},{a_vars},{b_vars},{common_constraints},{a_constraints},{b_constraints},{lost_ratio},{removed_ratio},{common_ratio},{added_ratio},{gained_ratio},{cnt_a},{cnt_a2},{cnt_b},{cnt_b2},{cnt_common},{cnt_removed},{cnt_added},{durations}")
+            println!(",{lost_ratio},{removed_ratio},{common_ratio},{added_ratio},{gained_ratio},{cnt_a},{cnt_a2},{cnt_b},{cnt_b2},{cnt_common},{cnt_removed},{cnt_added},{durations}");
         }
     }
 }

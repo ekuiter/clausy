@@ -24,7 +24,7 @@ for left_diff_kind in bottom-strong top-strong weak; do
         for ((i = 0; i < ${#f[@]}-1; i++)); do
             cmd=(timeout -s KILL "$TIMEOUT" "${CLAUSY[@]}" "$DIR/${f[i]}" "$DIR/${f[i+1]}" "diff $left_diff_kind $right_diff_kind")
             start=$(date +%s%N)
-            echo -n "$(basename "${f[i]}" .model),$(basename "${f[i+1]}" .model),$left_diff_kind,$right_diff_kind,$("${cmd[@]}" || echo ,,,,,,,,,,,,,,,,,,,,,,,,,,,),"
+            echo -n "$(basename "${f[i]}" .model),$(basename "${f[i+1]}" .model),$left_diff_kind,$right_diff_kind,$("${cmd[@]}" || echo ,,,,,,,,,,,,,,,,,,,,,,),"
             end=$(date +%s%N)
             echo "$((end - start))"
         done

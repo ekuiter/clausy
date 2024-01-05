@@ -98,7 +98,7 @@ pub fn main(mut commands: Vec<String>) {
                     Some("weak") | None => DiffKind::Weak,
                     _ => panic!()
                 };
-                println!("{}", a.diff(b, parse_argument(), parse_argument(), arguments.next(), &mut arena));
+                a.diff(b, parse_argument(), parse_argument(), arguments.next(), &mut arena);
             }
             _ => {
                 if File::exists(action) {
