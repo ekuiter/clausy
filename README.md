@@ -12,7 +12,7 @@ cd clausy
 
 # option 1: build Docker image
 docker build -t clausy .
-cat meta/test.sat | docker run -i clausy
+cat meta/test.sat | docker run --rm -i clausy
 
 # option 2: build into bin/ directory
 make
@@ -39,6 +39,12 @@ echo '(!def(a)|def(b))' | bin/clausy -.model to_cnf_dist satisfy
 # prove model equivalence
 ! bin/clausy a.model b.model '+(*(-1 2) *(1 -2))' to_cnf_tseitin satisfy &>/dev/null
 
+# compute diff statistics
+bin/clausy a.model b.model diff
+
+# serialize diff
+bin/clausy a.model b.model 'diff weak weak a_to_b'
+ 
 # simplify a given CNF
 bin/clausy model.dimacs
 
