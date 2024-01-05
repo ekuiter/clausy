@@ -121,9 +121,13 @@
 <a href="#121" id="121">121</a>
 <a href="#122" id="122">122</a>
 <a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Imperative shell for operating on feature-model formulas.
 
 </span><span class="kw">use </span><span class="kw">crate</span>::core::file::File;
+<span class="kw">use </span><span class="kw">crate</span>::core::formula::DiffKind;
 <span class="kw">use </span><span class="kw">crate</span>::parser::sat_inline::SatInlineFormulaParser;
 <span class="kw">use crate</span>::{
     core::{arena::Arena, formula::Formula},
@@ -137,7 +141,7 @@
 
 </span><span class="doccomment">/// Prefix for auxiliary variables.
 ///
-/// Auxiliary variables are required by some algorithms on formulas and can be created with [Var::Aux].
+/// Auxiliary variables are required by some algorithms on formulas and can be created with [crate::core::var::Var::Aux].
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">const </span>VAR_AUX_PREFIX: <span class="kw-2">&amp;</span>str = <span class="string">&quot;_aux_&quot;</span>; <span class="comment">// todo: make configurable (also whether aux vars should even be listed)
 
 </span><span class="doccomment">/// Returns the most recently parsed formula.
@@ -173,8 +177,10 @@
         commands.push(<span class="string">&quot;print&quot;</span>.to_string());
     }
     <span class="kw">for </span>command <span class="kw">in </span><span class="kw-2">&amp;</span>commands {
-        <span class="kw">let </span>parts: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = command.split_whitespace().collect();
-        <span class="kw">match </span>parts[<span class="number">0</span>] {
+        <span class="kw">let </span><span class="kw-2">mut </span>arguments: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = command.split_whitespace().collect();
+        <span class="kw">let </span>action = arguments[<span class="number">0</span>];
+        arguments.remove(<span class="number">0</span>);
+        <span class="kw">match </span>action {
             <span class="string">&quot;print&quot; </span>=&gt; {
                 <span class="kw">if </span>clauses.is_some() {
                     <span class="macro">print!</span>(<span class="string">&quot;{}&quot;</span>, clauses.as_ref().unwrap());
@@ -195,7 +201,7 @@
             }
             <span class="string">&quot;to_clauses&quot; </span>=&gt; clauses = <span class="prelude-val">Some</span>(<span class="macro">formula!</span>(formulas).to_clauses(<span class="kw-2">&amp;mut </span>arena)),
             <span class="string">&quot;satisfy&quot; </span>=&gt; <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="macro">clauses!</span>(clauses, arena, formulas).satisfy().unwrap()),
-            <span class="string">&quot;count&quot; </span>=&gt; <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="macro">clauses!</span>(clauses, arena, formulas).count(<span class="bool-val">false</span>).<span class="number">0</span>),
+            <span class="string">&quot;count&quot; </span>=&gt; <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="macro">clauses!</span>(clauses, arena, formulas).count()),
             <span class="string">&quot;assert_count&quot; </span>=&gt; {
                 <span class="kw">let </span>clauses = <span class="macro">clauses!</span>(clauses, arena, formulas);
                 <span class="macro">formula!</span>(formulas)
@@ -205,29 +211,29 @@
                     .assert_count(clauses);
             }
             <span class="string">&quot;enumerate&quot; </span>=&gt; <span class="macro">clauses!</span>(clauses, arena, formulas).enumerate(),
+            <span class="string">&quot;count_inc&quot; </span>=&gt; {
+                <span class="kw">let </span>[a, b] = <span class="kw-2">&amp;</span>formulas[..] <span class="kw">else </span>{ <span class="macro">panic!</span>() };
+                <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, a.count_inc(b, arguments.into_iter().next(), <span class="kw-2">&amp;mut </span>arena));
+            }
             <span class="string">&quot;diff&quot; </span>=&gt; {
-                <span class="macro">debug_assert!</span>(formulas.len() == <span class="number">2</span>);
-                <span class="macro">debug_assert!</span>(parts.len() &lt;= <span class="number">5</span>);
-                <span class="kw">let </span>a = <span class="kw-2">&amp;</span>formulas[<span class="number">0</span>];
-                <span class="kw">let </span>b = <span class="kw-2">&amp;</span>formulas[<span class="number">1</span>];
-                a.diff(
-                    b,
-                    <span class="kw">if </span>parts.len() &lt; <span class="number">2 </span>{ <span class="string">&quot;csv&quot; </span>} <span class="kw">else </span>{ parts[<span class="number">1</span>] },
-                    <span class="kw">if </span>parts.len() &lt; <span class="number">3 </span>{ <span class="bool-val">true </span>} <span class="kw">else </span>{ parts[<span class="number">2</span>] == <span class="string">&quot;y&quot; </span>},
-                    <span class="kw">if </span>parts.len() &lt; <span class="number">4 </span>{ <span class="bool-val">false </span>} <span class="kw">else </span>{ parts[<span class="number">3</span>] == <span class="string">&quot;y&quot; </span>},
-                    <span class="kw">if </span>parts.len() &lt; <span class="number">5 </span>{ <span class="bool-val">false </span>} <span class="kw">else </span>{ parts[<span class="number">4</span>] == <span class="string">&quot;y&quot; </span>},
-                    <span class="kw-2">&amp;mut </span>arena,
-                );
+                <span class="kw">let </span>[a, b] = <span class="kw-2">&amp;</span>formulas[..] <span class="kw">else </span>{ <span class="macro">panic!</span>() };
+                <span class="kw">let </span><span class="kw-2">mut </span>arguments = arguments.into_iter();
+                <span class="kw">let </span><span class="kw-2">mut </span>parse_argument = || <span class="kw">match </span>arguments.next() {
+                    <span class="prelude-val">Some</span>(<span class="string">&quot;top-strong&quot;</span>) =&gt; DiffKind::Strong(<span class="bool-val">true</span>),
+                    <span class="prelude-val">Some</span>(<span class="string">&quot;bottom-strong&quot;</span>) | <span class="prelude-val">Some</span>(<span class="string">&quot;strong&quot;</span>) =&gt; DiffKind::Strong(<span class="bool-val">false</span>),
+                    <span class="prelude-val">Some</span>(<span class="string">&quot;weak&quot;</span>) | <span class="prelude-val">None </span>=&gt; DiffKind::Weak,
+                    <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>()
+                };
+                <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, a.diff(b, parse_argument(), parse_argument(), arguments.next(), <span class="kw-2">&amp;mut </span>arena));
             }
             <span class="kw">_ </span>=&gt; {
-                <span class="kw">if </span>File::exists(command) {
-                    <span class="kw">let </span>file = File::read(command);
+                <span class="kw">if </span>File::exists(action) {
+                    <span class="kw">let </span>file = File::read(action);
                     <span class="kw">let </span>extension = file.extension();
                     formulas.push(arena.parse(file, parser(extension)));
                 } <span class="kw">else if </span>SatInlineFormulaParser::can_parse(command) {
                     formulas.push(
-                        <span class="comment">// todo: what does this implement? a comparison as in Thüm 2009?
-                        </span>SatInlineFormulaParser::new(<span class="kw-2">&amp;</span>formulas, <span class="bool-val">true</span>)
+                        SatInlineFormulaParser::new(<span class="kw-2">&amp;</span>formulas, <span class="prelude-val">Some</span>(<span class="bool-val">false</span>))
                             .parse_into(<span class="kw-2">&amp;</span>command, <span class="kw-2">&amp;mut </span>arena),
                     );
                 } <span class="kw">else </span>{

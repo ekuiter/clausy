@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["from_signed_bytes_be","from_signed_bytes_le","to_signed_bytes_be","to_signed_bytes_le","twos_complement","twos_complement_be","twos_complement_le"],"macro":["impl_bigint_from_int","impl_bigint_from_uint","impl_to_bigint","impl_try_from_bigint"]};

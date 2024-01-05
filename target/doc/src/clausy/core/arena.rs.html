@@ -640,6 +640,11 @@
 <a href="#640" id="640">640</a>
 <a href="#641" id="641">641</a>
 <a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Defines an arena of variables and expressions.
 
 </span><span class="kw">use super</span>::{
@@ -847,6 +852,11 @@
         (var_id, <span class="self">self</span>.expr(Var(var_id)))
     }
 
+    <span class="doccomment">/// Returns all variable identifiers in this arena.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>var_ids(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; HashSet&lt;VarId&gt; {
+        (<span class="number">0</span>..<span class="self">self</span>.vars.len().try_into().unwrap()).collect()
+    }
+
     <span class="doccomment">/// Returns all variables and their identifiers in this arena that match a given predicate.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>vars(<span class="kw-2">&amp;</span><span class="self">self</span>, predicate: <span class="kw">impl </span>Fn(VarId, <span class="kw-2">&amp;</span>Var) -&gt; bool) -&gt; Vec&lt;(VarId, Var)&gt; {
         <span class="self">self</span>.vars
@@ -1041,7 +1051,7 @@
     /// The created formula references all variables of this arena, use [Formula::new] for more fine-grained sub-variables.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_formula&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>, root_id: ExprId) -&gt; Formula {
         Formula::new(
-            (<span class="number">0</span>..<span class="self">self</span>.vars.len().try_into().unwrap()).collect(),
+            <span class="self">self</span>.var_ids(),
             root_id,
             <span class="prelude-val">None</span>,
         )
@@ -1070,7 +1080,7 @@
                 visited_ids.insert(id);
             }
         }
-        Formula::reset_root_expr(<span class="kw-2">&amp;</span><span class="self">self</span>, root_id);
+        Formula::reset_root_expr(root_id, <span class="kw-2">&amp;</span><span class="self">self</span>);
     }
 
     <span class="doccomment">/// Visits all sub-expressions of a given root expression using a reverse postorder traversal.
@@ -1100,7 +1110,7 @@
                 remaining_ids.pop();
             }
         }
-        Formula::reset_root_expr(<span class="kw-2">&amp;</span><span class="self">self</span>, root_id);
+        Formula::reset_root_expr(root_id, <span class="kw-2">&amp;</span><span class="self">self</span>);
     }
 
     <span class="doccomment">/// Visits all sub-expressions of a given root expression using a combined reverse pre- and postorder traversal.
@@ -1135,7 +1145,7 @@
                 remaining_ids.pop();
             }
         }
-        Formula::reset_root_expr(<span class="kw-2">&amp;</span><span class="self">self</span>, root_id);
+        Formula::reset_root_expr(root_id, <span class="kw-2">&amp;</span><span class="self">self</span>);
     }
 
     <span class="doccomment">/// Transforms an expression into canonical form (see [Formula::to_canon]).

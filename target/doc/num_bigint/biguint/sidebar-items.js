@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["biguint_from_vec","cmp_slice","fixpoint","u32_chunk_to_u64"],"mod":["addition","bits","convert","division","iter","monty","multiplication","power","shift","subtraction"],"struct":["BigUint"],"trait":["IntDigits","ToBigUint"]};

@@ -15,7 +15,7 @@ pub(super) const PRINT_ID: bool = false; // todo: make configurable
 
 /// Prefix for auxiliary variables.
 ///
-/// Auxiliary variables are required by some algorithms on formulas and can be created with [Var::Aux].
+/// Auxiliary variables are required by some algorithms on formulas and can be created with [crate::core::var::Var::Aux].
 pub(super) const VAR_AUX_PREFIX: &str = "_aux_"; // todo: make configurable (also whether aux vars should even be listed)
 
 /// Returns the most recently parsed formula.

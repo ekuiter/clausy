@@ -14,23 +14,17 @@
 <a href="#14" id="14">14</a>
 <a href="#15" id="15">15</a>
 <a href="#16" id="16">16</a>
-<a href="#17" id="17">17</a>
-<a href="#18" id="18">18</a>
-<a href="#19" id="19">19</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Parser for any file format accepted by FeatureIDE.
 
 </span><span class="kw">use super</span>::{sat::SatFormulaParser, FormulaParser};
-<span class="kw">use crate</span>::{
-    core::{arena::Arena, formula::Formula, file::File},
-    util,
-};
+<span class="kw">use </span><span class="kw">crate</span>::core::{arena::Arena, formula::Formula, file::File};
 
 <span class="doccomment">/// Parses feature-model formula files in any file format accepted by FeatureIDE.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>IoFormulaParser;
 
 <span class="kw">impl </span>FormulaParser <span class="kw">for </span>IoFormulaParser {
     <span class="kw">fn </span>parse_into(<span class="kw-2">&amp;</span><span class="self">self</span>, file: File, arena: <span class="kw-2">&amp;mut </span>Arena) -&gt; Formula {
-        <span class="kw">let </span>sat_file = util::exec::io(<span class="kw-2">&amp;</span>file, <span class="string">&quot;sat&quot;</span>, <span class="kw-2">&amp;</span>[]);
+        <span class="kw">let </span>sat_file = file.convert(<span class="string">&quot;sat&quot;</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>formula = SatFormulaParser.parse_into(sat_file, arena);
         formula.file = <span class="prelude-val">Some</span>(file);
         formula

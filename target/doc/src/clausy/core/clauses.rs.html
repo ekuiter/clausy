@@ -151,12 +151,6 @@
 <a href="#151" id="151">151</a>
 <a href="#152" id="152">152</a>
 <a href="#153" id="153">153</a>
-<a href="#154" id="154">154</a>
-<a href="#155" id="155">155</a>
-<a href="#156" id="156">156</a>
-<a href="#157" id="157">157</a>
-<a href="#158" id="158">158</a>
-<a href="#159" id="159">159</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Clause representation of a feature-model formula.
 
 </span><span class="kw">use </span>num::BigInt;
@@ -166,7 +160,7 @@
     formula_ref::FormulaRef,
     var::{Var, VarId},
 };
-<span class="kw">use crate</span>::{core::file::File, util::{exec, io}};
+<span class="kw">use crate</span>::{core::file::File, util::exec};
 <span class="kw">use </span>std::{collections::HashMap, fmt, slice};
 
 <span class="doccomment">/// A [super::formula::Formula] in its clause representation.
@@ -261,15 +255,9 @@
     }
 
     <span class="doccomment">/// Counts the number of solutions of this clause representation.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>count(<span class="kw-2">&amp;</span><span class="self">self</span>, serialize: bool) -&gt; (BigInt, <span class="prelude-ty">Option</span>&lt;String&gt;, <span class="prelude-ty">Option</span>&lt;String&gt;) {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>count(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BigInt {
         <span class="kw">let </span>file = File::new(<span class="string">&quot;-.dimacs&quot;</span>.to_string(), <span class="self">self</span>.to_string());
-        <span class="kw">let </span><span class="kw-2">mut </span>uvl_file = <span class="prelude-val">None</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>xml_file = <span class="prelude-val">None</span>;
-        <span class="kw">if </span>serialize {
-            uvl_file = <span class="prelude-val">Some</span>(io::to_uvl_string(<span class="self">self</span>));
-            xml_file = <span class="prelude-val">Some</span>(io::to_xml_string(<span class="self">self</span>));
-        }
-        (exec::d4(<span class="kw-2">&amp;</span>file.contents), uvl_file, xml_file)
+        exec::d4(<span class="kw-2">&amp;</span>file.contents)
     }
 }
 
@@ -301,9 +289,9 @@
             <span class="kw">if let </span>Var::Named(name) = var {
                 <span class="macro">debug_assert!</span>(!name.is_empty());
             }
-            <span class="macro">write!</span>(f, <span class="string">&quot;c {} {var}\n&quot;</span>, i)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(f, <span class="string">&quot;c {} {var}&quot;</span>, i)<span class="question-mark">?</span>;
         }
-        <span class="macro">write!</span>(f, <span class="string">&quot;p cnf {} {}\n&quot;</span>, <span class="self">self</span>.vars.len() - <span class="number">1</span>, <span class="self">self</span>.clauses.len())<span class="question-mark">?</span>;
+        <span class="macro">writeln!</span>(f, <span class="string">&quot;p cnf {} {}&quot;</span>, <span class="self">self</span>.vars.len() - <span class="number">1</span>, <span class="self">self</span>.clauses.len())<span class="question-mark">?</span>;
         <span class="kw">for </span>clause <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.clauses {
             <span class="kw">for </span>literal <span class="kw">in </span>clause {
                 <span class="kw">let </span>var: usize = literal.unsigned_abs().try_into().unwrap();
@@ -311,7 +299,7 @@
                 <span class="macro">debug_assert!</span>(var &lt; <span class="self">self</span>.vars.len());
                 <span class="macro">write!</span>(f, <span class="string">&quot;{} &quot;</span>, literal)<span class="question-mark">?</span>;
             }
-            <span class="macro">write!</span>(f, <span class="string">&quot;0\n&quot;</span>)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(f, <span class="string">&quot;0&quot;</span>)<span class="question-mark">?</span>;
         }
         <span class="macro">write!</span>(f, <span class="string">&quot;&quot;</span>)
     }

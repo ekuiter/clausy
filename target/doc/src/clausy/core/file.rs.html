@@ -103,6 +103,24 @@
 <a href="#103" id="103">103</a>
 <a href="#104" id="104">104</a>
 <a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Defines a feature-model formula file.
 
 </span><span class="kw">use </span>std::{collections::HashSet, fs, io::Read, path::Path};
@@ -154,6 +172,11 @@
         File::new(name.to_string(), contents)
     }
 
+    <span class="doccomment">/// Writes this file to its destination.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        fs::write(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span><span class="self">self</span>.contents).unwrap();
+    }
+
     <span class="doccomment">/// Returns the extension of this file, if any.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>extension(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
         Path::new(<span class="self">self</span>.name.as_str())
@@ -166,14 +189,27 @@
     ///
     /// The file extension must be given so FeatureIDE can detect the correct format.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>count_featureide(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BigInt {
-        exec::d4(<span class="kw-2">&amp;</span>exec::io(<span class="self">self</span>, <span class="string">&quot;cnf&quot;</span>, <span class="kw-2">&amp;</span>[]).contents)
+        exec::d4(<span class="kw-2">&amp;</span><span class="self">self</span>.convert(<span class="string">&quot;cnf&quot;</span>).contents)
     }
 
     <span class="doccomment">/// Panics if the formula this file represents has a different model count than that of the given clauses.
     ///
     /// Useful for checking the correctness of count-preserving algorithms (e.g., [super::formula::Formula::to_cnf_tseitin]).
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_count(<span class="kw-2">&amp;</span><span class="self">self</span>, clauses: <span class="kw-2">&amp;</span>Clauses) {
-        <span class="macro">assert_eq!</span>(clauses.count(<span class="bool-val">false</span>).<span class="number">0</span>, <span class="self">self</span>.count_featureide());
+        <span class="macro">assert_eq!</span>(clauses.count(), <span class="self">self</span>.count_featureide());
+    }
+
+    <span class="doccomment">/// Converts this file into a given format, if necessary.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>convert(<span class="kw-2">&amp;</span><span class="self">self</span>, output_format: <span class="kw-2">&amp;</span>str) -&gt; File {
+        <span class="kw">if </span><span class="self">self
+            </span>.extension()
+            .filter(|extension|  extension == output_format)
+            .is_none()
+        {
+            exec::io(<span class="kw-2">&amp;</span><span class="self">self</span>, output_format, <span class="kw-2">&amp;</span>[])
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.clone()
+        }
     }
 
     <span class="doccomment">/// Slices the formula this file represents such that only the given variables remain.

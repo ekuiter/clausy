@@ -512,11 +512,108 @@
 <a href="#512" id="512">512</a>
 <a href="#513" id="513">513</a>
 <a href="#514" id="514">514</a>
+<a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a>
+<a href="#523" id="523">523</a>
+<a href="#524" id="524">524</a>
+<a href="#525" id="525">525</a>
+<a href="#526" id="526">526</a>
+<a href="#527" id="527">527</a>
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a>
+<a href="#549" id="549">549</a>
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a>
+<a href="#552" id="552">552</a>
+<a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a>
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a>
+<a href="#559" id="559">559</a>
+<a href="#560" id="560">560</a>
+<a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a>
+<a href="#569" id="569">569</a>
+<a href="#570" id="570">570</a>
+<a href="#571" id="571">571</a>
+<a href="#572" id="572">572</a>
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a>
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Defines a feature-model formula.
 
-</span><span class="kw">use </span>num::{bigint::ToBigInt, BigInt, BigRational, Signed, ToPrimitive};
+</span><span class="kw">use </span>num::{bigint::ToBigInt, BigInt, BigRational, ToPrimitive};
 
-<span class="kw">use </span><span class="kw">crate</span>::util::{exec, io};
+<span class="kw">use </span><span class="kw">crate</span>::util::io;
 
 <span class="kw">use super</span>::{
     arena::Arena,
@@ -531,6 +628,17 @@
     str::FromStr,
     time::{Duration, Instant},
 };
+
+<span class="doccomment">/// Commands for computing differences of feature-model formulas.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>DiffKind {
+    <span class="doccomment">/// Computes the difference of both formulas, considering a solution as common if it satisfies both formulas
+    /// extended to all variables of both formulas, either by true or by false.
+    </span>Strong(bool),
+
+    <span class="doccomment">/// Computes the difference of both formulas, considering a solution as common if it satisfies the slices
+    /// of both formulas down to their common variables.
+    </span>Weak,
+}
 
 <span class="doccomment">/// A feature-model formula.
 ///
@@ -589,8 +697,47 @@
     /// If the root expression is mutated with [Arena::set_expr], structural sharing might be violated.
     /// Because [Arena::set_expr] can only address this issue for children,
     /// we need to explicitly address the only expression that is not a child itself - the root expression.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>reset_root_expr(arena: <span class="kw-2">&amp;</span>Arena, root_id: <span class="kw-2">&amp;mut </span>ExprId) {
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>reset_root_expr(root_id: <span class="kw-2">&amp;mut </span>ExprId, arena: <span class="kw-2">&amp;</span>Arena) {
         <span class="kw-2">*</span>root_id = arena.get_expr(<span class="kw-2">&amp;</span>arena.exprs[<span class="kw-2">*</span>root_id]).unwrap();
+    }
+
+    <span class="doccomment">/// Returns a formula that forces all variables only occurring in the given arena to true or false.
+    ///
+    /// Does not modify this formula.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>force_foreign_vars(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        top: bool,
+        exclude_vars: <span class="kw-2">&amp;</span>HashSet&lt;VarId&gt;,
+        arena: <span class="kw-2">&amp;mut </span>Arena,
+    ) -&gt; Formula {
+        <span class="kw">let </span><span class="kw-2">mut </span>ids;
+        <span class="kw">if let </span>And(child_ids) = <span class="kw-2">&amp;</span>arena.exprs[<span class="self">self</span>.root_id] {
+            ids = child_ids.clone();
+        } <span class="kw">else </span>{
+            ids = <span class="macro">vec!</span>[<span class="self">self</span>.root_id];
+        }
+        ids.extend(
+            arena
+                .vars(|var_id, <span class="kw">_</span>| {
+                    !<span class="self">self</span>.sub_var_ids.contains(<span class="kw-2">&amp;</span>var_id) &amp;&amp; !exclude_vars.contains(<span class="kw-2">&amp;</span>var_id)
+                })
+                .into_iter()
+                .map(|(var_id, <span class="kw">_</span>)| {
+                    <span class="kw">let </span>expr = arena.expr(Var(var_id));
+                    <span class="kw">if </span>top {
+                        expr
+                    } <span class="kw">else </span>{
+                        arena.expr(Not(expr))
+                    }
+                }),
+        );
+        <span class="kw">let </span>sub_var_ids = arena
+            .var_ids()
+            .difference(exclude_vars)
+            .map(|var| <span class="kw-2">*</span>var)
+            .collect();
+        <span class="kw">let </span>root_id = arena.expr(And(ids));
+        <span class="self">Self</span>::new(sub_var_ids, root_id, <span class="prelude-val">None</span>)
     }
 
     <span class="doccomment">/// Returns all sub-variables of this formula and their identifiers.
@@ -710,8 +857,13 @@
                 .into_iter()
                 .filter(|child_id| !arena.contains_var(<span class="kw-2">*</span>child_id, ids))
                 .collect();
+            <span class="kw">let </span>sub_var_ids = <span class="self">self
+                </span>.sub_var_ids
+                .difference(ids)
+                .map(|id| <span class="kw-2">*</span>id)
+                .collect::&lt;HashSet&lt;VarId&gt;&gt;();
             <span class="kw">let </span>root_id = arena.expr(And(new_child_ids));
-            <span class="self">Self</span>::new(<span class="self">self</span>.sub_var_ids.clone(), root_id, <span class="prelude-val">None</span>)
+            <span class="self">Self</span>::new(sub_var_ids, root_id, <span class="prelude-val">None</span>)
         } <span class="kw">else </span>{
             <span class="macro">unreachable!</span>()
         }
@@ -728,10 +880,21 @@
         }
     }
 
-    <span class="doccomment">/// Returns the identifiers of all constraints not common to this and a given formula.
+    <span class="doccomment">/// Returns the identifiers of all variables common and unique to this and a given formula.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>diff_vars(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        other: <span class="kw-2">&amp;</span>Formula,
+    ) -&gt; (HashSet&lt;VarId&gt;, HashSet&lt;VarId&gt;, HashSet&lt;VarId&gt;) {
+        (
+            <span class="self">self</span>.common_vars(other),
+            <span class="self">self</span>.except_vars(other),
+            other.except_vars(<span class="self">self</span>),
+        )
+    }
+
+    <span class="doccomment">/// Returns the identifiers of all constraints common and unique to this and a given formula.
     ///
     /// Assumes that this formula is in proto-CNF; that is, it is a conjunction of constraints.
-    /// Does not modify this formula.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>diff_constraints(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         other: <span class="kw-2">&amp;</span>Formula,
@@ -800,188 +963,217 @@
         Formula::new(<span class="self">self</span>.all_vars(other), <span class="self">self</span>.implies_expr(other, arena), <span class="prelude-val">None</span>)
     }
 
-    <span class="doccomment">/// Returns the number of solutions of this formula.
+    <span class="doccomment">/// Returns the number of solutions of this formula or serializes it.
     ///
     /// Optionally uses a Tseitin transformation into CNF.
     /// Does not modify this formula or the given arena.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>count(
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>analyze(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         arena: <span class="kw-2">&amp;</span>Arena,
         use_tseitin: bool,
+        count: bool,
         serialize: bool,
     ) -&gt; (BigInt, <span class="prelude-ty">Option</span>&lt;String&gt;, <span class="prelude-ty">Option</span>&lt;String&gt;) {
-        <span class="kw">let </span><span class="kw-2">mut </span>clone = <span class="self">self</span>.clone();
-        <span class="kw">let </span><span class="kw-2">mut </span>arena = arena.clone();
-        <span class="kw">if </span>use_tseitin {
-            clone.to_cnf_tseitin(<span class="bool-val">true</span>, <span class="kw-2">&amp;mut </span>arena);
+        <span class="kw">let </span>minus_one = -<span class="number">1</span>.to_bigint().unwrap();
+        <span class="kw">if </span>!count &amp;&amp; !serialize {
+            (minus_one, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>)
+        } <span class="kw">else </span>{
+            <span class="kw">let </span>clauses;
+            <span class="kw">if </span>use_tseitin {
+                <span class="kw">let </span><span class="kw-2">mut </span>clone = <span class="self">self</span>.clone();
+                <span class="kw">let </span><span class="kw-2">mut </span>arena = arena.clone();
+                clone.to_cnf_tseitin(<span class="bool-val">true</span>, <span class="kw-2">&amp;mut </span>arena);
+                clauses = clone.to_clauses(<span class="kw-2">&amp;</span>arena);
+            } <span class="kw">else </span>{
+                clauses = <span class="self">self</span>.to_clauses(arena);
+            }
+            (
+                count.then(|| clauses.count()).unwrap_or(minus_one),
+                serialize.then(|| io::to_uvl_string(<span class="kw-2">&amp;</span>clauses)),
+                serialize.then(|| io::to_xml_string(<span class="kw-2">&amp;</span>clauses)),
+            )
         }
-        clone.to_clauses(<span class="kw-2">&amp;</span>arena).count(serialize)
     }
 
-    <span class="doccomment">/// Computes a description of the difference between this formula&#39;s count and another&#39;s.
+    <span class="doccomment">/// Returns a mathematical term that, given the number of solutions of this formula, calculates the number of solutions of another formula.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>count_inc(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        b: <span class="kw-2">&amp;</span>Formula,
+        left_model_count: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
+        arena: <span class="kw-2">&amp;mut </span>Arena,
+    ) -&gt; String {
+        <span class="kw">let </span>a = <span class="self">self</span>;
+        a.assert_proto_cnf(arena);
+        b.assert_proto_cnf(arena);
+        <span class="kw">let </span>left_model_count = left_model_count.map(|argument| BigInt::from_str(argument).unwrap());
+        <span class="kw">let </span>(<span class="kw">_</span>, a_var_ids, b_var_ids) = a.diff_vars(b);
+        <span class="kw">let </span>a_vars: u32 = a_var_ids.len().try_into().unwrap();
+        <span class="kw">let </span>b_vars: u32 = b_var_ids.len().try_into().unwrap();
+        <span class="kw">let </span>a2 = a.remove_constraints(<span class="kw-2">&amp;</span>a_var_ids, arena);
+        <span class="kw">let </span>b2 = b.remove_constraints(<span class="kw-2">&amp;</span>b_var_ids, arena);
+        <span class="kw">let </span>cnt_a2_to_a = a2.implies(a, arena).analyze(arena, <span class="bool-val">true</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>).<span class="number">0</span>;
+        <span class="kw">let </span>cnt_b2_to_b = b2.implies(b, arena).analyze(arena, <span class="bool-val">true</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>).<span class="number">0</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>diff = a2.and(<span class="kw-2">&amp;</span>b2, arena);
+        diff.to_cnf_tseitin(<span class="bool-val">false</span>, arena);
+        <span class="kw">let </span>cnt_removed = diff
+            .assume(a2.implies_expr(<span class="kw-2">&amp;</span>b2, arena), arena)
+            .analyze(arena, <span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>)
+            .<span class="number">0</span>;
+        <span class="kw">let </span>cnt_added = diff
+            .assume(b2.implies_expr(<span class="kw-2">&amp;</span>a2, arena), arena)
+            .analyze(arena, <span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>)
+            .<span class="number">0</span>;
+        <span class="kw">if </span>left_model_count.is_some() {
+            <span class="kw">let </span>two = <span class="number">2</span>.to_bigint().unwrap();
+            <span class="macro">format!</span>(
+                <span class="string">&quot;{}&quot;</span>,
+                (((<span class="kw-2">&amp;</span>left_model_count.unwrap() + <span class="kw-2">&amp;</span>cnt_a2_to_a) / two.pow(a_vars)) - <span class="kw-2">&amp;</span>cnt_removed
+                    + <span class="kw-2">&amp;</span>cnt_added)
+                    * two.pow(b_vars)
+                    - <span class="kw-2">&amp;</span>cnt_b2_to_b
+            )
+        } <span class="kw">else </span>{
+            <span class="macro">format!</span>(<span class="string">&quot;(((#+{cnt_a2_to_a})/2^{a_vars})-{cnt_removed}+{cnt_added})*2^{b_vars}-{cnt_b2_to_b}# | sed &#39;s/#/&lt;left model count&gt;/&#39; | bc&quot;</span>)
+        }
+    }
+
+    <span class="doccomment">/// Returns a description of the difference between this formula and another.
+    ///
+    /// Assumes that common variables are considered equal (e.g., equal features have equal names),
+    /// that the input formulas contains no auxiliary variables,
+    /// and that the input formulas are in proto-CNF.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>diff(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         b: <span class="kw-2">&amp;</span>Formula,
-        command: <span class="kw-2">&amp;</span>str,
-        slice: bool,
-        diff: bool,
-        verbose: bool,
+        left_diff_kind: DiffKind,
+        right_diff_kind: DiffKind,
+        prefix: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
         arena: <span class="kw-2">&amp;mut </span>Arena,
-    ) {
-        <span class="kw">let </span>start_total = Instant::now();
+    ) -&gt; String {
         <span class="kw">let </span>a = <span class="self">self</span>;
-        <span class="kw">let </span>a_var_ids = a.except_vars(b);
-        <span class="kw">let </span>b_var_ids = b.except_vars(a);
+        a.assert_proto_cnf(arena);
+        b.assert_proto_cnf(arena);
+        <span class="kw">let </span>write_files = prefix.is_some() &amp;&amp; !prefix.unwrap().is_empty();
+        <span class="kw">let </span>file_name = |name: <span class="kw-2">&amp;</span>str| <span class="macro">format!</span>(<span class="string">&quot;{}{}&quot;</span>, prefix.unwrap().to_string(), name);
+        <span class="kw">let </span>(common_var_ids, a_var_ids, b_var_ids) = a.diff_vars(b);
         <span class="kw">let </span>(common_constraint_ids, a_constraint_ids, b_constraint_ids) =
-            <span class="self">self</span>.diff_constraints(b, arena);
-        <span class="kw">let </span>common_var_ids = a.common_vars(b);
+            a.diff_constraints(b, arena);
         <span class="kw">let </span>common_vars: u32 = common_var_ids.len().try_into().unwrap();
         <span class="kw">let </span>a_vars: u32 = a_var_ids.len().try_into().unwrap();
         <span class="kw">let </span>b_vars: u32 = b_var_ids.len().try_into().unwrap();
         <span class="kw">let </span>common_constraints: u32 = common_constraint_ids.len().try_into().unwrap();
         <span class="kw">let </span>a_constraints: u32 = a_constraint_ids.len().try_into().unwrap();
         <span class="kw">let </span>b_constraints: u32 = b_constraint_ids.len().try_into().unwrap();
-        a.assert_proto_cnf(arena);
-        b.assert_proto_cnf(arena);
-        <span class="kw">if </span>verbose {
-            <span class="macro">println!</span>(<span class="string">&quot;removed variables:&quot;</span>);
-            <span class="kw">for </span>id <span class="kw">in </span><span class="kw-2">&amp;</span>a_var_ids {
-                <span class="kw">let </span>id: usize = (<span class="kw-2">*</span>id).try_into().unwrap();
-                <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, arena.vars[id]);
-            }
-            <span class="macro">println!</span>();
-            <span class="macro">println!</span>(<span class="string">&quot;added variables:&quot;</span>);
-            <span class="kw">for </span>id <span class="kw">in </span><span class="kw-2">&amp;</span>b_var_ids {
-                <span class="kw">let </span>id: usize = (<span class="kw-2">*</span>id).try_into().unwrap();
-                <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, arena.vars[id]);
-            }
-            <span class="macro">println!</span>();
-            <span class="macro">println!</span>(<span class="string">&quot;removed constraints:&quot;</span>);
-            <span class="kw">for </span>id <span class="kw">in </span>a_constraint_ids {
-                <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, arena.as_formula(id).as_ref(arena));
-            }
-            <span class="macro">println!</span>();
-            <span class="macro">println!</span>(<span class="string">&quot;added constraints:&quot;</span>);
-            <span class="kw">for </span>id <span class="kw">in </span>b_constraint_ids {
-                <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, arena.as_formula(id).as_ref(arena));
-            }
-            <span class="macro">println!</span>();
+        <span class="kw">if </span>write_files {
+            io::write_vars(file_name(<span class="string">&quot;.common.features&quot;</span>), arena, <span class="kw-2">&amp;</span>common_var_ids);
+            io::write_vars(file_name(<span class="string">&quot;.removed.features&quot;</span>), arena, <span class="kw-2">&amp;</span>a_var_ids);
+            io::write_vars(file_name(<span class="string">&quot;.added.features&quot;</span>), arena, <span class="kw-2">&amp;</span>b_var_ids);
+            io::write_constraints(
+                file_name(<span class="string">&quot;.common.constraints&quot;</span>),
+                arena,
+                <span class="kw-2">&amp;</span>common_constraint_ids,
+            );
+            io::write_constraints(file_name(<span class="string">&quot;.removed.constraints&quot;</span>), arena, <span class="kw-2">&amp;</span>a_constraint_ids);
+            io::write_constraints(file_name(<span class="string">&quot;.added.constraints&quot;</span>), arena, <span class="kw-2">&amp;</span>b_constraint_ids);
         }
-        <span class="kw">let </span><span class="kw-2">mut </span>a2;
-        <span class="kw">let </span><span class="kw-2">mut </span>b2;
-        <span class="kw">let </span><span class="kw-2">mut </span>a2_uvl = <span class="prelude-val">None</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>b2_uvl = <span class="prelude-val">None</span>;
-        <span class="kw">let </span>dur_a2;
-        <span class="kw">let </span>dur_b2;
-        <span class="kw">if </span>slice {
-            <span class="kw">let </span>start = Instant::now();
-            (a2, a2_uvl) =
-                a.file
-                    .as_ref()
-                    .unwrap()
-                    .slice_featureide(<span class="kw-2">&amp;</span>common_var_ids, arena, command == <span class="string">&quot;uvl&quot;</span>);
-            dur_a2 = start.elapsed();
-            <span class="kw">let </span>start = Instant::now();
-            (b2, b2_uvl) =
-                b.file
-                    .as_ref()
-                    .unwrap()
-                    .slice_featureide(<span class="kw-2">&amp;</span>common_var_ids, arena, command == <span class="string">&quot;uvl&quot;</span>);
-            dur_b2 = start.elapsed();
+        <span class="kw">let </span><span class="kw-2">mut </span>durations: Vec&lt;Duration&gt; = <span class="macro">vec!</span>[];
+        <span class="macro">macro_rules! </span>measure_time {
+            (<span class="macro-nonterminal">$expr</span>:expr) =&gt; {{
+                <span class="kw">let </span>start = Instant::now();
+                <span class="kw">let </span>result = <span class="macro-nonterminal">$expr</span>;
+                durations.push(start.elapsed());
+                result
+            }};
+        }
+        <span class="macro">macro_rules! </span>no_duration {
+            () =&gt; {{
+                durations.push(Duration::ZERO)
+            }};
+        }
+        <span class="kw">let </span><span class="kw-2">mut </span>a2 = a.clone();
+        <span class="kw">let </span><span class="kw-2">mut </span>b2 = b.clone();
+        <span class="kw">let </span><span class="kw-2">mut </span>a2_file = a2.file.clone();
+        <span class="kw">let </span><span class="kw-2">mut </span>b2_file = b2.file.clone();
+        <span class="kw">if let </span>DiffKind::Weak = left_diff_kind {
+            (a2, a2_file) = <span class="macro">measure_time!</span>(a2_file.as_ref().unwrap().slice_featureide(
+                <span class="kw-2">&amp;</span>common_var_ids,
+                arena,
+                write_files
+            ));
         } <span class="kw">else </span>{
-            <span class="kw">let </span>start = Instant::now();
-            a2 = a.remove_constraints(<span class="kw-2">&amp;</span>a_var_ids, arena);
-            dur_a2 = start.elapsed();
-            <span class="kw">let </span>start = Instant::now();
-            b2 = b.remove_constraints(<span class="kw-2">&amp;</span>b_var_ids, arena);
-            dur_b2 = start.elapsed();
+            <span class="macro">no_duration!</span>();
         }
-        <span class="kw">let </span><span class="kw-2">mut </span>cnt_a = -<span class="number">1</span>.to_bigint().unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>cnt_b = -<span class="number">1</span>.to_bigint().unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>cnt_a2 = -<span class="number">1</span>.to_bigint().unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>cnt_b2 = -<span class="number">1</span>.to_bigint().unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>dur_cnt_a = Duration::ZERO;
-        <span class="kw">let </span><span class="kw-2">mut </span>dur_cnt_b = Duration::ZERO;
-        <span class="kw">let </span><span class="kw-2">mut </span>dur_cnt_a2 = Duration::ZERO;
-        <span class="kw">let </span><span class="kw-2">mut </span>dur_cnt_b2 = Duration::ZERO;
-        <span class="kw">let </span>dur_cnt_a2_to_a;
-        <span class="kw">let </span>dur_cnt_b2_to_b;
-        <span class="kw">let </span>cnt_a2_to_a;
-        <span class="kw">let </span>cnt_b2_to_b;
-        <span class="kw">if </span>slice &amp;&amp; diff {
-            <span class="macro">panic!</span>();
-        } <span class="kw">else if </span>diff {
-            <span class="kw">let </span>start = Instant::now();
-            cnt_a2_to_a = a2.implies(a, arena).count(arena, <span class="bool-val">true</span>, <span class="bool-val">false</span>).<span class="number">0</span>;
-            dur_cnt_a2_to_a = start.elapsed();
-            <span class="kw">let </span>start = Instant::now();
-            cnt_b2_to_b = b2.implies(b, arena).count(arena, <span class="bool-val">true</span>, <span class="bool-val">false</span>).<span class="number">0</span>;
-            dur_cnt_b2_to_b = start.elapsed();
+        <span class="kw">if let </span>DiffKind::Weak = right_diff_kind {
+            (b2, b2_file) = <span class="macro">measure_time!</span>(b2_file.as_ref().unwrap().slice_featureide(
+                <span class="kw-2">&amp;</span>common_var_ids,
+                arena,
+                write_files
+            ));
         } <span class="kw">else </span>{
-            <span class="kw">let </span>start = Instant::now();
-            cnt_a = a.count(arena, <span class="bool-val">true</span>, <span class="bool-val">false</span>).<span class="number">0</span>;
-            dur_cnt_a = start.elapsed();
-            <span class="kw">let </span>start = Instant::now();
-            cnt_a2 = a2.count(arena, <span class="bool-val">false</span>, <span class="bool-val">false</span>).<span class="number">0</span>;
-            dur_cnt_a2 = start.elapsed();
-            <span class="kw">let </span>start = Instant::now();
-            cnt_a2_to_a = (<span class="kw-2">&amp;</span>cnt_a2 - <span class="kw-2">&amp;</span>cnt_a).abs();
-            dur_cnt_a2_to_a = start.elapsed();
-            <span class="kw">let </span>start = Instant::now();
-            cnt_b = b.count(arena, <span class="bool-val">true</span>, <span class="bool-val">false</span>).<span class="number">0</span>;
-            dur_cnt_b = start.elapsed();
-            <span class="kw">let </span>start = Instant::now();
-            cnt_b2 = b2.count(arena, <span class="bool-val">false</span>, <span class="bool-val">false</span>).<span class="number">0</span>;
-            dur_cnt_b2 = start.elapsed();
-            <span class="kw">let </span>start = Instant::now();
-            cnt_b2_to_b = (<span class="kw-2">&amp;</span>cnt_b2 - <span class="kw-2">&amp;</span>cnt_b).abs();
-            dur_cnt_b2_to_b = start.elapsed();
+            <span class="macro">no_duration!</span>();
         }
-        a2.sub_var_ids = common_var_ids.clone();
-        b2.sub_var_ids = common_var_ids.clone();
-        <span class="kw">let </span><span class="kw-2">mut </span>diff = a2.and(<span class="kw-2">&amp;</span>b2, arena);
-        <span class="kw">let </span>start = Instant::now();
-        diff.to_cnf_tseitin(<span class="bool-val">false</span>, arena);
-        <span class="kw">let </span>dur_tseitin = start.elapsed();
-        <span class="kw">let </span>start = Instant::now();
-        <span class="kw">let </span>(cnt_common, uvl_common, xml_common) = diff
-            .assume(arena.expr(And(<span class="macro">vec!</span>[a2.root_id, b2.root_id])), arena)
-            .to_clauses(<span class="kw-2">&amp;</span>arena)
-            .count(command == <span class="string">&quot;uvl&quot;</span>);
-        <span class="kw">let </span>dur_cnt_common = start.elapsed();
-        <span class="kw">let </span>start = Instant::now();
-        <span class="kw">let </span>(cnt_removed, uvl_removed, xml_removed) = diff
-            .assume(a2.implies_expr(<span class="kw-2">&amp;</span>b2, arena), arena)
-            .to_clauses(<span class="kw-2">&amp;</span>arena)
-            .count(command == <span class="string">&quot;uvl&quot;</span>);
-        <span class="kw">let </span>dur_cnt_removed = start.elapsed();
-        <span class="kw">let </span>start = Instant::now();
-        <span class="kw">let </span>(cnt_added, uvl_added, xml_added) = diff
-            .assume(b2.implies_expr(<span class="kw-2">&amp;</span>a2, arena), arena)
-            .to_clauses(<span class="kw-2">&amp;</span>arena)
-            .count(command == <span class="string">&quot;uvl&quot;</span>);
-        <span class="kw">let </span>dur_cnt_added = start.elapsed();
+        <span class="kw">if let </span>DiffKind::Strong(top) = left_diff_kind {
+            b2 = b2.force_foreign_vars(top, <span class="kw-2">&amp;</span>b_var_ids, arena);
+            <span class="kw">if </span>write_files {
+                <span class="kw">let </span><span class="kw-2">mut </span>file = b2_file.as_ref().unwrap().convert(<span class="string">&quot;uvl&quot;</span>);
+                io::uvl_file_add_vars(<span class="kw-2">&amp;mut </span>file, <span class="string">&quot;Removed Features&quot;</span>, <span class="kw-2">&amp;</span>a_var_ids, arena);
+                b2_file = <span class="prelude-val">Some</span>(file);
+            }
+        }
+        <span class="kw">if let </span>DiffKind::Strong(top) = right_diff_kind {
+            a2 = a2.force_foreign_vars(top, <span class="kw-2">&amp;</span>a_var_ids, arena);
+            <span class="kw">if </span>write_files {
+                <span class="kw">let </span><span class="kw-2">mut </span>file = a2_file.as_ref().unwrap().convert(<span class="string">&quot;uvl&quot;</span>);
+                io::uvl_file_add_vars(<span class="kw-2">&amp;mut </span>file, <span class="string">&quot;Added Features&quot;</span>, <span class="kw-2">&amp;</span>b_var_ids, arena);
+                a2_file = <span class="prelude-val">Some</span>(file);
+            }
+        }
+        <span class="kw">if </span>write_files {
+            a2_file = <span class="prelude-val">Some</span>(a2_file.as_ref().unwrap().convert(<span class="string">&quot;uvl&quot;</span>));
+            b2_file = <span class="prelude-val">Some</span>(b2_file.as_ref().unwrap().convert(<span class="string">&quot;uvl&quot;</span>));
+        }
+        <span class="kw">let </span>minus_one = -<span class="number">1</span>.to_bigint().unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>cnt_a = minus_one.clone();
+        <span class="kw">let </span><span class="kw-2">mut </span>cnt_a2 = minus_one.clone();
+        <span class="kw">let </span><span class="kw-2">mut </span>cnt_b = minus_one.clone();
+        <span class="kw">let </span><span class="kw-2">mut </span>cnt_b2 = minus_one.clone();
         <span class="kw">let </span><span class="kw-2">mut </span>lost_ratio = -<span class="number">1f64</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>gained_ratio = -<span class="number">1f64</span>;
         <span class="comment">// this currently only supports deleting/adding up to 1000 features due to f64 precision
-        </span><span class="kw">if </span>slice {
-            lost_ratio = BigRational::new(cnt_a.clone(), cnt_a2.clone())
-                .to_f64()
-                .unwrap()
-                .log2()
-                / a_vars.to_f64().unwrap();
-            <span class="kw">if </span>a_vars == <span class="number">0 </span>{
-                lost_ratio = <span class="number">0.0</span>;
+        </span><span class="kw">let </span>ratio = |a, b, vars: u32| {
+            BigRational::new(a, b).to_f64().unwrap().log2() / vars.to_f64().unwrap()
+        };
+        <span class="kw">if let </span>DiffKind::Weak = left_diff_kind {
+            cnt_a = <span class="macro">measure_time!</span>(a.analyze(arena, <span class="bool-val">true</span>, !write_files, <span class="bool-val">false</span>).<span class="number">0</span>);
+            cnt_a2 = <span class="macro">measure_time!</span>(a2.analyze(arena, <span class="bool-val">false</span>, !write_files, <span class="bool-val">false</span>).<span class="number">0</span>);
+            <span class="kw">if </span>a_vars &gt; <span class="number">0 </span>{
+                lost_ratio = ratio(cnt_a.clone(), cnt_a2.clone(), a_vars);
             }
-            gained_ratio = BigRational::new(cnt_b.clone(), cnt_b2.clone())
-                .to_f64()
-                .unwrap()
-                .log2()
-                / b_vars.to_f64().unwrap();
-            <span class="kw">if </span>b_vars == <span class="number">0 </span>{
-                gained_ratio = <span class="number">0.0</span>;
-            }
+        } <span class="kw">else </span>{
+            <span class="macro">no_duration!</span>();
+            <span class="macro">no_duration!</span>();
         }
+        <span class="kw">if let </span>DiffKind::Weak = right_diff_kind {
+            cnt_b = <span class="macro">measure_time!</span>(b.analyze(arena, <span class="bool-val">true</span>, !write_files, <span class="bool-val">false</span>).<span class="number">0</span>);
+            cnt_b2 = <span class="macro">measure_time!</span>(b2.analyze(arena, <span class="bool-val">false</span>, !write_files, <span class="bool-val">false</span>).<span class="number">0</span>);
+            <span class="kw">if </span>b_vars &gt; <span class="number">0 </span>{
+                gained_ratio = ratio(cnt_b.clone(), cnt_b2.clone(), b_vars);
+            }
+        } <span class="kw">else </span>{
+            <span class="macro">no_duration!</span>();
+            <span class="macro">no_duration!</span>();
+        }
+        <span class="kw">let </span><span class="kw-2">mut </span>diff = a2.and(<span class="kw-2">&amp;</span>b2, arena);
+        <span class="macro">measure_time!</span>(diff.to_cnf_tseitin(<span class="bool-val">false</span>, arena));
+        <span class="kw">let </span>(cnt_common, uvl_common, xml_common) = <span class="macro">measure_time!</span>(diff
+            .assume(arena.expr(And(<span class="macro">vec!</span>[a2.root_id, b2.root_id])), arena)
+            .analyze(arena, <span class="bool-val">false</span>, !write_files, write_files));
+        <span class="kw">let </span>(cnt_removed, uvl_removed, xml_removed) = <span class="macro">measure_time!</span>(diff
+            .assume(a2.implies_expr(<span class="kw-2">&amp;</span>b2, arena), arena)
+            .analyze(arena, <span class="bool-val">false</span>, !write_files, write_files));
+        <span class="kw">let </span>(cnt_added, uvl_added, xml_added) = <span class="macro">measure_time!</span>(diff
+            .assume(b2.implies_expr(<span class="kw-2">&amp;</span>a2, arena), arena)
+            .analyze(arena, <span class="bool-val">false</span>, !write_files, write_files));
         <span class="kw">let </span>cnt_union = <span class="kw-2">&amp;</span>cnt_common + <span class="kw-2">&amp;</span>cnt_removed + <span class="kw-2">&amp;</span>cnt_added;
         <span class="kw">let </span>common_ratio = BigRational::new(cnt_common.clone(), cnt_union.clone())
             .to_f64()
@@ -992,38 +1184,40 @@
         <span class="kw">let </span>added_ratio = BigRational::new(cnt_added.clone(), cnt_union.clone())
             .to_f64()
             .unwrap();
-        <span class="kw">let </span>dur_total = start_total.elapsed();
-        <span class="kw">match </span>command {
-                <span class="string">&quot;csv&quot; </span>=&gt; <span class="macro">println!</span>(<span class="string">&quot;{common_vars},{a_vars},{b_vars},{common_constraints},{a_constraints},{b_constraints},{lost_ratio},{removed_ratio},{common_ratio},{added_ratio},{gained_ratio},{cnt_a},{cnt_b},{cnt_a2},{cnt_b2},{cnt_a2_to_a},{cnt_b2_to_b},{cnt_common},{cnt_removed},{cnt_added},{},{},{},{},{},{},{},{},{},{},{},{},{}&quot;</span>,
-                dur_a2.as_nanos(), dur_b2.as_nanos(), dur_cnt_a.as_nanos(), dur_cnt_b.as_nanos(), dur_cnt_a2.as_nanos(), dur_cnt_b2.as_nanos(), dur_cnt_a2_to_a.as_nanos(), dur_cnt_b2_to_b.as_nanos(), dur_tseitin.as_nanos(), dur_cnt_common.as_nanos(), dur_cnt_removed.as_nanos(), dur_cnt_added.as_nanos(), dur_total.as_nanos()),
-                <span class="string">&quot;bc&quot; </span>=&gt; {
-                    <span class="kw">if </span>slice {
-                        <span class="macro">panic!</span>();
-                    }
-                    <span class="macro">println!</span>(<span class="string">&quot;(((#+{cnt_a2_to_a})/2^{a_vars})-{cnt_removed}+{cnt_added})*2^{b_vars}-{cnt_b2_to_b}# | sed &#39;s/#/&lt;left model count&gt;/&#39; | bc&quot;</span>);
-                },
-                <span class="string">&quot;uvl&quot; </span>=&gt; {
-                    <span class="kw">let </span>uvl_added = io::uvl_with_constraints(<span class="kw-2">&amp;</span>b2_uvl.as_ref().unwrap().contents, <span class="kw-2">&amp;</span>uvl_added.unwrap());
-                    <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, uvl_added);
-                    <span class="comment">// println!(&quot;{}&quot;, io::xml_with_constraints(
-                    //     &amp;exec::io(&amp;File::new(&quot;-.uvl&quot;.to_string(), io::uvl_remove_constraints(&amp;uvl_added).to_string()), &quot;xml&quot;, &amp;[]).contents, 
-                    //     &amp;xml_added.unwrap())
-                    // );
-                </span>}
-                count_a =&gt; {
-                    <span class="kw">if </span>slice {
-                        <span class="macro">panic!</span>();
-                    }
-                    <span class="kw">let </span>count_a = BigInt::from_str(count_a).unwrap();
-                    <span class="kw">let </span>two = <span class="number">2</span>.to_bigint().unwrap();
-                    <span class="macro">println!</span>(
-                        <span class="string">&quot;{}&quot;</span>,
-                        (((<span class="kw-2">&amp;</span>count_a + <span class="kw-2">&amp;</span>cnt_a2_to_a) / two.pow(a_vars)) - <span class="kw-2">&amp;</span>cnt_removed + <span class="kw-2">&amp;</span>cnt_added)
-                            * two.pow(b_vars)
-                            - <span class="kw-2">&amp;</span>cnt_b2_to_b
-                    );
-                }
-            }
+        <span class="kw">if </span>write_files {
+            io::write_uvl_and_xml(
+                file_name(<span class="string">&quot;.common.left&quot;</span>),
+                <span class="kw-2">&amp;</span>a2_file.as_ref().unwrap().contents,
+                <span class="kw-2">&amp;</span>uvl_common.as_ref().unwrap(),
+                <span class="kw-2">&amp;</span>xml_common.as_ref().unwrap(),
+            );
+            io::write_uvl_and_xml(
+                file_name(<span class="string">&quot;.common.right&quot;</span>),
+                <span class="kw-2">&amp;</span>b2_file.as_ref().unwrap().contents,
+                <span class="kw-2">&amp;</span>uvl_common.unwrap(),
+                <span class="kw-2">&amp;</span>xml_common.as_ref().unwrap(),
+            );
+            io::write_uvl_and_xml(
+                file_name(<span class="string">&quot;.removed&quot;</span>),
+                <span class="kw-2">&amp;</span>a2_file.as_ref().unwrap().contents,
+                <span class="kw-2">&amp;</span>uvl_removed.as_ref().unwrap(),
+                <span class="kw-2">&amp;</span>xml_removed.as_ref().unwrap(),
+            );
+            io::write_uvl_and_xml(
+                file_name(<span class="string">&quot;.added&quot;</span>),
+                <span class="kw-2">&amp;</span>b2_file.as_ref().unwrap().contents,
+                <span class="kw-2">&amp;</span>uvl_added.as_ref().unwrap(),
+                <span class="kw-2">&amp;</span>xml_added.as_ref().unwrap(),
+            );
+            String::new()
+        } <span class="kw">else </span>{
+            <span class="kw">let </span>durations: Vec&lt;String&gt; = durations
+                .iter()
+                .map(|duration| duration.as_nanos().to_string())
+                .collect();
+            <span class="kw">let </span>durations = durations.join(<span class="string">&quot;,&quot;</span>);
+            <span class="macro">format!</span>(<span class="string">&quot;{common_vars},{a_vars},{b_vars},{common_constraints},{a_constraints},{b_constraints},{lost_ratio},{removed_ratio},{common_ratio},{added_ratio},{gained_ratio},{cnt_a},{cnt_a2},{cnt_b},{cnt_b2},{cnt_common},{cnt_removed},{cnt_added},{durations}&quot;</span>)
+        }
     }
 }
 </code></pre></div></section></main></body></html>

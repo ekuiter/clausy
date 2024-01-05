@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["modpow","plain_modpow"],"macro":["pow_impl"]};

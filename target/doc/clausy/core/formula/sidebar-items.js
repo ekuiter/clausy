@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Formula"]};
+window.SIDEBAR_ITEMS = {"enum":["DiffKind"],"struct":["Formula"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["CheckedUnsignedAbs","Sign"],"macro":["impl_unsigned_abs"],"mod":["addition","bits","convert","division","multiplication","power","shift","subtraction"],"struct":["BigInt"],"trait":["ToBigInt","UnsignedAbs"]};

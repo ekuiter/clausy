@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["name_from_io","name_to_io","to_uvl_string","to_xml_string","uvl_remove_constraints","uvl_with_constraints","xml_with_constraints"]};
+window.SIDEBAR_ITEMS = {"fn":["name_from_io","name_to_io","to_uvl_string","to_xml_string","uvl_add_vars","uvl_append","uvl_file_add_vars","uvl_remove_constraints","write_constraints","write_uvl_and_xml","write_vars","xml_with_constraints"]};
