@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["BITS","HALF","HALF_BITS","LO_MASK","MAX"],"fn":["from_doublebigdigit","get_hi","get_lo","to_doublebigdigit"],"type":["BigDigit","DoubleBigDigit","SignedDoubleBigDigit"]};

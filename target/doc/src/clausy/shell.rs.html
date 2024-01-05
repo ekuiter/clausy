@@ -224,7 +224,7 @@
                     <span class="prelude-val">Some</span>(<span class="string">&quot;weak&quot;</span>) | <span class="prelude-val">None </span>=&gt; DiffKind::Weak,
                     <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>()
                 };
-                <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, a.diff(b, parse_argument(), parse_argument(), arguments.next(), <span class="kw-2">&amp;mut </span>arena));
+                a.diff(b, parse_argument(), parse_argument(), arguments.next(), <span class="kw-2">&amp;mut </span>arena);
             }
             <span class="kw">_ </span>=&gt; {
                 <span class="kw">if </span>File::exists(action) {

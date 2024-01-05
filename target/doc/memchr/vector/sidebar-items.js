@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["x86avx2","x86sse2"],"struct":["SensibleMoveMask"],"trait":["MoveMask","Vector"]};

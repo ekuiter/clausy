@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["average_ceil","average_floor"],"trait":["Average"]};

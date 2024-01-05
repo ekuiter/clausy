@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["bigint_from_slice","mac3","mac_digit","mac_with_carry","mul3","mul_with_carry","scalar_mul","sub_sign"],"macro":["impl_mul","impl_mul_assign"]};

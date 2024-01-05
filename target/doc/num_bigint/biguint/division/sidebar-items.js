@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["div_half","div_rem","div_rem_core","div_rem_digit","div_rem_ref","div_wide","rem_digit","sub_mul_digit_same_len"],"macro":["impl_rem_assign_scalar"]};

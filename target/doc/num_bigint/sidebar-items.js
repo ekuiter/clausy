@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["BigIntErrorKind","Sign"],"mod":["big_digit","bigint","biguint","macros","std_alloc"],"struct":["BigInt","BigUint","ParseBigIntError","TryFromBigIntError","U32Digits","U64Digits"],"trait":["ToBigInt","ToBigUint"],"type":["IsizePromotion","UsizePromotion"]};

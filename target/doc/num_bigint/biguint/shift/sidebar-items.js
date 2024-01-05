@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["biguint_shl","biguint_shl2","biguint_shr","biguint_shr2"],"macro":["impl_shift"]};

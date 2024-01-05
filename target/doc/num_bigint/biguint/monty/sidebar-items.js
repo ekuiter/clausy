@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["add_mul_vvw","add_ww","inv_mod_alt","montgomery","monty_modpow","mul_add_www","sub_vv"],"struct":["MontyReducer"]};

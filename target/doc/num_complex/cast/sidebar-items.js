@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"macro":["impl_from_primitive","impl_to_primitive"]};

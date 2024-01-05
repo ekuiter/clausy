@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["parse_meta_path","parse_nested_meta","parser"],"struct":["ParseNestedMeta"]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["ambig_ty","parse_bare_fn_arg","parse_bare_variadic"]};

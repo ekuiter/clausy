@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"macro":["pow_impl","powf_impl"]};

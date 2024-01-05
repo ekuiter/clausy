@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["modpow","powsign"],"macro":["pow_impl"]};
