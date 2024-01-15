@@ -55,6 +55,7 @@ pub fn main(mut commands: Vec<String>) {
         let action = arguments[0];
         arguments.remove(0);
         match action {
+            "exit" => return,
             "print" => {
                 if clauses.is_some() {
                     print!("{}", clauses.as_ref().unwrap());
