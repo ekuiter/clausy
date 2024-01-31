@@ -35,24 +35,59 @@ impl Clauses {
     /// If there is at least one variable, the empty clause is translated as And(1, -1), as some solvers do not treat the empty clause correctly.
     fn clauses(formula_ref: &FormulaRef, var_remap: &HashMap<VarId, VarId>) -> Vec<Vec<VarId>> {
         let mut clauses = Vec::<Vec<VarId>>::new();
-        let add_literal = |id, clause: &mut Vec<VarId>| match formula_ref.arena.exprs[id] {
-            Var(var_id) => clause.push(var_remap[&var_id]),
-            Not(child_id) => match formula_ref.arena.exprs[child_id] {
-                Var(var_id) => clause.push(-var_remap[&var_id]),
-                _ => unreachable!(),
-            },
-            _ => unreachable!(),
+        let add_literal = |id, clause: &mut Vec<VarId>| {
+            match &formula_ref.arena.exprs[id] {
+                Var(var_id) => clause.push(var_remap[&var_id]),
+                Not(child_id) => match &formula_ref.arena.exprs[*child_id] {
+                    Var(var_id) => clause.push(-var_remap[&var_id]),
+                    Not(_) => unreachable!(),
+                    And(child_ids) => {
+                        if child_ids.is_empty() {
+                        } else {
+                            unreachable!();
+                        }
+                    }
+                    Or(child_ids) => {
+                        if child_ids.is_empty() {
+                            return true;
+                        } else {
+                            unreachable!();
+                        }
+                    }
+                },
+                And(child_ids) => {
+                    if child_ids.is_empty() {
+                        return true;
+                    } else {
+                        unreachable!();
+                    }
+                }
+                Or(child_ids) => {
+                    if !child_ids.is_empty() {
+                        unreachable!();
+                    }
+                }
+            };
+            false
         };
         let mut add_clause = |child_ids: &[ExprId]| {
             let mut clause = Vec::<VarId>::new();
+            let contradictory = child_ids.is_empty();
+            let mut tautological = false;
             for child_id in child_ids {
-                add_literal(*child_id, &mut clause);
+                tautological = tautological || add_literal(*child_id, &mut clause);
             }
-            if child_ids.is_empty() && !var_remap.is_empty() {
-                clauses.push(vec![1]);
-                clauses.push(vec![-1]);
+            if tautological {
+                if !var_remap.is_empty() {
+                    clauses.push(vec![1, -1]);
+                }
             } else {
-                clauses.push(clause);
+                if contradictory && !var_remap.is_empty() {
+                    clauses.push(vec![1]);
+                    clauses.push(vec![-1]);
+                } else {
+                    clauses.push(clause);
+                }
             }
         };
         match &formula_ref.arena.exprs[formula_ref.formula.root_id] {
