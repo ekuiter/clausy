@@ -45,32 +45,55 @@ bin/kissat_MAB-HyWalk:
 	curl https://github.com/ekuiter/torte/raw/main/docker/solver/other/kissat_MAB-HyWalk -Lo bin/kissat_MAB-HyWalk
 	chmod +x bin/kissat_MAB-HyWalk
 
-bin/d4:
-	$(call CHECK_CMD,curl)
+bin/sharpsat-td:
+	$(call CHECK_CMD,cmake)
+	mkdir -p build
+	cp -R lib/sharpsat-td build/
+	mkdir -p build/bin
+	cp lib/sse2neon/sse2neon.h build/src/clhash/
+	(cd build; ./setupdev.sh static) || ( \
+		sed -i='' 's/ -msse4.1 -mpclmul//' build/CMakeLists.txt && \
+		(cd build; ./setupdev.sh static) \
+	)
 	mkdir -p bin
-	curl https://github.com/ekuiter/torte/raw/main/docker/solver/model-counting-competition-2022/d4 -Lo bin/d4
-	chmod +x bin/d4
+	mv build/bin/* bin/
+	rm -rf build
+
+bin/d4:
+	$(call CHECK_CMD,cmake)
+	mkdir -p d4v2-cc730adb
+	tar xzf lib/d4v2-cc730adb.tar.gz -C d4v2-cc730adb
+	cp lib/sse2neon/sse2neon.h d4v2-cc730adb/3rdParty/kahypar/kahypar/utils/
+	cp lib/sse2neon/sse2neon.h d4v2-cc730adb/3rdParty/kahypar/external_tools/WHFC/util/
+	(cd d4v2-cc730adb; ./build.sh) || ( \
+		sed -i='' 's/defined(__linux__)/defined(__linux__) \&\& defined(_FPU_EXTENDED) \&\& defined(_FPU_DOUBLE) \&\& defined(_FPU_GETCW)/' d4v2-cc730adb/3rdParty/glucose-3.0/core/Main.cc && \
+		sed -i='' 's/#include <x86intrin.h>/#include "sse2neon.h"/' d4v2-cc730adb/3rdParty/kahypar/kahypar/utils/math.h && \
+		sed -i='' 's/#include <emmintrin.h>/#include "sse2neon.h"/' d4v2-cc730adb/3rdParty/kahypar/external_tools/WHFC/util/meta.h && \
+		(cd d4v2-cc730adb; ./build.sh) \
+	)
+	mkdir -p bin
+	mv d4v2-cc730adb/build/* bin/
+	rm -rf d4v2-cc730adb
 
 bin/bc_minisat_all:
 	$(call CHECK_CMD,curl)
 	$(call CHECK_CMD,tar)
 	$(call CHECK_CMD,sed)
 	$(call CHECK_CMD,cc)
-	curl http://www.sd.is.uec.ac.jp/toda/code/bc_minisat_all-1.1.2.tar.gz -Lo bc_minisat_all-1.1.2.tar.gz
-	tar xzvf bc_minisat_all-1.1.2.tar.gz
-	rm -f bc_minisat_all-1.1.2.tar.gz
-	sed -i='' 's/out = NULL;/s->out = stderr;/' bc_minisat_all-1.1.2/main.c
-	$(MAKE) -C bc_minisat_all-1.1.2 rs || $(MAKE) -C bc_minisat_all-1.1.2 r
+	mkdir -p build
+	tar xzf lib/bc_minisat_all-1.1.2.tar.gz -C build
+	sed -i='' 's/out = NULL;/s->out = stderr;/' build/bc_minisat_all-1.1.2/main.c
+	$(MAKE) -C build/bc_minisat_all-1.1.2 rs || $(MAKE) -C build/bc_minisat_all-1.1.2 r
 	mkdir -p bin
-	mv bc_minisat_all-1.1.2/bc_minisat_all_* bin/bc_minisat_all
-	rm -rf bc_minisat_all-1.1.2
+	mv build/bc_minisat_all-1.1.2/bc_minisat_all_* bin/bc_minisat_all
+	rm -rf build
 
 bin/io.jar:
 	$(call CHECK_CMD,java)
 	mkdir -p bin
 	io/gradlew -p io shadowJar
 
-bin/clausy: $(SRC_FILES) bin/kissat_MAB-HyWalk bin/d4 bin/bc_minisat_all bin/io.jar
+bin/clausy: $(SRC_FILES) bin/kissat_MAB-HyWalk bin/sharpsat-td bin/d4 bin/bc_minisat_all bin/io.jar
 	$(call CHECK_CMD,cc)
 	$(call CHECK_CMD,curl)
 	$(call CHECK_CARGO)

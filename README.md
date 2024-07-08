@@ -7,14 +7,16 @@
 To transform any [`.sat`](meta/satformat.pdf), [`.model`](https://github.com/ckaestne/kconfigreader), or [FeatureIDE](https://featureide.github.io/)-compatible file into [`.cnf`](meta/satformat.pdf) (aka [`.dimacs`](meta/satformat.pdf)), run:
 
 ```
-git clone https://github.com/ekuiter/clausy.git
+git clone --recursive https://github.com/ekuiter/clausy.git
 cd clausy
 
 # option 1: build Docker image
+# (works on any operating system)
 docker build -t clausy .
 cat meta/test.sat | docker run --rm -i clausy
 
 # option 2: build into bin/ directory
+# (works only on Linux, requires cmake, libgmp, libmpfr)
 make
 bin/clausy meta/test.sat
 ```

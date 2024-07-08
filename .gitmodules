@@ -1,0 +1,9 @@
+[submodule "lib/d4v2"]
+	path = lib/d4v2
+	url = https://github.com/ekuiter/d4v2.git
+[submodule "lib/sharpsat-td"]
+	path = lib/sharpsat-td
+	url = https://github.com/Laakeri/sharpsat-td
+[submodule "lib/sse2neon"]
+	path = lib/sse2neon
+	url = https://github.com/DLTcollab/sse2neon
