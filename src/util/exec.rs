@@ -94,7 +94,7 @@ pub(crate) fn d4(cnf: &str) -> BigInt {
 pub(crate) fn bc_minisat_all(cnf: &str) -> (impl Iterator<Item = Vec<VarId>>, NamedTempFile) {
     let mut tmp_in = NamedTempFile::new().unwrap();
     write!(tmp_in, "{}", cnf).unwrap();
-    let process = Command::new(path("bc_minisat_all_static"))
+    let process = Command::new(path("bc_minisat_all"))
         .arg(tmp_in.path())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

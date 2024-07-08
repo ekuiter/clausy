@@ -51,7 +51,7 @@ bin/d4:
 	curl https://github.com/ekuiter/torte/raw/main/docker/solver/model-counting-competition-2022/d4 -Lo bin/d4
 	chmod +x bin/d4
 
-bin/bc_minisat_all_static:
+bin/bc_minisat_all:
 	$(call CHECK_CMD,curl)
 	$(call CHECK_CMD,tar)
 	$(call CHECK_CMD,sed)
@@ -59,10 +59,10 @@ bin/bc_minisat_all_static:
 	curl http://www.sd.is.uec.ac.jp/toda/code/bc_minisat_all-1.1.2.tar.gz -Lo bc_minisat_all-1.1.2.tar.gz
 	tar xzvf bc_minisat_all-1.1.2.tar.gz
 	rm -f bc_minisat_all-1.1.2.tar.gz
-	sed -i 's/out = NULL;/s->out = stderr;/' bc_minisat_all-1.1.2/main.c
-	$(MAKE) -C bc_minisat_all-1.1.2 rs
+	sed -i='' 's/out = NULL;/s->out = stderr;/' bc_minisat_all-1.1.2/main.c
+	$(MAKE) -C bc_minisat_all-1.1.2 rs || $(MAKE) -C bc_minisat_all-1.1.2 r
 	mkdir -p bin
-	mv bc_minisat_all-1.1.2/bc_minisat_all_static bin/
+	mv bc_minisat_all-1.1.2/bc_minisat_all_* bin/bc_minisat_all
 	rm -rf bc_minisat_all-1.1.2
 
 bin/io.jar:
@@ -70,7 +70,7 @@ bin/io.jar:
 	mkdir -p bin
 	io/gradlew -p io shadowJar
 
-bin/clausy: $(SRC_FILES) bin/kissat_MAB-HyWalk bin/d4 bin/bc_minisat_all_static bin/io.jar
+bin/clausy: $(SRC_FILES) bin/kissat_MAB-HyWalk bin/d4 bin/bc_minisat_all bin/io.jar
 	$(call CHECK_CMD,cc)
 	$(call CHECK_CMD,curl)
 	$(call CHECK_CARGO)
