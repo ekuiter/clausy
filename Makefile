@@ -39,11 +39,28 @@ doc-live:
 	done &
 	cd target/doc && browser-sync start --server --files "*.html"
 
-bin/kissat_MAB-HyWalk:
-	$(call CHECK_CMD,curl)
+bin/kissat:
+	rm -rf build
+	mkdir -p build
+	tar xzf lib/KissatMabPropPrNosym.tar.gz -C build
+	$(MAKE) -C build/KissatMabPropPrNosym/bliss
+	(cd build/KissatMabPropPrNosym; ./configure)
+	$(MAKE) -C build/KissatMabPropPrNosym
 	mkdir -p bin
-	curl https://github.com/ekuiter/torte/raw/main/docker/solver/other/kissat_MAB-HyWalk -Lo bin/kissat_MAB-HyWalk
-	chmod +x bin/kissat_MAB-HyWalk
+	mv build/KissatMabPropPrNosym/build/kissat bin/kissat
+	rm -rf build
+
+bin/sbva_cadical:
+	rm -rf build
+	mkdir -p build
+	tar xzf lib/sbva_cadical.tar.gz -C build
+	(cd build/sbva_cadical/archives/cadical-rel-1.5.3; ./configure; make)
+	$(MAKE) -C build/sbva_cadical/src
+	mkdir -p bin
+	mv build/sbva_cadical/archives/cadical-rel-1.5.3/build/cadical bin/cadical
+	mv build/sbva_cadical/src/bva bin/bva
+	mv build/sbva_cadical/bin/sbva_cadical.py bin/sbva_cadical.py
+	rm -rf build
 
 bin/sharpsat-td:
 	$(call CHECK_CMD,cmake)
@@ -57,6 +74,7 @@ bin/sharpsat-td:
 	)
 	mkdir -p bin
 	mv build/bin/* bin/
+	mv bin/sharpSAT bin/sharpsat-td
 	rm -rf build
 
 bin/d4:
@@ -84,7 +102,7 @@ bin/io.jar:
 	mkdir -p bin
 	io/gradlew -p io shadowJar
 
-bin/clausy: $(SRC_FILES) bin/kissat_MAB-HyWalk bin/sharpsat-td bin/d4 bin/bc_minisat_all bin/io.jar
+bin/clausy: $(SRC_FILES) bin/kissat bin/sbva_cadical bin/sharpsat-td bin/d4 bin/bc_minisat_all bin/io.jar
 	$(call CHECK_CMD,cc)
 	$(call CHECK_CMD,curl)
 	$(call CHECK_CARGO)

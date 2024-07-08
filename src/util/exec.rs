@@ -37,7 +37,7 @@ fn path(file_name: &str) -> String {
 ///
 /// Runs the external satisfiability solver counter kissat, which performs well on all known feature-model formulas.
 pub(crate) fn kissat(cnf: &str) -> Option<Vec<VarId>> {
-    let process = Command::new(path("kissat_MAB-HyWalk"))
+    let process = Command::new(path("kissat"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
