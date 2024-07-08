@@ -47,8 +47,8 @@ bin/kissat_MAB-HyWalk:
 
 bin/sharpsat-td:
 	$(call CHECK_CMD,cmake)
-	mkdir -p build
-	cp -R lib/sharpsat-td build/
+	rm -rf build
+	cp -R lib/sharpsat-td build
 	mkdir -p build/bin
 	cp lib/sse2neon/sse2neon.h build/src/clhash/
 	(cd build; ./setupdev.sh static) || ( \
@@ -61,25 +61,16 @@ bin/sharpsat-td:
 
 bin/d4:
 	$(call CHECK_CMD,cmake)
-	mkdir -p d4v2-cc730adb
-	tar xzf lib/d4v2-cc730adb.tar.gz -C d4v2-cc730adb
-	cp lib/sse2neon/sse2neon.h d4v2-cc730adb/3rdParty/kahypar/kahypar/utils/
-	cp lib/sse2neon/sse2neon.h d4v2-cc730adb/3rdParty/kahypar/external_tools/WHFC/util/
-	(cd d4v2-cc730adb; ./build.sh) || ( \
-		sed -i='' 's/defined(__linux__)/defined(__linux__) \&\& defined(_FPU_EXTENDED) \&\& defined(_FPU_DOUBLE) \&\& defined(_FPU_GETCW)/' d4v2-cc730adb/3rdParty/glucose-3.0/core/Main.cc && \
-		sed -i='' 's/#include <x86intrin.h>/#include "sse2neon.h"/' d4v2-cc730adb/3rdParty/kahypar/kahypar/utils/math.h && \
-		sed -i='' 's/#include <emmintrin.h>/#include "sse2neon.h"/' d4v2-cc730adb/3rdParty/kahypar/external_tools/WHFC/util/meta.h && \
-		(cd d4v2-cc730adb; ./build.sh) \
-	)
+	(cd lib/d4v2; ./build.sh -s)
 	mkdir -p bin
-	mv d4v2-cc730adb/build/* bin/
-	rm -rf d4v2-cc730adb
+	mv lib/d4v2/build/d4_static bin/d4
 
 bin/bc_minisat_all:
 	$(call CHECK_CMD,curl)
 	$(call CHECK_CMD,tar)
 	$(call CHECK_CMD,sed)
 	$(call CHECK_CMD,cc)
+	rm -rf build
 	mkdir -p build
 	tar xzf lib/bc_minisat_all-1.1.2.tar.gz -C build
 	sed -i='' 's/out = NULL;/s->out = stderr;/' build/bc_minisat_all-1.1.2/main.c
