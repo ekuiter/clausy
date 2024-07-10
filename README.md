@@ -10,14 +10,19 @@ To transform any [`.sat`](meta/satformat.pdf), [`.model`](https://github.com/cka
 git clone --recursive https://github.com/ekuiter/clausy.git
 cd clausy
 
-# option 1: build Docker image
-# (works on any operating system)
+# option 1: full build as Docker image
+# (works on any operating system and architecture)
 docker build -t clausy .
 cat meta/test.sat | docker run --rm -i clausy
 
-# option 2: build into bin/ directory
-# (works only on Linux, requires cmake, libgmp, libmpfr)
+# option 2: full build into bin/ directory
+# (works only on Linux, as it compiles external solvers)
 make
+bin/clausy meta/test.sat
+
+# option 3: minimum build into bin/ directory
+# (works anywhere, but cannot use external solvers)
+make bin/clausy
 bin/clausy meta/test.sat
 ```
 
@@ -49,6 +54,9 @@ bin/clausy a.model b.model 'diff weak weak a_to_b'
  
 # simplify a given CNF
 bin/clausy model.dimacs
+
+# advanced usage via Docker (file I/O with volumes)
+docker run --rm -v ./a.xml:/a.xml -v ./b.xml:/b.xml -v ./diff:/diff clausy /a.xml /b.xml 'diff weak weak /diff/a_to_b'
 
 # run tests
 make test

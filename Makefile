@@ -11,7 +11,7 @@ CHECK_CARGO = if ! command -v cargo; then \
 	source "$HOME/.cargo/env"; \
 fi
 
-all: bin/clausy
+all: bin/kissat bin/sbva_cadical bin/sharpsat-td bin/d4 bin/bc_minisat_all bin/clausy
 
 clean:
 	rm -rf bin
@@ -102,9 +102,10 @@ bin/io.jar:
 	mkdir -p bin
 	io/gradlew -p io shadowJar
 
-bin/clausy: $(SRC_FILES) bin/kissat bin/sbva_cadical bin/sharpsat-td bin/d4 bin/bc_minisat_all bin/io.jar
+bin/clausy: $(SRC_FILES) bin/io.jar
 	$(call CHECK_CMD,cc)
 	$(call CHECK_CMD,curl)
 	$(call CHECK_CARGO)
 	cargo build --release
+	mkdir -p bin
 	cp target/release/clausy bin/clausy

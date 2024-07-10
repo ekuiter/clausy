@@ -3,3 +3,8 @@ meta
 .github
 .vscode
 bin
+/lib/d4v2/build
+/lib/d4v2/3rdParty/kahypar/build
+/lib/d4v2/3rdParty/patoh
+/lib/d4v2/3rdParty/glucose-3.0/**/*.a
+/lib/d4v2/3rdParty/glucose-3.0/**/*.or
