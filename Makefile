@@ -11,7 +11,10 @@ CHECK_CARGO = if ! command -v cargo; then \
 	source "$HOME/.cargo/env"; \
 fi
 
-all: bin/kissat bin/sbva_cadical bin/sharpsat-td bin/d4 bin/bc_minisat_all bin/clausy
+all: lib clausy
+
+lib: bin/kissat bin/sbva_cadical bin/sharpsat-td bin/d4 bin/bc_minisat_all
+clausy: bin/clausy
 
 clean:
 	rm -rf bin

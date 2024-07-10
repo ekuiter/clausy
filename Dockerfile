@@ -13,6 +13,9 @@ RUN apt-get update && apt install -y \
     && curl https://sh.rustup.rs -sSf | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 WORKDIR /home
+COPY lib lib/
+COPY Makefile .
+RUN make lib
 COPY . ./
-RUN make
+RUN make clausy
 ENTRYPOINT [ "bin/clausy" ]

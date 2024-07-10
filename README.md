@@ -22,7 +22,7 @@ bin/clausy meta/test.sat
 
 # option 3: minimum build into bin/ directory
 # (works anywhere, but cannot use external solvers)
-make bin/clausy
+make clausy
 bin/clausy meta/test.sat
 ```
 
@@ -54,6 +54,9 @@ bin/clausy a.model b.model 'diff weak weak a_to_b'
  
 # simplify a given CNF
 bin/clausy model.dimacs
+
+# advanced usage via Docker (file I/O with standard input)
+cat meta/test.sat | docker run --rm -i clausy -.sat to_cnf_tseitin count
 
 # advanced usage via Docker (file I/O with volumes)
 docker run --rm -v ./a.xml:/a.xml -v ./b.xml:/b.xml -v ./diff:/diff clausy /a.xml /b.xml 'diff weak weak /diff/a_to_b'
