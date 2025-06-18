@@ -71,6 +71,80 @@ make doc
 make doc-live
 ```
 
+## CNF Tool Survey
+
+This is a list of tools and resources related to CNF transformation for (feature-model or general Boolean) formulas.
+
+### Z3 (Microsoft Research)
+
+[Z3Prover/z3](https://github.com/Z3Prover/z3) ([Website](https://www.microsoft.com/en-us/research/project/z3-3/), [tseitin_cnf_tactic.h](https://github.com/Z3Prover/z3/blob/master/src/tactic/core/tseitin_cnf_tactic.h), [tseitin_cnf_tactic.cpp](https://github.com/Z3Prover/z3/blob/master/src/tactic/core/tseitin_cnf_tactic.cpp))
+
+- Z3 implements a **partial Tseitin transformation**, which introduces auxiliary variables, should the configurable parameter `m_distributivity_blowup` (default: 32) be exceeded for the predicted blowup. The transformed formula is always [quasi-equivalent](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula (NOT necessarily equivalent).
+- Z3 can not only transform any Boolean formula, but also general SMT problems into CNF.
+- Z3 has a command-line interface and Python bindings.
+- Z3 can also be used from Java with [JavaSMT](https://github.com/sosy-lab/java-smt).
+- [KClause](https://github.com/paulgazz/kmax/blob/master/kmax/kclause) uses Z3 for CNF transformation.
+- Z3 is integrated in [FeatJAR](https://github.com/FeatureIDE/FeatJAR) (see [formula-analysis-javasmt](https://github.com/FeatureIDE/FeatJAR-formula-analysis-javasmt)).
+- Z3 is integrated in [torte](https://github.com/ekuiter/torte) (see [smt2dimacs.py](https://github.com/ekuiter/torte/blob/main/src/docker/z3/smt2dimacs.py)).
+- KClause with Z3 over JavaSMT is integrated in [torte](https://github.com/ekuiter/torte) (see [kclause](https://github.com/ekuiter/torte/blob/main/src/docker/kclause) + [ModelToSMTZ3.java](https://github.com/ekuiter/torte/blob/main/src/docker/featjar/transform/src/main/java/ModelToSMTZ3.java)).
+- Z3 is released under the MIT license.
+
+### KConfigReader (Christian Kästner)
+
+[ckaestne/kconfigreader](https://github.com/ckaestne/kconfigreader), [ckaestne/TypeChef](https://github.com/ckaestne/TypeChef) ([SATFeatureExpr.scala](https://github.com/ckaestne/TypeChef/blob/master/FeatureExprLib/src/main/scala/de/fosd/typechef/featureexpr/sat/SATFeatureExpr.scala))
+
+- KConfigReader implements a **partial Plaisted-Greenbaum transformation**, which introduces auxiliary variables, should the fixed parameter 16 be exceeded for the predicted blowup. The transformed formula is always [equi-assignable](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula (NOT necessarily equi-countable). The transformation is not polarity-based (so, the formula is transformed into negation normal form first).
+- KConfigReader is integrated in [torte](https://github.com/ekuiter/torte) (see [TransformIntoDIMACS.scala](https://github.com/ekuiter/torte/blob/main/src/docker/kconfigreader/TransformIntoDIMACS.scala)). This is currently the only way to transform arbitrary Boolean formulas. By default, KConfigReader can only operate on Boolean formulas that it extracts from KConfig specifications.
+- KConfigReader is released under the LGPL v3 license.
+
+### FeatureIDE
+
+[FeatureIDE/FeatureIDE](https://github.com/FeatureIDE/FeatureIDE) ([Website](https://featureide.github.io/))
+
+`todo`
+
+### FeatJAR
+
+[FeatureIDE/FeatJAR](https://github.com/FeatureIDE/FeatJAR)
+
+`todo`
+
+### LogicNG (Christoph Zengler)
+
+[logic-ng/LogicNG](https://github.com/logic-ng/LogicNG) ([Website](https://logicng.org/), [tseitin_impl.hpp](https://gitlab.sai.jku.at/booleguru/booleguru/-/blob/main/src/transform/include/booleguru/transform/tseitin_impl.hpp))
+
+`todo`
+
+### Booleguru (Maximilian Heisinger)
+
+[Booleguru/Booleguru](https://gitlab.sai.jku.at/booleguru/booleguru) ([Website](https://booleguru.pages.sai.jku.at/booleguru/), [tseitin_impl.hpp](https://gitlab.sai.jku.at/booleguru/booleguru/-/blob/main/src/transform/include/booleguru/transform/tseitin_impl.hpp), [plaisted_greenbaum_impl.hpp](https://gitlab.sai.jku.at/booleguru/booleguru/-/blob/main/src/transform/include/booleguru/transform/plaisted_greenbaum_impl.hpp))
+
+- Booleguru implements a **total Tseitin transformation**, which introduces auxiliary variables for every nontrivial subformula. The transformed formula is always [quasi-equivalent](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula (NOT necessarily equivalent).
+- Booleguru also implements a **total Plaisted-Greenbaum transformation**, which introduces auxiliary variables for every nontrivial subformula. The transformed formula is always [equi-assignable](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula (NOT necessarily equi-countable). The transformation is polarity-based (so, negation normal form is not needed).
+- Booleguru has a command-line interface and Python bindings.
+- Booleguru is released under the MIT license.
+
+### Limboole (Armin Biere)
+
+[Limboole](https://fmv.jku.at/limboole/) ([v1.2](https://fmv.jku.at/limboole/limboole1.2.tgz))
+
+- Limboole implements a **total Tseitin transformation**, which introduces auxiliary variables for every nontrivial subformula. The transformed formula is always [quasi-equivalent](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula (NOT necessarily equivalent).
+  This is currently the only way to transform arbitrary Boolean formulas.
+- Limboole has a command-line interface.
+- Limboole is released under the MIT license.
+
+### clausy (This Project)
+
+[ekuiter/clausy](https://github.com/ekuiter/clausy)
+
+- clausy implements a **total Tseitin transformation**, which introduces auxiliary variables for every nontrivial subformula. The transformed formula is always [quasi-equivalent](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula (NOT necessarily equivalent).
+- clausy also implements a **total distributive transformation**, which introduces no auxiliary variables. The transformed formula is always [equivalent](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula.
+- clausy has a command-line interface and can be interfaced with from Rust.
+- clausy is integrated in [torte](https://github.com/ekuiter/torte).
+- The above tools are often not or only sparsely documented. clausy, in contrast, is [extensively documented](https://ekuiter.github.io/clausy/).
+- The above tools have many additional features that are not related to CNF transformation. clausy, and contrast, is focused and specialized, which (hopefully) makes it easier to understand and debug.
+- clausy is released under the LGPL v3 license.
+
 ## License
 
 The source code of this project is released under the [LGPL v3 license](LICENSE.txt).
