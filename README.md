@@ -71,11 +71,11 @@ make doc
 make doc-live
 ```
 
-## CNF Tooling Zoo
+## CNF Transformation Zoo
 
 This is a list of tools and resources related to CNF transformation for (feature-model or general Boolean) formulas.
 These tools subtly differ in the preserved semantics of the transformed formulas, and may be of varying time and space efficiency.
-Also, the input/output format sometimes differ considerably.
+Also, the supported input/outputs format sometimes differ considerably.
 This list does not include preprocessing tools (which can be applied after CNF has been established).
 
 ### Z3
