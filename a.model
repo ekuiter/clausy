@@ -1,0 +1,4 @@
+# this is an excerpt (with slight modifications) of BusyBox 1.35.0
+(!def(ASH_INTERNAL_GLOB)|(!def(NOMMU)&(def(SH_IS_ASH)|def(BASH_IS_ASH))&def(SHELL_ASH)))
+(!def(ASH_JOB_CONTROL)|(!def(NOMMU)&(def(SHELL_ASH)|def(ASH)|def(SH_IS_ASH)|def(BASH_IS_ASH))&def(SHELL_ASH)))
+(!def(ASH_SLEEP))

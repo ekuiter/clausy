@@ -465,7 +465,7 @@ impl Formula {
             io::write_constraints(file_name(".removed.constraints"), arena, &a_constraint_ids);
             io::write_constraints(file_name(".added.constraints"), arena, &b_constraint_ids);
         } else {
-            print!("{common_vars},{a_vars},{b_vars},{common_constraints},{a_constraints},{b_constraints}");
+            //print!("{common_vars},{a_vars},{b_vars},{common_constraints},{a_constraints},{b_constraints}");
             std::io::stdout().flush().unwrap();
         }
         let mut durations: Vec<Duration> = vec![];
@@ -505,7 +505,7 @@ impl Formula {
             no_duration!();
         }
         if let DiffKind::Strong(top) = left_diff_kind {
-            b2 = b2.force_foreign_vars(top, &b_var_ids, arena);
+            // b2 = b2.force_foreign_vars(top, &b_var_ids, arena);
             if write_files {
                 let mut file = b2_file.as_ref().unwrap().convert("uvl");
                 io::uvl_file_add_vars(&mut file, "Removed Features", &a_var_ids, arena);
@@ -513,7 +513,7 @@ impl Formula {
             }
         }
         if let DiffKind::Strong(top) = right_diff_kind {
-            a2 = a2.force_foreign_vars(top, &a_var_ids, arena);
+            // a2 = a2.force_foreign_vars(top, &a_var_ids, arena);
             if write_files {
                 let mut file = a2_file.as_ref().unwrap().convert("uvl");
                 io::uvl_file_add_vars(&mut file, "Added Features", &b_var_ids, arena);
@@ -607,7 +607,8 @@ impl Formula {
                 .map(|duration| duration.as_nanos().to_string())
                 .collect();
             let durations = durations.join(",");
-            println!(",{lost_ratio},{removed_ratio},{common_ratio},{added_ratio},{gained_ratio},{cnt_a},{cnt_a2},{cnt_b},{cnt_b2},{cnt_common},{cnt_removed},{cnt_added},{durations}");
+            //println!(",{lost_ratio},{removed_ratio},{common_ratio},{added_ratio},{gained_ratio},{cnt_a},{cnt_a2},{cnt_b},{cnt_b2},{cnt_common},{cnt_removed},{cnt_added},{durations}");
+            println!("{cnt_common},{cnt_removed},{cnt_added}");
         }
     }
 }

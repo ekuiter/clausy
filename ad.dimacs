@@ -1,0 +1,16 @@
+c 1 ASH_INTERNAL_GLOB
+c 2 NOMMU
+c 3 SH_IS_ASH
+c 4 BASH_IS_ASH
+c 5 SHELL_ASH
+c 6 ASH_JOB_CONTROL
+c 7 ASH
+c 8 ASH_SLEEP
+p cnf 8 7
+-8 0
+-2 -6 0
+5 -6 0
+3 4 5 -6 7 0
+-1 -2 0
+-1 3 4 0
+-1 5 0
