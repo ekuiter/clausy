@@ -15,6 +15,8 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 WORKDIR /home
 COPY lib lib/
 COPY Makefile .
+RUN chmod +x lib/gradle_proxy.sh \
+    && lib/gradle_proxy.sh
 RUN make lib
 COPY . ./
 RUN make clausy
