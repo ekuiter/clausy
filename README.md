@@ -86,8 +86,8 @@ This list does not include preprocessing tools (which can be applied after CNF h
 - clausy implements a **total distributive transformation**, which introduces no auxiliary variables. The transformed formula is always [equivalent](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula.
 - clausy has a command-line interface and can be interfaced with from Rust.
 - clausy is integrated in [torte](https://github.com/ekuiter/torte).
-- The above tools are often not or only sparsely documented. clausy, in contrast, is [extensively documented](https://ekuiter.github.io/clausy/).
-- The above tools typically have many additional features that are not related to CNF transformation. clausy, and contrast, is focused and specialized, which (hopefully) makes it easier to understand and debug and ideal for learning and experimentation purposes.
+- The tools listed below are often not or only sparsely documented. clausy, in contrast, is [extensively documented](https://ekuiter.github.io/clausy/).
+- The tools listed below typically have many additional features that are not related to CNF transformation. clausy, and contrast, is focused and specialized, which (hopefully) makes it easier to understand and debug and ideal for learning and experimentation purposes.
 - clausy accepts any [`.sat`](meta/satformat.pdf), [KConfigReader](https://github.com/ckaestne/kconfigreader) `.model`, or [FeatureIDE](https://github.com/FeatureIDE/FeatureIDE)-compatible file for transformation.
 - clausy is authored by Elias Kuiter.
 - clausy is released under the LGPL v3 license.
