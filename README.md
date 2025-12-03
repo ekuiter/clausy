@@ -87,8 +87,8 @@ This list does not include preprocessing tools (which can be applied after CNF h
 - clausy has a command-line interface and can be interfaced with from Rust.
 - clausy is integrated in [torte](https://github.com/ekuiter/torte).
 - The tools listed below are often not or only sparsely documented. clausy, in contrast, is [extensively documented](https://ekuiter.github.io/clausy/).
-- The tools listed below typically have many additional features that are not related to CNF transformation. clausy, and contrast, is focused and specialized, which (hopefully) makes it easier to understand and debug and ideal for learning and experimentation purposes.
-- clausy accepts any [`.sat`](meta/satformat.pdf), [KConfigReader](https://github.com/ckaestne/kconfigreader) `.model`, or [FeatureIDE](https://github.com/FeatureIDE/FeatureIDE)-compatible file for transformation.
+- The tools listed below typically have many additional features that are not related to CNF transformation. clausy, in contrast, is focused and specialized, which (hopefully) makes it easier to understand and debug and ideal for learning and experimentation purposes.
+- clausy accepts any [`.sat`](meta/satformat.pdf), [KConfigReader](https://github.com/ckaestne/kconfigreader) `.model`, or [FeatureIDE](https://github.com/FeatureIDE/FeatureIDE)-compatible file for transformation and thus has more diverse inputs than any tool listed below.
 - clausy is authored by Elias Kuiter.
 - clausy is released under the LGPL v3 license.
 
