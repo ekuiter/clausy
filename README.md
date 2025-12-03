@@ -78,6 +78,42 @@ These tools subtly differ in the preserved semantics of the transformed formulas
 Also, the supported input/outputs format sometimes differ considerably.
 This list does not include preprocessing tools (which can be applied after CNF has been established).
 
+### clausy (This Project)
+
+[ekuiter/clausy](https://github.com/ekuiter/clausy) ([formula.rs](https://github.com/ekuiter/clausy/blob/main/src/core/formula.rs))
+
+- clausy implements a **total Tseitin transformation**, which introduces auxiliary variables for every nontrivial subformula. The transformed formula is always [quasi-equivalent](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula (NOT necessarily equivalent).
+- clausy implements a **total distributive transformation**, which introduces no auxiliary variables. The transformed formula is always [equivalent](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula.
+- clausy has a command-line interface and can be interfaced with from Rust.
+- clausy is integrated in [torte](https://github.com/ekuiter/torte).
+- The above tools are often not or only sparsely documented. clausy, in contrast, is [extensively documented](https://ekuiter.github.io/clausy/).
+- The above tools typically have many additional features that are not related to CNF transformation. clausy, and contrast, is focused and specialized, which (hopefully) makes it easier to understand and debug and ideal for learning and experimentation purposes.
+- clausy accepts any [`.sat`](meta/satformat.pdf), [KConfigReader](https://github.com/ckaestne/kconfigreader) `.model`, or [FeatureIDE](https://github.com/FeatureIDE/FeatureIDE)-compatible file for transformation.
+- clausy is authored by Elias Kuiter.
+- clausy is released under the LGPL v3 license.
+
+### FeatureIDE
+
+[FeatureIDE/FeatureIDE](https://github.com/FeatureIDE/FeatureIDE) ([CNFDistributiveLawTransformer.java](https://github.com/FeatureIDE/FeatureIDE/blob/develop/plugins/de.ovgu.featureide.fm.core/src/org/prop4j/CNFDistributiveLawTransformer.java))
+
+- FeatureIDE implements a **total distributive transformation**, which introduces no auxiliary variables. The transformed formula is always [equivalent](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula.
+- FeatureIDE has a graphical user interface and Java bindings.
+- FeatureIDE over [FeatJAR](https://github.com/FeatureIDE/FeatJAR) is integrated in [torte](https://github.com/ekuiter/torte) (see [ModelToDIMACSFeatureIDE.java](https://github.com/ekuiter/torte/blob/main/src/docker/featjar/transform/src/main/java/ModelToDIMACSFeatureIDE.java)).
+- FeatureIDE is authored by Thomas Thüm, Sebastian Krieter, and others.
+- FeatureIDE is released under the LGPL v3 license.
+
+### FeatJAR
+
+[FeatureIDE/FeatJAR](https://github.com/FeatureIDE/FeatJAR), [FeatureIDE/FeatJAR-formula](https://github.com/FeatureIDE/FeatJAR-formula) ([DistributiveTransformer.java](https://github.com/FeatureIDE/FeatJAR-formula/blob/main/src/main/java/de/featjar/formula/computation/DistributiveTransformer.java), [TseitinTransformer.java](https://github.com/FeatureIDE/FeatJAR-formula/blob/main/src/main/java/de/featjar/formula/computation/TseitinTransformer.java))
+
+- FeatJAR implements a **total distributive transformation**, which introduces no auxiliary variables. The transformed formula is always [equivalent](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula.
+- FeatJAR implements a **partial Tseitin transformation**, which introduces auxiliary variables, should the configurable parameter `MAXIMUM_NUMBER_OF_LITERALS` (default: `Integer.MAX_VALUE`, i.e., distributive) be exceeded for the predicted blowup. The transformed formula is always [quasi-equivalent](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula (NOT necessarily equivalent).
+- FeatJAR implements a **partial Plaisted-Greenbaum transformation**, which introduces auxiliary variables, should the above parameter be exceeded for the predicted blowup. The transformed formula is always [equi-assignable](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula (NOT necessarily equi-countable). The transformation is not polarity-based (so, the formula is transformed into negation normal form first).
+- FeatJAR has a command-line interface and Java bindings.
+- FeatJAR is integrated in [torte](https://github.com/ekuiter/torte) (see [ModelToDIMACSFeatJAR.java](https://github.com/ekuiter/torte/blob/main/src/docker/featjar/transform/src/main/java/ModelToDIMACSFeatJAR.java)).
+- FeatJAR is authored by Sebastian Krieter, Elias Kuiter, and Thomas Thüm.
+- FeatJAR is released under the LGPL v3 license.
+
 ### Z3
 
 [Z3Prover/z3](https://github.com/Z3Prover/z3) ([Website](https://www.microsoft.com/en-us/research/project/z3-3/), [tseitin_cnf_tactic.cpp](https://github.com/Z3Prover/z3/blob/master/src/tactic/core/tseitin_cnf_tactic.cpp))
@@ -104,7 +140,7 @@ This list does not include preprocessing tools (which can be applied after CNF h
 
 ### KClause
 
-[jeho-oh/Kclause_Smarch](https://github.com/jeho-oh/Kclause_Smarch), ([dimacs.py](https://github.com/jeho-oh/Kclause_Smarch/blob/master/Kclause/dimacs.py#L300))
+[jeho-oh/Kclause_Smarch](https://github.com/jeho-oh/Kclause_Smarch) ([dimacs.py](https://github.com/jeho-oh/Kclause_Smarch/blob/master/Kclause/dimacs.py#L300))
 
 - KClause implements a **total distributive transformation**, which introduces no auxiliary variables. The transformed formula is always [equivalent](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula.
 - This version of KClause has been deprecated in favor of a more recent and completely rewritten [version](https://github.com/paulgazz/kmax/blob/master/kmax/kclause). This new version no longer ships with its own CNF transformation, but uses Z3's partial Tseitin transformation instead (see above).
@@ -114,34 +150,12 @@ This list does not include preprocessing tools (which can be applied after CNF h
 
 ### ConfigFix
 
-[isselab/configfix](https://github.com/isselab/configfix), ([cf_utils.c](https://github.com/ekuiter/torte-ConfigFix/blob/main/scripts/kconfig/cf_utils.c#L477))
+[isselab/configfix](https://github.com/isselab/configfix) ([cf_utils.c](https://github.com/ekuiter/torte-ConfigFix/blob/main/scripts/kconfig/cf_utils.c#L477))
 
 - ConfigFix implements a **total Tseitin transformation**, which introduces auxiliary variables for all non-CNF subformulas. The transformed formula is always [quasi-equivalent](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula (NOT necessarily equivalent).
 - ConfigFix does not allow transformation of arbitrary Boolean formulas.
 - ConfigFix is authored by a [joint team](https://github.com/isselab/configfix?tab=readme-ov-file#credits) at Ruhr University Bochum, Chalmers, and University of Gothenburg.
 - ConfigFix is released under the GPL v2 license.
-
-### FeatureIDE
-
-[FeatureIDE/FeatureIDE](https://github.com/FeatureIDE/FeatureIDE) ([CNFDistributiveLawTransformer.java](https://github.com/FeatureIDE/FeatureIDE/blob/develop/plugins/de.ovgu.featureide.fm.core/src/org/prop4j/CNFDistributiveLawTransformer.java))
-
-- FeatureIDE implements a **total distributive transformation**, which introduces no auxiliary variables. The transformed formula is always [equivalent](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula.
-- FeatureIDE has a graphical user interface and Java bindings.
-- FeatureIDE over [FeatJAR](https://github.com/FeatureIDE/FeatJAR) is integrated in [torte](https://github.com/ekuiter/torte) (see [ModelToDIMACSFeatureIDE.java](https://github.com/ekuiter/torte/blob/main/src/docker/featjar/transform/src/main/java/ModelToDIMACSFeatureIDE.java)).
-- FeatureIDE is authored by Thomas Thüm, Sebastian Krieter, and others.
-- FeatureIDE is released under the LGPL v3 license.
-
-### FeatJAR
-
-[FeatureIDE/FeatJAR](https://github.com/FeatureIDE/FeatJAR), [FeatureIDE/FeatJAR-formula](https://github.com/FeatureIDE/FeatJAR-formula) ([DistributiveTransformer.java](https://github.com/FeatureIDE/FeatJAR-formula/blob/main/src/main/java/de/featjar/formula/computation/DistributiveTransformer.java), [TseitinTransformer.java](https://github.com/FeatureIDE/FeatJAR-formula/blob/main/src/main/java/de/featjar/formula/computation/TseitinTransformer.java))
-
-- FeatJAR implements a **total distributive transformation**, which introduces no auxiliary variables. The transformed formula is always [equivalent](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula.
-- FeatJAR implements a **partial Tseitin transformation**, which introduces auxiliary variables, should the configurable parameter `MAXIMUM_NUMBER_OF_LITERALS` (default: `Integer.MAX_VALUE`, i.e., distributive) be exceeded for the predicted blowup. The transformed formula is always [quasi-equivalent](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula (NOT necessarily equivalent).
-- FeatJAR implements a **partial Plaisted-Greenbaum transformation**, which introduces auxiliary variables, should the above parameter be exceeded for the predicted blowup. The transformed formula is always [equi-assignable](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula (NOT necessarily equi-countable). The transformation is not polarity-based (so, the formula is transformed into negation normal form first).
-- FeatJAR has a command-line interface and Java bindings.
-- FeatJAR is integrated in [torte](https://github.com/ekuiter/torte) (see [ModelToDIMACSFeatJAR.java](https://github.com/ekuiter/torte/blob/main/src/docker/featjar/transform/src/main/java/ModelToDIMACSFeatJAR.java)).
-- FeatJAR is authored by Sebastian Krieter, Elias Kuiter, and Thomas Thüm.
-- FeatJAR is released under the LGPL v3 license.
 
 ### LogicNG
 
@@ -182,20 +196,6 @@ This list does not include preprocessing tools (which can be applied after CNF h
 - Limboole has a command-line interface.
 - Limboole is authored by Armin Biere and Martina Seidl.
 - Limboole is released under the MIT license.
-
-### clausy (This Project)
-
-[ekuiter/clausy](https://github.com/ekuiter/clausy) ([formula.rs](https://github.com/ekuiter/clausy/blob/main/src/core/formula.rs))
-
-- clausy implements a **total Tseitin transformation**, which introduces auxiliary variables for every nontrivial subformula. The transformed formula is always [quasi-equivalent](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula (NOT necessarily equivalent).
-- clausy implements a **total distributive transformation**, which introduces no auxiliary variables. The transformed formula is always [equivalent](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula.
-- clausy has a command-line interface and can be interfaced with from Rust.
-- clausy is integrated in [torte](https://github.com/ekuiter/torte).
-- The above tools are often not or only sparsely documented. clausy, in contrast, is [extensively documented](https://ekuiter.github.io/clausy/).
-- The above tools typically have many additional features that are not related to CNF transformation. clausy, and contrast, is focused and specialized, which (hopefully) makes it easier to understand and debug and ideal for learning and experimentation purposes.
-- clausy accepts any [`.sat`](meta/satformat.pdf), [KConfigReader](https://github.com/ckaestne/kconfigreader) `.model`, or [FeatureIDE](https://github.com/FeatureIDE/FeatureIDE)-compatible file for transformation.
-- Limboole is authored by Elias Kuiter.
-- clausy is released under the LGPL v3 license.
 
 ## License
 
