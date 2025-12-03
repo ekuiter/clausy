@@ -98,9 +98,28 @@ This list does not include preprocessing tools (which can be applied after CNF h
 [ckaestne/kconfigreader](https://github.com/ckaestne/kconfigreader), [ckaestne/TypeChef](https://github.com/ckaestne/TypeChef) ([SATFeatureExpr.scala](https://github.com/ckaestne/TypeChef/blob/master/FeatureExprLib/src/main/scala/de/fosd/typechef/featureexpr/sat/SATFeatureExpr.scala))
 
 - KConfigReader implements a **partial Plaisted-Greenbaum transformation**, which introduces auxiliary variables, should the fixed parameter 16 be exceeded for the predicted blowup. The transformed formula is always [equi-assignable](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula (NOT necessarily equi-countable). The transformation is not polarity-based (so, the formula is transformed into negation normal form first).
-- KConfigReader is integrated in [torte](https://github.com/ekuiter/torte) (see [TransformIntoDIMACS.scala](https://github.com/ekuiter/torte/blob/main/src/docker/kconfigreader/TransformIntoDIMACS.scala)). This is currently the only way to transform arbitrary Boolean formulas. By default, KConfigReader can only operate on Boolean formulas that it extracts from KConfig specifications.
+- KConfigReader is integrated in [torte](https://github.com/ekuiter/torte) (see [TransformIntoDIMACS.scala](https://github.com/ekuiter/torte/blob/main/src/docker/kconfigreader/TransformIntoDIMACS.scala)). This is currently the only integration of KConfigReader that is able to transform arbitrary Boolean formulas. By default, KConfigReader can only operate on Boolean formulas that it extracts from KConfig specifications.
 - KConfigReader is authored by Christian Kästner.
 - TypeChef (and apparently KConfigReader) is released under the LGPL v3 license.
+
+### KClause
+
+[jeho-oh/Kclause_Smarch](https://github.com/jeho-oh/Kclause_Smarch), ([dimacs.py](https://github.com/jeho-oh/Kclause_Smarch/blob/master/Kclause/dimacs.py#L300))
+
+- KClause implements a **total distributive transformation**, which introduces no auxiliary variables. The transformed formula is always [equivalent](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula.
+- This version of KClause has been deprecated in favor of a more recent and completely rewritten [version](https://github.com/paulgazz/kmax/blob/master/kmax/kclause). This new version no longer ships with its own CNF transformation, but uses Z3's partial Tseitin transformation instead (see above).
+- KClause does not allow transformation of arbitrary Boolean formulas.
+- KClause is authored by Paul Gazzillo and Jeho Oh.
+- It is unclear under which license this version of KClause was released.
+
+### ConfigFix
+
+[isselab/configfix](https://github.com/isselab/configfix), ([cf_utils.c](https://github.com/ekuiter/torte-ConfigFix/blob/main/scripts/kconfig/cf_utils.c#L477))
+
+- ConfigFix implements a **total Tseitin transformation**, which introduces auxiliary variables for all non-CNF subformulas. The transformed formula is always [quasi-equivalent](https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2022/2022-ASE-Kuiter.pdf) to the original formula (NOT necessarily equivalent).
+- ConfigFix does not allow transformation of arbitrary Boolean formulas.
+- ConfigFix is authored by a [joint team](https://github.com/isselab/configfix?tab=readme-ov-file#credits) at Ruhr University Bochum, Chalmers, and University of Gothenburg.
+- ConfigFix is released under the GPL v2 license.
 
 ### FeatureIDE
 
