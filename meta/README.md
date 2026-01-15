@@ -1,5 +1,5 @@
 
-## CNF Transformation Zoo
+# CNF Transformation Zoo
 
 This is a table of tools that implement a CNF transformation for (feature-model or general Boolean) formulas.
 This table is intended to facilitate choosing the right tool for transforming into CNF.
