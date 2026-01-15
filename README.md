@@ -73,7 +73,7 @@ make doc-live
 
 ## CNF Transformation Zoo
 
-We also maintain a [detailed list](./meta/README.md) of tools table of tools that implement a CNF transformation.
+We also maintain a [detailed table](./meta/README.md) of tools that implement a CNF transformation.
 
 ## License
 
