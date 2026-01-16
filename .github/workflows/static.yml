@@ -27,6 +27,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - name: Build Docker image
         run: docker build -t clausy .
       - name: Run tests

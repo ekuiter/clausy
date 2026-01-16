@@ -20,7 +20,7 @@ COPY scripts scripts/
 COPY src/external src/external/
 RUN chmod +x scripts/gradle_proxy.sh \
     && scripts/gradle_proxy.sh
-RUN make -C src/external -j$(nproc)
+RUN make -C src/external
 COPY . ./
 RUN make
 ENTRYPOINT [ "build/clausy" ]
