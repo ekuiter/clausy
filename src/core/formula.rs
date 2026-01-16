@@ -69,7 +69,7 @@ impl Formula {
     }
 
     /// Returns a shared reference to this formula in the context of its arena.
-    pub(crate) fn as_ref<'a>(&'a self, arena: &'a Arena) -> FormulaRef {
+    pub(crate) fn as_ref<'a>(&'a self, arena: &'a Arena) -> FormulaRef<'a> {
         FormulaRef {
             arena,
             formula: self,
