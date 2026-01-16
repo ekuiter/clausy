@@ -16,10 +16,12 @@ clausy: build/clausy
 external:
 	$(MAKE) -C src/external
 
-io:
+io: build/io.jar
+
+build/io.jar:
 	$(MAKE) -C src/io
 
-build/clausy: $(SRC_FILES) io
+build/clausy: $(SRC_FILES) build/io.jar
 	$(call CHECK_CMD,cc)
 	$(call CHECK_CMD,curl)
 	$(call CHECK_CARGO)
