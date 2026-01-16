@@ -1,5 +1,4 @@
 /target/*
-!/target/doc
 /.idea
 /_*
 /output

@@ -24,7 +24,7 @@ Depending on the invocation, external tools may be needed (e.g., Java for parsin
 
 ## Advanced Usage, Documentation, and Tests
 
-Documentation for clausy is available [online](https://ekuiter.github.io/clausy/).
+Documentation for clausy is available [online](https://elias-kuiter.de/clausy/).
 
 ```
 # equivalent to the above, but more verbose
