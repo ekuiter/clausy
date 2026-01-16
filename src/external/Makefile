@@ -1,4 +1,4 @@
-# This Makefile compiles all supported external solvers from source.
+# This Makefile compiles several supported external solvers from source.
 # This is useful to include future updates, and to support arbitrary CPU architectures (Apple Silicon in particular).
 
 BUILD_DIR := ../../build

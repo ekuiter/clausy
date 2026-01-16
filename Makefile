@@ -11,10 +11,7 @@ CHECK_CARGO = if ! command -v cargo; then \
 	source "$HOME/.cargo/env"; \
 fi
 
-all: lib clausy
-
-lib: bin/kissat bin/sbva_cadical bin/sharpsat-td bin/d4 bin/bc_minisat_all
-clausy: bin/clausy
+clausy: build/clausy
 
 external:
 	$(MAKE) -C src/external
@@ -22,8 +19,16 @@ external:
 io:
 	$(MAKE) -C src/io
 
+build/clausy: $(SRC_FILES) io
+	$(call CHECK_CMD,cc)
+	$(call CHECK_CMD,curl)
+	$(call CHECK_CARGO)
+	cargo build --release
+	mkdir -p build
+	cp target/release/clausy build/clausy
+
 clean:
-	rm -rf bin
+	rm -rf build
 
 test:
 	$(call CHECK_CMD,curl)
@@ -47,11 +52,3 @@ doc-live:
 		cargo doc --no-deps; \
 	done &
 	cd target/doc && browser-sync start --server --files "*.html"
-
-bin/clausy: $(SRC_FILES) bin/io.jar
-	$(call CHECK_CMD,cc)
-	$(call CHECK_CMD,curl)
-	$(call CHECK_CARGO)
-	cargo build --release
-	mkdir -p bin
-	cp target/release/clausy bin/clausy

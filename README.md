@@ -10,20 +10,15 @@ To transform any [`.sat`](meta/satformat.pdf), [`.model`](https://github.com/cka
 git clone --recursive https://github.com/ekuiter/clausy.git
 cd clausy
 
-# option 1: full build as Docker image
+# option 1: build as Docker image
 # (works on any operating system and architecture)
 docker build -t clausy .
 cat meta/test.sat | docker run --rm -i clausy
 
-# option 2: full build into bin/ directory
-# (works only on Linux, as it compiles external solvers)
+# option 2: build locally into build/ directory
 make
-bin/clausy meta/test.sat
-
-# option 3: minimum build into bin/ directory
-# (works anywhere, but cannot use external solvers)
-make clausy
-bin/clausy meta/test.sat
+make external # optionally compile external solvers (only on Linux)
+build/clausy meta/test.sat
 ```
 
 Depending on the invocation, external tools may be needed (e.g., Java for parsing FeatureIDE-compatible files).
@@ -34,28 +29,28 @@ Documentation for clausy is available [online](https://ekuiter.github.io/clausy/
 
 ```
 # equivalent to the above, but more verbose
-bin/clausy meta/test.sat to_cnf_dist print
+build/clausy meta/test.sat to_cnf_dist print
 
 # read from standard input and count solutions with Tseitin transformation
-cat model.uvl | bin/clausy -.uvl to_cnf_tseitin count
+cat model.uvl | build/clausy -.uvl to_cnf_tseitin count
 
 # read from command line and find some solution
-echo '(!def(a)|def(b))' | bin/clausy -.model to_cnf_dist satisfy
+echo '(!def(a)|def(b))' | build/clausy -.model to_cnf_dist satisfy
 
 # prove a tautology
-! echo '(def(a)|!def(a))' | bin/clausy -.model '(-1)' to_cnf_tseitin satisfy &>/dev/null
+! echo '(def(a)|!def(a))' | build/clausy -.model '(-1)' to_cnf_tseitin satisfy &>/dev/null
 
 # prove model equivalence
-! bin/clausy a.model b.model '+(*(-1 2) *(1 -2))' to_cnf_tseitin satisfy &>/dev/null
+! build/clausy a.model b.model '+(*(-1 2) *(1 -2))' to_cnf_tseitin satisfy &>/dev/null
 
 # compute diff statistics
-bin/clausy a.model b.model diff
+build/clausy a.model b.model diff
 
 # serialize diff
-bin/clausy a.model b.model 'diff weak weak a_to_b'
+build/clausy a.model b.model 'diff weak weak a_to_b'
  
 # simplify a given CNF
-bin/clausy model.dimacs
+build/clausy model.dimacs
 
 # advanced usage via Docker (file I/O with standard input)
 cat meta/test.sat | docker run --rm -i clausy -.sat to_cnf_tseitin count
