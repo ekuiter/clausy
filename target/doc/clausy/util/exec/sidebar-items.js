@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["bc_minisat_all","d4","io","kissat","path"]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["core","parser","shell","tests","util"]};

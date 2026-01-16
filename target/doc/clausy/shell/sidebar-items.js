@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["PRINT_ID","VAR_AUX_PREFIX"],"fn":["main"],"macro":["clauses","formula"]};
