@@ -1,5 +1,5 @@
 # Simple workflow for deploying static content to GitHub Pages
-name: Deploy documentation
+name: Deploy clausy
 
 on:
   # Runs on pushes targeting the default branch
@@ -39,18 +39,18 @@ jobs:
           docker cp temp-container:/home/target/doc ./doc
           docker cp temp-container:/home/build ./build
           docker rm temp-container
+          echo '<meta http-equiv="refresh" content="0; url=clausy">' > doc/index.html
       - name: Upload documentation artifact
         uses: actions/upload-artifact@v4
         with:
           name: documentation
           path: doc
-      - name: Upload binaries artifact
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: binaries
+          name: clausy
           path: build
 
-  # Single deploy job since we're just deploying
   deploy:
     needs: build
     environment:
