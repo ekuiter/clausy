@@ -3,6 +3,8 @@ import de.ovgu.featureide.fm.core.editing.NodeCreator;
 import de.ovgu.featureide.fm.core.io.AFeatureModelFormat;
 import de.ovgu.featureide.fm.core.io.ProblemList;
 import org.prop4j.*;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -11,11 +13,14 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Format for reading and writing KConfigReader .model files.
+ * Format for reading KConfigReader .model files.
  * Alternatively, we could use FeatureIDE's {@link de.ovgu.featureide.fm.core.io.propositionalModel.MODELFormat}.
  * However, that format does not read non-Boolean constraints correctly and writes only CNFs.
+ * @see https://github.com/ekuiter/torte-FeatJAR/blob/main/src/main/java/KConfigReaderFormat.java
  */
 public class ModelFormat extends AFeatureModelFormat {
+	private static final Pattern equivalencePattern = Pattern.compile("def\\(([^()]*?)==CONFIG_(.*?)\\)");
+
 	private static class ModelNodeReader extends NodeReader {
 		ModelNodeReader() {
 			try {
@@ -49,7 +54,10 @@ public class ModelFormat extends AFeatureModelFormat {
 	}
 
 	private static String fixNonBooleanConstraints(String l) {
+		Matcher matcher = equivalencePattern.matcher(l);
+		l = matcher.replaceAll(matchResult -> String.format("(%s<eq>%s)", matchResult.group(1), matchResult.group(2)));
 		return l.replace("=", "__EQUALS__")
+				.replace("<eq>", "==")
 				.replace(":", "__COLON__")
 				.replace(".", "__DOT__")
 				.replace(",", "__COMMA__")
@@ -86,7 +94,9 @@ public class ModelFormat extends AFeatureModelFormat {
 		try {
 			final IFeature root = FeatureUtils.getRoot(featureModel);
 			final List<Node> nodes = new LinkedList<>();
-			if (root != null && !root.getName().equals("NewRootFeature")) {
+			if (root != null
+				// small adaptation for clausy: only add root feature if it is not synthetic
+				&& !root.getName().equals("NewRootFeature")) {
 				nodes.add(new Literal(NodeCreator.getVariable(root.getName(), featureModel)));
 				Method method = NodeCreator.class.getDeclaredMethod("createNodes", Collection.class, IFeature.class, IFeatureModel.class, boolean.class, Map.class);
 				method.setAccessible(true);

@@ -40,6 +40,7 @@ doc:
 	$(call CHECK_CARGO)
 	cargo doc --no-deps --open
 
+# this only works on Linux
 doc-live:
 	# sudo apt-get update
 	# sudo apt-get install -y inotify-tools nodejs npm
