@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-pest = "2.7.3"
-pest_derive = "2.7.3"
-tempfile = "3.8.0"
-num = "0.4.1"
+pest = "2.8.5"
+pest_derive = "2.8.5"
+tempfile = "3.24.0"
+num = "0.4.3"
