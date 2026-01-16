@@ -26,6 +26,8 @@ make clausy
 bin/clausy meta/test.sat
 ```
 
+Depending on the invocation, external tools may be needed (e.g., Java for parsing FeatureIDE-compatible files).
+
 ## Advanced Usage, Documentation, and Tests
 
 Documentation for clausy is available [online](https://ekuiter.github.io/clausy/).

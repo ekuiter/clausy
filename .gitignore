@@ -1,8 +1,9 @@
 /target/*
 !/target/doc
-/bin
 /.idea
 /_*
 /output
-/build
+build
 .vscode
+/CLAUDE.md
+/WARP.md
