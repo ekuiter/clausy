@@ -1,7 +1,7 @@
 # This Makefile sets up clausy in the build/ directory, which includes all dependencies necessary for distribution.
 # It can also be used to run tests or generate documentation.
 
-.PHONY: clean test doc doc-live
+.PHONY: clean test unit-test integration-test doc doc-live
 
 SRC_FILES := $(filter-out $(wildcard src/external/ src/io/),$(wildcard src/* src/*/* .cargo/* Cargo.*))
 CMD_NOT_FOUND = $(error Required command $(1) could not be found, please install it)
@@ -32,10 +32,15 @@ build/clausy: $(SRC_FILES) build/io.jar
 clean:
 	rm -rf build
 
-test:
+test: unit-test integration-test
+
+unit-test:
 	$(call CHECK_CMD,curl)
 	$(call CHECK_CARGO)
 	cargo test
+
+integration-test: build/clausy
+	./scripts/integration_test.sh $(TEST)
 
 doc:
 	$(call CHECK_CMD,curl)

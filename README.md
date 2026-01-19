@@ -10,14 +10,14 @@ To transform any [`.sat`](meta/satformat.pdf), [`.model`](https://github.com/cka
 git clone --recursive https://github.com/ekuiter/clausy.git
 cd clausy
 
-# option 1: build as Docker image (on any operating system and architecture)
+# option 1: build as Docker image (includes external solvers, works everywhere)
 docker build -t clausy .
-cat meta/test.sat | docker run --rm -i clausy
+cat meta/simple.sat | docker run --rm -i clausy
 
 # option 2: build locally into build/ directory
 make
-make external # optionally compile external solvers (only on Linux)
-build/clausy meta/test.sat
+make external # optionally compile external solvers (works only on Linux)
+build/clausy meta/simple.sat
 ```
 
 Depending on the invocation, external tools may be needed (e.g., Java for parsing FeatureIDE-compatible files).
@@ -28,7 +28,7 @@ Documentation for clausy is available [online](https://elias-kuiter.de/clausy/).
 
 ```
 # equivalent to the above, but more verbose
-build/clausy meta/test.sat to_cnf_dist to_clauses print
+build/clausy meta/simple.sat to_cnf_dist to_clauses print
 
 # read from standard input and count solutions with Tseitin transformation
 cat model.uvl | build/clausy -.uvl to_cnf_tseitin count
@@ -52,7 +52,7 @@ build/clausy a.model b.model 'diff weak weak a_to_b'
 build/clausy model.dimacs
 
 # advanced usage via Docker (file I/O with standard input)
-cat meta/test.sat | docker run --rm -i clausy -.sat to_cnf_tseitin count
+cat meta/simple.sat | docker run --rm -i clausy -.sat to_cnf_tseitin count
 
 # advanced usage via Docker (file I/O with volumes)
 docker run --rm -v ./a.xml:/a.xml -v ./b.xml:/b.xml -v ./diff:/diff clausy /a.xml /b.xml 'diff weak weak /diff/a_to_b'

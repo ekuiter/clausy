@@ -1,0 +1,2 @@
+# we expect this to fail with some error
+! $clausy invalid usage

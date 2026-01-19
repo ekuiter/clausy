@@ -1,0 +1,6 @@
+# we expect this to time out due to exponential blowup
+set +e
+timeout 3 $clausy input/linux_v6.12[x86].model to_cnf_dist to_clauses print
+status=$?
+set -e
+[ "$status" -eq 124 ]

@@ -1,0 +1,30 @@
+# this is an excerpt of toybox 0.4.5 as extracted with torte
+# this tests the .model pest parser and formula simplification
+$clausy input/toybox_0.4.5.model to_cnf_tseitin to_clauses print
+---
+c 1 TOYBOX
+c 2 TOYBOX_HELP
+c 3 TOYBOX_HELP_DASHDASH
+c 4 _aux_1
+c 5 _aux_2
+c 6 _aux_3
+c 7 _aux_4
+c 8 _aux_5
+p cnf 8 17
+8 0
+-2 3 -4 0
+2 4 0
+-3 4 0
+2 -3 -5 0
+-2 5 0
+3 5 0
+-2 -6 0
+5 -6 0
+4 -6 0
+2 -5 -4 6 0
+2 6 -7 0
+-2 7 0
+-6 7 0
+-1 -8 0
+7 -8 0
+1 -7 8 0

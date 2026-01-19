@@ -1,0 +1,10 @@
+# this is an excerpt of toybox 0.4.5 as extracted with torte
+# this tests the .model pest parser and formula simplification
+$clausy input/toybox_0.4.5.model
+---
+c 1 TOYBOX
+c 2 TOYBOX_HELP
+c 3 TOYBOX_HELP_DASHDASH
+p cnf 3 2
+-1 0
+2 -3 0

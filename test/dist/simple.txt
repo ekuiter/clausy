@@ -1,0 +1,11 @@
+# this is a very simple input that should be easily transformable by distribution
+$clausy input/simple.sat
+---
+c 1 a
+c 2 b
+c 3 c
+c 4 d
+p cnf 4 3
+4 0
+1 3 -4 0
+2 3 0

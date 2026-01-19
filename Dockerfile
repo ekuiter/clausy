@@ -16,10 +16,10 @@ RUN apt-get update && apt install -y \
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 WORKDIR /home
-COPY scripts scripts/
-COPY src/external src/external/
+COPY scripts/gradle_proxy.sh scripts/gradle_proxy.sh
 RUN chmod +x scripts/gradle_proxy.sh \
     && scripts/gradle_proxy.sh
+COPY src/external src/external/
 RUN make -C src/external -j$(nproc)
 COPY . ./
 RUN make
