@@ -18,6 +18,10 @@ cat meta/simple.sat | docker run --rm -i clausy
 make
 make external # optionally compile external solvers (works only on Linux)
 build/clausy meta/simple.sat
+
+# option 3: download precompiled binaries (requires 64-bit Linux)
+wget https://nightly.link/ekuiter/clausy/workflows/static/main/build.zip
+unzip build.zip
 ```
 
 Depending on the invocation, external tools may be needed (e.g., Java for parsing FeatureIDE-compatible files).
