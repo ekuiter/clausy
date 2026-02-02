@@ -1,7 +1,7 @@
-//! Utilities for executing external programs.
+//! Utilities for executing external tools.
 
 use crate::core::{file::File, var::VarId};
-use crate::shell::TOOL_PATHS;
+use crate::shell::options;
 use num::BigInt;
 use std::{
     env,
@@ -12,9 +12,9 @@ use std::{
 };
 use tempfile::NamedTempFile;
 
-/// Returns the path of a bundled external program.
+/// Returns the path of a bundled external tool.
 ///
-/// Looks up the program (a) in its absolute path, if given, (b) in the working directory,
+/// Looks up the tool (a) in its absolute path, if given, (b) in the working directory,
 /// and (c) as a sibling of the currently running executable.
 fn path(file_name: &str) -> String {
     let path = Path::new(file_name).to_path_buf();
@@ -34,7 +34,7 @@ fn path(file_name: &str) -> String {
 ///
 /// Runs the external satisfiability solver kissat, which performs well on all known feature-model formulas.
 pub(crate) fn kissat(cnf: &str) -> Option<Vec<VarId>> {
-    let process = Command::new(path(&TOOL_PATHS.kissat))
+    let process = Command::new(path(&options().tool_paths.kissat))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -66,7 +66,7 @@ pub(crate) fn kissat(cnf: &str) -> Option<Vec<VarId>> {
 pub(crate) fn d4(cnf: &str) -> BigInt {
     let mut tmp = NamedTempFile::new().unwrap();
     write!(tmp, "{}", cnf).unwrap();
-    let output = Command::new(path(&TOOL_PATHS.d4))
+    let output = Command::new(path(&options().tool_paths.d4))
         .arg("-i")
         .arg(tmp.path())
         .arg("-m")
@@ -91,7 +91,7 @@ pub(crate) fn d4(cnf: &str) -> BigInt {
 pub(crate) fn bc_minisat_all(cnf: &str) -> (impl Iterator<Item = Vec<VarId>>, NamedTempFile) {
     let mut tmp_in = NamedTempFile::new().unwrap();
     write!(tmp_in, "{}", cnf).unwrap();
-    let process = Command::new(path(&TOOL_PATHS.bc_minisat_all))
+    let process = Command::new(path(&options().tool_paths.bc_minisat_all))
         .arg(tmp_in.path())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -118,7 +118,7 @@ pub(crate) fn io(
 ) -> File {
     let process = Command::new("java")
         .arg("-jar")
-        .arg(path(&TOOL_PATHS.io))
+        .arg(path(&options().tool_paths.io))
         .arg(&file.name)
         .arg(output_format)
         .arg(variables.join(","))

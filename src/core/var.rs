@@ -1,6 +1,6 @@
 //! Defines variables in an arena.
 
-use crate::shell::VAR_AUX_PREFIX;
+use crate::shell::options;
 use std::fmt;
 
 /// Identifier type for variables.
@@ -30,7 +30,7 @@ impl fmt::Display for Var {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Var::Named(name) => write!(f, "{name}"),
-            Var::Aux(id) => write!(f, "{}{id}", VAR_AUX_PREFIX),
+            Var::Aux(id) => write!(f, "{}{id}", options().output.aux_prefix),
         }
     }
 }

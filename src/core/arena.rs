@@ -5,7 +5,7 @@ use super::{
     formula::Formula,
     var::{Var, VarId},
 };
-use crate::shell::PRINT_ID;
+use crate::shell::options;
 use std::{
     collections::{HashMap, HashSet},
     fmt, slice,
@@ -373,7 +373,7 @@ impl Arena {
     /// Implements a recursive preorder traversal.
     /// For an iterative reversed preorder traversal, see [Arena::preorder_rev].
     pub(super) fn format_expr(&self, id: ExprId, f: &mut fmt::Formatter) -> fmt::Result {
-        let printed_id = if PRINT_ID {
+        let printed_id = if options().output.print_ids {
             format!("@{id}")
         } else {
             String::from("")

@@ -7,45 +7,75 @@ use crate::{
     core::{arena::Arena, formula::Formula},
     parser::{parser, FormulaParsee},
 };
-use std::sync::LazyLock;
+use clap::{Args, Parser};
+use std::sync::OnceLock;
 
-/// Whether to print identifiers of expressions.
-///
-/// Useful for debugging, but should generally be disabled, as this is expected by [crate::tests].
-pub(super) const PRINT_ID: bool = false; // todo: make configurable
+/// Transforms feature-model formulas into CNF.
+#[derive(Parser)]
+#[command(name = "clausy")]
+#[command(version)]
+struct CliOptions {
+    /// Input file and commands to run on the formula.
+    /// Use "-" for stdin, or provide a file followed by commands like "to_cnf_dist", "print", etc.
+    #[arg(trailing_var_arg = true)]
+    commands: Vec<String>,
 
-/// Prefix for auxiliary variables.
-///
-/// Auxiliary variables are required by some algorithms on formulas and can be created with [crate::core::var::Var::Aux].
-pub(super) const VAR_AUX_PREFIX: &str = "_aux_"; // todo: make configurable (also whether aux vars should even be listed)
+    #[command(flatten)]
+    tool_paths: ToolPathOptions,
+
+    #[command(flatten)]
+    output_options: OutputOptions,
+}
 
 /// Paths to external tools used for SAT solving, model counting, etc.
-/// 
+///
 /// Paths are looked up based on these strings. The supplied paths can be absolute or relative.
 /// Relative paths are first resolved against the working directory, and then against the directory of the clausy executable.
-pub struct ToolPaths {
-    pub kissat: String, // default satisfiability solver
-    pub d4: String, // default model counter
-    pub bc_minisat_all: String, // default AllSAT solver
-    pub io: String, // I/O interface to FeatureIDE
+#[derive(Args, Default, Debug)]
+pub struct ToolPathOptions {
+    /// Path to the satisfiability solver kissat
+    #[arg(long = "kissat-path", default_value = "kissat")]
+    pub kissat: String,
+
+    /// Path to the model counter d4
+    #[arg(long = "d4-path", default_value = "d4")]
+    pub d4: String,
+
+    /// Path to the AllSAT solver bc_minisat_all
+    #[arg(long = "bc-minisat-all-path", default_value = "bc_minisat_all")]
+    pub bc_minisat_all: String,
+
+    /// Path to the FeatureIDE I/O interface
+    #[arg(long = "io-path", default_value = "io.jar")]
+    pub io: String,
 }
 
-/// Default paths for external tools.
-/// 
-/// These paths are compatible with the Makefile shipped with clausy, but they can be manually overridden to use I/O-compatible distributions of these tools.
-impl Default for ToolPaths {
-    fn default() -> Self {
-        Self {
-            kissat: "kissat".to_string(),
-            d4: "d4".to_string(),
-            bc_minisat_all: "bc_minisat_all".to_string(),
-            io: "io.jar".to_string(),
-        }
-    }
+/// Output formatting options.
+#[derive(Args, Default, Debug)]
+pub struct OutputOptions {
+    /// Print expression identifiers, useful when debugging
+    #[arg(long, default_value_t = false)]
+    pub print_ids: bool,
+
+    /// Prefix for auxiliary variables introduced by Tseitin transformation
+    #[arg(long, default_value = "_aux_")]
+    pub aux_prefix: String,
 }
 
-/// Global tool paths configuration.
-pub static TOOL_PATHS: LazyLock<ToolPaths> = LazyLock::new(ToolPaths::default);
+/// All configuration options.
+#[derive(Default, Debug)]
+pub struct Options {
+    pub tool_paths: ToolPathOptions,
+    pub output: OutputOptions,
+}
+
+/// Global storage for options.
+static OPTIONS: OnceLock<Options> = OnceLock::new();
+
+/// Get options, using defaults if not explicitly initialized.
+pub fn options() -> &'static Options {
+    OPTIONS.get_or_init(Options::default)
+}
 
 /// Returns the most recently parsed formula.
 macro_rules! formula {
@@ -66,8 +96,15 @@ macro_rules! clauses {
 
 /// Main entry point.
 ///
-/// Parses and runs each given command in order.
-pub fn main(mut commands: Vec<String>) {
+/// Parses CLI arguments and runs each command in order.
+pub fn main() {
+    let cli = CliOptions::parse();
+    OPTIONS.set(Options {
+        tool_paths: cli.tool_paths,
+        output: cli.output_options,
+    }).unwrap();
+
+    let mut commands = cli.commands;
     let mut arena = Arena::new();
     let mut formulas = Vec::<Formula>::new();
     let mut clauses = None;
