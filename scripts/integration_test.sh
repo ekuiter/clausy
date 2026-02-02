@@ -21,6 +21,9 @@
 #
 # This should be called via `make integration-test` or `make test`.
 # Optionally pass a test filter as the first argument (e.g., "dist/simple").
+#
+# Use --update to update expected output in test files when there's a mismatch.
+# This is useful when you've confirmed the new output is correct.
 
 set -e
 
@@ -29,10 +32,21 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 TEST_DIR="$PROJECT_ROOT/test"
 # shellcheck disable=SC2034
 clausy="$PROJECT_ROOT/build/clausy"
-filter="${1:-}"
+
+# Parse arguments
+update_mode=false
+filter=""
+for arg in "$@"; do
+    if [[ "$arg" == "--update" || "$arg" == "-u" ]]; then
+        update_mode=true
+    else
+        filter="$arg"
+    fi
+done
 
 passed=0
 failed=0
+updated=0
 failed_tests=()
 
 # Print output limited to 20 lines, with ellipsis if truncated
@@ -81,14 +95,23 @@ while IFS= read -r -d '' txt_file; do
         echo "  Output:"
         print_limited "$actual_output"
     elif [[ "$check_output" == true && "$actual_output" != "$expected_output" ]]; then
-        echo "FAIL: $test_name (output mismatch)"
-        failed_tests+=("$test_name")
-        ((failed++)) || true
-        echo "  Command: $command_line"
-        echo "  Expected output:"
-        print_limited "$expected_output"
-        echo "  Actual output:"
-        print_limited "$actual_output"
+        if [[ "$update_mode" == true ]]; then
+            # Update the test file with actual output
+            echo "$command_line" > "$txt_file"
+            echo "---" >> "$txt_file"
+            echo "$actual_output" >> "$txt_file"
+            echo "UPDATED: $test_name"
+            ((updated++)) || true
+        else
+            echo "FAIL: $test_name (output mismatch)"
+            failed_tests+=("$test_name")
+            ((failed++)) || true
+            echo "  Command: $command_line"
+            echo "  Expected output:"
+            print_limited "$expected_output"
+            echo "  Actual output:"
+            print_limited "$actual_output"
+        fi
     else
         echo "PASS: $test_name"
         ((passed++)) || true
@@ -96,7 +119,11 @@ while IFS= read -r -d '' txt_file; do
 done < <(find "$TEST_DIR" -name '*.txt' -print0 | sort -z)
 
 echo ""
-echo "Results: $passed passed, $failed failed"
+if [[ $updated -gt 0 ]]; then
+    echo "Results: $passed passed, $failed failed, $updated updated"
+else
+    echo "Results: $passed passed, $failed failed"
+fi
 
 if [[ $failed -gt 0 ]]; then
     exit 1

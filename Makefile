@@ -1,7 +1,7 @@
 # This Makefile sets up clausy in the build/ directory, which includes all dependencies necessary for distribution.
 # It can also be used to run tests or generate documentation.
 
-.PHONY: clean test unit-test integration-test doc doc-live
+.PHONY: clean test unit-test integration-test update-tests doc doc-live
 
 SRC_FILES := $(filter-out $(wildcard src/external/ src/io/),$(wildcard src/* src/*/* .cargo/* Cargo.*))
 CMD_NOT_FOUND = $(error Required command $(1) could not be found, please install it)
@@ -13,14 +13,17 @@ fi
 
 clausy: build/clausy
 
+# build external dependencies (i.e., additional solvers)
 external:
 	$(MAKE) -C src/external
 
 io: build/io.jar
 
+# build I/O interface to FeatureIDE
 build/io.jar:
 	$(MAKE) -C src/io
 
+# build clausy
 build/clausy: $(SRC_FILES) build/io.jar
 	$(call CHECK_CMD,cc)
 	$(call CHECK_CMD,curl)
@@ -34,14 +37,21 @@ clean:
 
 test: unit-test integration-test
 
+# tests written in rust
 unit-test:
 	$(call CHECK_CMD,curl)
 	$(call CHECK_CARGO)
 	cargo test
 
+# end-to-end tests, which check strict conformance between command invocation and output
 integration-test: build/clausy
 	./scripts/integration_test.sh $(TEST)
 
+# use this to update failing integration tests (once output has been confirmed correct)
+update-tests: build/clausy
+	./scripts/integration_test.sh --update $(TEST)
+
+# generate documentation
 doc:
 	$(call CHECK_CMD,curl)
 	$(call CHECK_CARGO)
