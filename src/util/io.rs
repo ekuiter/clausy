@@ -70,7 +70,7 @@ pub(crate) fn uvl_file_add_vars(
     file.contents = uvl_append(&file.contents, &uvl_add_vars(label, &other_vars));
 }
 
-/// Expresses a clause representation as a string of UVL features and constraints.
+/// Expresses a clause representation as a string of UVL features and constraints compatible with FeatureIDE.
 ///
 /// This string is to be appended to an existing UVL feature hierarchy.
 pub(crate) fn to_uvl_string(clauses: &Clauses) -> String {
@@ -110,12 +110,12 @@ pub(crate) fn to_uvl_string(clauses: &Clauses) -> String {
     uvl
 }
 
-/// Given a XML file with a feature hierarchy and given constraints, creates a merged XML file.
+/// Given an XML file with a feature hierarchy and given constraints, creates a merged XML file.
 pub(crate) fn xml_with_constraints(xml: &str, constraints: &str) -> String {
     xml.replace("</struct>", &format!("</struct>\n{}", constraints))
 }
 
-/// Expresses a clause representation as a string of XML constraints.
+/// Expresses a clause representation as a string of XML constraints compatible with FeatureIDE.
 pub(crate) fn to_xml_string(clauses: &Clauses) -> String {
     let mut xml = "\t<constraints>\n".to_string();
     for clause in &clauses.clauses {

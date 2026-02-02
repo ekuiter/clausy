@@ -1,6 +1,7 @@
 //! Utilities for executing external programs.
 
-use crate::core::{var::VarId, file::File};
+use crate::core::{file::File, var::VarId};
+use crate::shell::TOOL_PATHS;
 use num::BigInt;
 use std::{
     env,
@@ -13,31 +14,27 @@ use tempfile::NamedTempFile;
 
 /// Returns the path of a bundled external program.
 ///
-/// Looks up the program (a) as a sibling of the currently running executable, (b) in the working directory,
-/// and (c) in the `bin` directory in the working directory, if that exists.
+/// Looks up the program (a) in its absolute path, if given, (b) in the working directory,
+/// and (c) as a sibling of the currently running executable.
 fn path(file_name: &str) -> String {
-    let mut path = env::current_exe().unwrap();
-    path.pop();
-    path.push(file_name);
-    if path.exists() {
-        return path.to_str().unwrap().to_owned();
-    }
     let path = Path::new(file_name).to_path_buf();
+    if path.is_absolute() && path.exists() {
+        return file_name.to_owned();
+    }
     if path.exists() {
         return format!("./{}", file_name);
     }
-    let path = Path::new(&format!("bin/{}", file_name)).to_path_buf();
-    if path.exists() {
-        return path.to_str().unwrap().to_owned();
-    }
-    unreachable!()
+    let mut exe_path = env::current_exe().unwrap();
+    exe_path.pop();
+    exe_path.push(file_name);
+    exe_path.to_str().unwrap().to_owned()
 }
 
 /// Attempts to find a solution of some CNF in DIMACS format.
 ///
-/// Runs the external satisfiability solver counter kissat, which performs well on all known feature-model formulas.
+/// Runs the external satisfiability solver kissat, which performs well on all known feature-model formulas.
 pub(crate) fn kissat(cnf: &str) -> Option<Vec<VarId>> {
-    let process = Command::new(path("kissat"))
+    let process = Command::new(path(&TOOL_PATHS.kissat))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -69,7 +66,7 @@ pub(crate) fn kissat(cnf: &str) -> Option<Vec<VarId>> {
 pub(crate) fn d4(cnf: &str) -> BigInt {
     let mut tmp = NamedTempFile::new().unwrap();
     write!(tmp, "{}", cnf).unwrap();
-    let output = Command::new(path("d4"))
+    let output = Command::new(path(&TOOL_PATHS.d4))
         .arg("-i")
         .arg(tmp.path())
         .arg("-m")
@@ -94,7 +91,7 @@ pub(crate) fn d4(cnf: &str) -> BigInt {
 pub(crate) fn bc_minisat_all(cnf: &str) -> (impl Iterator<Item = Vec<VarId>>, NamedTempFile) {
     let mut tmp_in = NamedTempFile::new().unwrap();
     write!(tmp_in, "{}", cnf).unwrap();
-    let process = Command::new(path("bc_minisat_all"))
+    let process = Command::new(path(&TOOL_PATHS.bc_minisat_all))
         .arg(tmp_in.path())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -121,7 +118,7 @@ pub(crate) fn io(
 ) -> File {
     let process = Command::new("java")
         .arg("-jar")
-        .arg(path("io.jar"))
+        .arg(path(&TOOL_PATHS.io))
         .arg(&file.name)
         .arg(output_format)
         .arg(variables.join(","))

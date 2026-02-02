@@ -12,7 +12,7 @@ external: $(BUILD_DIR)/kissat \
 	$(BUILD_DIR)/d4 \
 	$(BUILD_DIR)/bc_minisat_all
 kissat: $(BUILD_DIR)/kissat
-sbva_cadical: $(BUILD_DIR)/sbva_cadical
+sbva_cadical: $(BUILD_DIR)/sbva_cadical.py
 sharpsat-td: $(BUILD_DIR)/sharpsat-td
 d4: $(BUILD_DIR)/d4
 bc_minisat_all: $(BUILD_DIR)/bc_minisat_all

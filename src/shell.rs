@@ -7,6 +7,7 @@ use crate::{
     core::{arena::Arena, formula::Formula},
     parser::{parser, FormulaParsee},
 };
+use std::sync::LazyLock;
 
 /// Whether to print identifiers of expressions.
 ///
@@ -17,6 +18,34 @@ pub(super) const PRINT_ID: bool = false; // todo: make configurable
 ///
 /// Auxiliary variables are required by some algorithms on formulas and can be created with [crate::core::var::Var::Aux].
 pub(super) const VAR_AUX_PREFIX: &str = "_aux_"; // todo: make configurable (also whether aux vars should even be listed)
+
+/// Paths to external tools used for SAT solving, model counting, etc.
+/// 
+/// Paths are looked up based on these strings. The supplied paths can be absolute or relative.
+/// Relative paths are first resolved against the working directory, and then against the directory of the clausy executable.
+pub struct ToolPaths {
+    pub kissat: String, // default satisfiability solver
+    pub d4: String, // default model counter
+    pub bc_minisat_all: String, // default AllSAT solver
+    pub io: String, // I/O interface to FeatureIDE
+}
+
+/// Default paths for external tools.
+/// 
+/// These paths are compatible with the Makefile shipped with clausy, but they can be manually overridden to use I/O-compatible distributions of these tools.
+impl Default for ToolPaths {
+    fn default() -> Self {
+        Self {
+            kissat: "kissat".to_string(),
+            d4: "d4".to_string(),
+            bc_minisat_all: "bc_minisat_all".to_string(),
+            io: "io.jar".to_string(),
+        }
+    }
+}
+
+/// Global tool paths configuration.
+pub static TOOL_PATHS: LazyLock<ToolPaths> = LazyLock::new(ToolPaths::default);
 
 /// Returns the most recently parsed formula.
 macro_rules! formula {
