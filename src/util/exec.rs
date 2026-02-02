@@ -110,7 +110,7 @@ pub(crate) fn bc_minisat_all(cnf: &str) -> (impl Iterator<Item = Vec<VarId>>, Na
 
 /// Converts a given feature-model file from one format into another.
 ///
-/// Runs the tool FeatureIDE using the Java runtime environment.
+/// Runs the tool FeatureIDE using the Java runtime environment, which is assumed to be available on the PATH variable.
 pub(crate) fn io(
     file: &File,
     output_format: &str,
