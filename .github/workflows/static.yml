@@ -45,13 +45,13 @@ jobs:
         with:
           name: documentation
           path: doc
-          retention-days: 400
+          retention-days: 90
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: build
           path: build
-          retention-days: 400
+          retention-days: 90
 
   deploy:
     needs: build
