@@ -66,7 +66,7 @@ impl File {
     ///
     /// The file extension must be given so FeatureIDE can detect the correct format.
     pub(crate) fn count_featureide(&self) -> BigInt {
-        exec::d4(&self.convert("cnf").contents)
+        exec::sharp_sat(&self.convert("cnf").contents)
     }
 
     /// Panics if the formula this file represents has a different model count than that of the given clauses.

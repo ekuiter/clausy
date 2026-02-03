@@ -13,9 +13,13 @@ fi
 
 clausy: build/clausy
 
-# build external dependencies (i.e., additional solvers)
+# build external dependencies (i.e., additional solvers) depending on the host platform
 external:
-	$(MAKE) -C src/external
+	@if [ "$$(uname -s)" = "Darwin" ] && { [ "$$(uname -m)" = "arm64" ] || [ "$$(uname -m)" = "aarch64" ]; }; then \
+		$(MAKE) -C src/external external_macos; \
+	else \
+		$(MAKE) -C src/external external_linux; \
+	fi
 
 io: build/io.jar
 

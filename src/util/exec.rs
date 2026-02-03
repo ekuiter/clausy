@@ -30,10 +30,25 @@ fn path(file_name: &str) -> String {
     exe_path.to_str().unwrap().to_owned()
 }
 
+/// Checks satisfiability of a CNF formula.
+///
+/// Uses the user-specified SAT solver (--sat-path) if provided, otherwise falls back to kissat.
+/// When using an arbitrary solver, the solution will be empty even if satisfiable.
+/// This is because arbitrary solvers (e.g., tinisat) do not generally support extracting solutions.
+pub(crate) fn sat(cnf: &str) -> Option<Vec<VarId>> {
+    let tool_paths = &options().tool_paths;
+    if let Some(sat_path) = &tool_paths.sat {
+        arbitrary_sat(cnf, sat_path)
+    } else {
+        kissat(cnf)
+    }
+}
+
 /// Attempts to find a solution of some CNF in DIMACS format.
 ///
 /// Runs the external satisfiability solver kissat, which performs well on all known feature-model formulas.
-pub(crate) fn kissat(cnf: &str) -> Option<Vec<VarId>> {
+/// Returns Some with the satisfying assignment if satisfiable, None otherwise.
+fn kissat(cnf: &str) -> Option<Vec<VarId>> {
     let process = Command::new(path(&options().tool_paths.kissat))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -59,11 +74,42 @@ pub(crate) fn kissat(cnf: &str) -> Option<Vec<VarId>> {
     }
 }
 
+/// Checks satisfiability using an arbitrary SAT solver.
+///
+/// The solver is invoked with the CNF file path as the first argument.
+/// Output must contain "s SATISFIABLE" or "s UNSATISFIABLE".
+/// Returns Some with an empty solution if satisfiable, None otherwise.
+fn arbitrary_sat(cnf: &str, solver_path: &str) -> Option<Vec<VarId>> {
+    let mut tmp = NamedTempFile::new().unwrap();
+    write!(tmp, "{}", cnf).unwrap();
+    let output = Command::new(path(solver_path))
+        .arg(tmp.path())
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    if stdout.lines().any(|line| line.starts_with("s SATISFIABLE")) {
+        Some(Vec::new())
+    } else {
+        None
+    }
+}
+
+/// Counts the number of solutions of a CNF formula.
+///
+/// Uses the user-specified #SAT solver (--sharp-sat-path) if provided, otherwise falls back to d4.
+pub(crate) fn sharp_sat(cnf: &str) -> BigInt {
+    let tool_paths = &options().tool_paths;
+    if let Some(sharp_sat_path) = &tool_paths.sharp_sat {
+        arbitrary_sharp_sat(cnf, sharp_sat_path)
+    } else {
+        d4(cnf)
+    }
+}
+
 /// Counts the number of solutions of some CNF in DIMACS format.
 ///
 /// Runs the external model counter d4, which performs well on most small to medium size inputs.
-/// Returns the number as a string, as it will typically overflow otherwise.
-pub(crate) fn d4(cnf: &str) -> BigInt {
+fn d4(cnf: &str) -> BigInt {
     let mut tmp = NamedTempFile::new().unwrap();
     write!(tmp, "{}", cnf).unwrap();
     let output = Command::new(path(&options().tool_paths.d4))
@@ -71,6 +117,28 @@ pub(crate) fn d4(cnf: &str) -> BigInt {
         .arg(tmp.path())
         .arg("-m")
         .arg("counting")
+        .output()
+        .unwrap();
+    BigInt::from_str(&String::from(
+        String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .find(|line| line.starts_with("s "))
+            .unwrap()
+            .split_at(2)
+            .1,
+    ))
+    .unwrap()
+}
+
+/// Counts solutions using an arbitrary #SAT solver.
+///
+/// The solver is invoked with the CNF file path as the first argument.
+/// Output must contain a line starting with "s " followed by the model count.
+fn arbitrary_sharp_sat(cnf: &str, solver_path: &str) -> BigInt {
+    let mut tmp = NamedTempFile::new().unwrap();
+    write!(tmp, "{}", cnf).unwrap();
+    let output = Command::new(path(solver_path))
+        .arg(tmp.path())
         .output()
         .unwrap();
     BigInt::from_str(&String::from(

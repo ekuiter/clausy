@@ -124,7 +124,7 @@ impl Clauses {
 
     /// Attempts to finds a solution of this clause representation.
     pub(crate) fn satisfy(&self) -> Option<String> {
-        exec::kissat(&self.to_string()).map(|solution| self.solution_to_string(&solution))
+        exec::sat(&self.to_string()).map(|solution| self.solution_to_string(&solution))
     }
 
     /// Enumerates all solutions of this clause representation.
@@ -139,7 +139,7 @@ impl Clauses {
     /// Counts the number of solutions of this clause representation.
     pub(crate) fn count(&self) -> BigInt {
         let file = File::new("-.dimacs".to_string(), self.to_string());
-        exec::d4(&file.contents)
+        exec::sharp_sat(&file.contents)
     }
 }
 

@@ -14,6 +14,12 @@ use std::sync::OnceLock;
 #[derive(Parser)]
 #[command(name = "clausy")]
 #[command(version)]
+#[command(after_help = r#"A few notes on these options:
+- External tools are only used by certain commands. CNF transformation does not require any external tools on built-in formats.
+- The only exception are non-standard formats, which require a Java runtime environment in the PATH and a correct --io-path.
+- All tool paths can be absolute or relative. Relative paths are resolved against the working directory and the clausy executable directory.
+- For each solver class, we support one tool out of the box (e.g., kissat for SAT solving).
+  You can override this with an arbitrary tool (e.g., using --sat-path), which has to conform to the specified I/O conventions."#)]
 struct CliOptions {
     /// Input file and commands to run on the formula.
     /// Use "-" for stdin, or provide a file followed by commands like "to_cnf_dist", "print", etc.
@@ -32,14 +38,23 @@ struct CliOptions {
 /// Paths are looked up based on these strings. The supplied paths can be absolute or relative.
 /// Relative paths are first resolved against the working directory, and then against the directory of the clausy executable.
 #[derive(Args, Default, Debug)]
+#[command(next_help_heading = "Tool Path Options")]
 pub struct ToolPathOptions {
     /// Path to the satisfiability solver kissat
     #[arg(long = "kissat-path", default_value = "kissat")]
     pub kissat: String,
 
+    /// Path to a satisfiability solver that takes a .cnf file and outputs "s [UN]SATISFIABLE"
+    #[arg(long = "sat-path")]
+    pub sat: Option<String>,
+
     /// Path to the model counter d4
     #[arg(long = "d4-path", default_value = "d4")]
     pub d4: String,
+
+    /// Path to a model counter that takes a .cnf file and outputs "s <model count>"
+    #[arg(long = "sharp-sat-path")]
+    pub sharp_sat: Option<String>,
 
     /// Path to the AllSAT solver bc_minisat_all
     #[arg(long = "bc-minisat-all-path", default_value = "bc_minisat_all")]
@@ -52,6 +67,7 @@ pub struct ToolPathOptions {
 
 /// Output formatting options.
 #[derive(Args, Default, Debug)]
+#[command(next_help_heading = "Output Options")]
 pub struct OutputOptions {
     /// Print expression identifiers, useful when debugging
     #[arg(long, default_value_t = false)]
