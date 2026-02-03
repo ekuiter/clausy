@@ -8,6 +8,7 @@ use crate::{
     parser::{parser, FormulaParsee},
 };
 use clap::{Args, Parser};
+use std::env;
 use std::sync::OnceLock;
 
 /// Transforms feature-model formulas into CNF.
@@ -19,7 +20,8 @@ use std::sync::OnceLock;
 - The only exception are non-standard formats, which require a Java runtime environment in the PATH and a correct --io-path.
 - All tool paths can be absolute or relative. Relative paths are resolved against the working directory and the clausy executable directory.
 - For each solver class, we support one tool out of the box (e.g., kissat for SAT solving).
-  You can override this with an arbitrary tool (e.g., using --sat-path), which has to conform to the specified I/O conventions."#)]
+  You can override this with an arbitrary tool (e.g., using --sat-path), which has to conform to the specified I/O conventions.
+- The config file clausy.conf next to the clausy executable can be used to set recurring default options."#)]
 struct CliOptions {
     /// Input file and commands to run on the formula.
     /// Use "-" for stdin, or provide a file followed by commands like "to_cnf_dist", "print", etc.
@@ -93,6 +95,26 @@ pub fn options() -> &'static Options {
     OPTIONS.get_or_init(Options::default)
 }
 
+/// Name of the config file that can be placed next to the executable.
+/// 
+/// This is hardcoded and cannot be configured, because at the point of loading the config file,
+/// we already need to know its name.
+const CONFIG_FILE: &str = "clausy.conf";
+
+/// Loads default arguments from a config file next to the executable.
+///
+/// The config file (`clausy.conf`) contains whitespace-separated arguments,
+/// which are inserted before user-provided arguments (so CLI overrides config).
+/// This is useful for providing platform-specific defaults via the Makefile.
+fn load_config_file_args() -> Vec<String> {
+    env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.join(CONFIG_FILE)))
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .map(|s| s.split_whitespace().map(String::from).collect())
+        .unwrap_or_default()
+}
+
 /// Returns the most recently parsed formula.
 macro_rules! formula {
     ($formulas:expr) => {
@@ -114,7 +136,10 @@ macro_rules! clauses {
 ///
 /// Parses CLI arguments and runs each command in order.
 pub fn main() {
-    let cli = CliOptions::parse();
+    let mut args: Vec<String> = env::args().collect();
+    let config_file_args = load_config_file_args();
+    args.splice(1..1, config_file_args);
+    let cli = CliOptions::parse_from(args);
     OPTIONS.set(Options {
         tool_paths: cli.tool_paths,
         output: cli.output_options,

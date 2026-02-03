@@ -10,16 +10,16 @@ To transform any [`.sat`](meta/satformat.pdf), [`.model`](https://github.com/cka
 git clone --recursive https://github.com/ekuiter/clausy.git
 cd clausy
 
-# option 1: build as Docker image (includes external solvers, works everywhere)
+# option 1: build as Docker image
 docker build -t clausy .
 cat meta/simple.sat | docker run --rm -i clausy
 
 # option 2: build locally into build/ directory
 make
-make external # optionally compile external solvers (works only on Linux)
+make external # optional: compile external solvers
 build/clausy meta/simple.sat
 
-# option 3: download precompiled binaries (requires 64-bit Linux)
+# option 3: download precompiled binaries for 64-bit Linux
 wget https://nightly.link/ekuiter/clausy/workflows/static/main/build.zip
 unzip build.zip
 ```
@@ -35,13 +35,13 @@ Documentation for clausy is available [online](https://elias-kuiter.de/clausy/).
 build/clausy meta/simple.sat to_cnf_dist to_clauses print
 
 # read from standard input and count solutions with Tseitin transformation
-cat model.uvl | build/clausy -.uvl to_cnf_tseitin count
+cat model.uvl | build/clausy -- -.uvl to_cnf_tseitin count
 
 # read from command line and find some solution
-echo '(!def(a)|def(b))' | build/clausy -.model to_cnf_dist satisfy
+echo '(!def(a)|def(b))' | build/clausy -- -.model to_cnf_dist satisfy
 
 # prove a tautology
-! echo '(def(a)|!def(a))' | build/clausy -.model '(-1)' to_cnf_tseitin satisfy &>/dev/null
+! echo '(def(a)|!def(a))' | build/clausy -- -.model '(-1)' to_cnf_tseitin satisfy &>/dev/null
 
 # prove model equivalence
 ! build/clausy a.model b.model '+(*(-1 2) *(1 -2))' to_cnf_tseitin satisfy &>/dev/null
@@ -56,7 +56,7 @@ build/clausy a.model b.model 'diff weak weak a_to_b'
 build/clausy model.dimacs
 
 # advanced usage via Docker (file I/O with standard input)
-cat meta/simple.sat | docker run --rm -i clausy -.sat to_cnf_tseitin count
+cat meta/simple.sat | docker run --rm -i clausy -- -.sat to_cnf_tseitin count
 
 # advanced usage via Docker (file I/O with volumes)
 docker run --rm -v ./a.xml:/a.xml -v ./b.xml:/b.xml -v ./diff:/diff clausy /a.xml /b.xml 'diff weak weak /diff/a_to_b'

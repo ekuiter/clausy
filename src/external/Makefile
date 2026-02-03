@@ -6,17 +6,19 @@ TMP_DIR := build
 CMD_NOT_FOUND = $(error Required command $(1) could not be found, please install it.)
 CHECK_CMD = $(if $(shell command -v $(1)),,$(call CMD_NOT_FOUND,$(1)))
 
-external_all: $(BUILD_DIR)/tinisat \
-	$(BUILD_DIR)/kissat \
-	$(BUILD_DIR)/sbva_cadical.py \
-	$(BUILD_DIR)/sharpsat-td \
-	$(BUILD_DIR)/d4 \
-	$(BUILD_DIR)/bc_minisat_all
+# by default, assume Linux build (this is also used in the Dockerfile)
 external_linux: $(BUILD_DIR)/kissat \
 	$(BUILD_DIR)/d4 \
 	$(BUILD_DIR)/bc_minisat_all
 external_macos: $(BUILD_DIR)/tinisat \
 	$(BUILD_DIR)/d4-aarch64-darwin \
+	$(BUILD_DIR)/bc_minisat_all \
+	$(BUILD_DIR)/clausy.conf
+external_all: $(BUILD_DIR)/tinisat \
+	$(BUILD_DIR)/kissat \
+	$(BUILD_DIR)/sbva_cadical.py \
+	$(BUILD_DIR)/sharpsat-td \
+	$(BUILD_DIR)/d4 \
 	$(BUILD_DIR)/bc_minisat_all
 kissat: $(BUILD_DIR)/kissat
 tinisat: $(BUILD_DIR)/tinisat
@@ -32,8 +34,8 @@ $(BUILD_DIR)/kissat:
 	rm -rf $(TMP_DIR)/kissat
 	mkdir -p $(TMP_DIR)/kissat
 	tar xzf KissatMabPropPrNosym.tar.gz -C $(TMP_DIR)/kissat
-	sed -i '' 's|-l:../bliss/libbliss.a|-L../bliss -lbliss|' $(TMP_DIR)/kissat/KissatMabPropPrNosym/makefile.in
-	sed -i '' 's|(compiled "__DATE__")\\n", bliss::version|(compiled %s)\\n", bliss::version, __DATE__|' $(TMP_DIR)/kissat/KissatMabPropPrNosym/bliss/bliss.cc
+	sed -i='' 's|-l:../bliss/libbliss.a|-L../bliss -lbliss|' $(TMP_DIR)/kissat/KissatMabPropPrNosym/makefile.in
+	sed -i='' 's|(compiled "__DATE__")\\n", bliss::version|(compiled %s)\\n", bliss::version, __DATE__|' $(TMP_DIR)/kissat/KissatMabPropPrNosym/bliss/bliss.cc
 	$(MAKE) -C $(TMP_DIR)/kissat/KissatMabPropPrNosym/bliss
 	(cd $(TMP_DIR)/kissat/KissatMabPropPrNosym; ./configure)
 	$(MAKE) -C $(TMP_DIR)/kissat/KissatMabPropPrNosym
@@ -109,3 +111,6 @@ $(BUILD_DIR)/bc_minisat_all:
 	$(MAKE) -C $(TMP_DIR)/bc_minisat_all/bc_minisat_all-1.1.2 rs || $(MAKE) -C $(TMP_DIR)/bc_minisat_all/bc_minisat_all-1.1.2 r
 	mkdir -p $(BUILD_DIR)
 	cp $(TMP_DIR)/bc_minisat_all/bc_minisat_all-1.1.2/bc_minisat_all_* $(BUILD_DIR)/bc_minisat_all
+
+$(BUILD_DIR)/clausy.conf:
+	echo '--sat-path tinisat' > $(BUILD_DIR)/clausy.conf
