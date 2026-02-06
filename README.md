@@ -73,7 +73,15 @@ make doc-live
 
 ## CNF Transformation Zoo
 
-We also maintain a [detailed table](./meta/README.md) of tools that implement a CNF transformation.
+We also maintain a [detailed table](https://elias-kuiter.de/torte-research/#transformations) of tools that implement a CNF transformation.
+Key differences to clausy include:
+
+- Most of the listed tools are not or only sparsely documented.
+  clausy, in contrast, is <a href="https://ekuiter.github.io/clausy/" target="_blank">extensively documented</a>.
+- Some of the listed tools have additional features that are not related to CNF transformation.
+  clausy, in contrast, is focused and specialized, making it easier to understand/debug and ideal for learning and experimentation purposes.
+- Most of the listed tools have relatively limited options for input formats.
+  clausy, in contrast, has a diverse set of inputs, as it extends FeatureIDE's inputs with additional formats.
 
 ## License
 
