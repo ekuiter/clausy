@@ -9,9 +9,11 @@ CHECK_CMD = $(if $(shell command -v $(1)),,$(call CMD_NOT_FOUND,$(1)))
 # by default, assume Linux build (this is also used in the Dockerfile)
 external_linux: $(BUILD_DIR)/kissat \
 	$(BUILD_DIR)/d4 \
+	$(BUILD_DIR)/ganak \
 	$(BUILD_DIR)/bc_minisat_all
 external_macos: $(BUILD_DIR)/tinisat \
 	$(BUILD_DIR)/d4-aarch64-darwin \
+	$(BUILD_DIR)/ganak \
 	$(BUILD_DIR)/bc_minisat_all \
 	$(BUILD_DIR)/clausy.conf
 external_all: $(BUILD_DIR)/tinisat \
@@ -26,6 +28,7 @@ sbva_cadical: $(BUILD_DIR)/sbva_cadical.py
 sharpsat-td: $(BUILD_DIR)/sharpsat-td
 d4: $(BUILD_DIR)/d4
 d4-aarch64-darwin: $(BUILD_DIR)/d4-aarch64-darwin
+ganak: $(BUILD_DIR)/ganak
 bc_minisat_all: $(BUILD_DIR)/bc_minisat_all
 
 # used by default for satisfiability solving
@@ -97,6 +100,18 @@ $(BUILD_DIR)/d4-aarch64-darwin:
 	cp -R $(TMP_DIR)/d4-aarch64-darwin/lib $(BUILD_DIR)/lib_d4
 	printf '#!/bin/sh\nDYLD_LIBRARY_PATH="$$(dirname "$$0")/lib_d4" "$$(dirname "$$0")/d4-aarch64-darwin" "$$@"\n' > $(BUILD_DIR)/d4
 	chmod +x $(BUILD_DIR)/d4
+
+# used for model counting as and also very fast alternative to d4
+# this just unzips a precompiled binary
+GANAK_ARCHIVE := $(if $(filter Darwin,$(shell uname -s)),ganak-2.5.3-mac-arm64.tar.gz,ganak-2.5.3-linux-amd64.tar.gz)
+GANAK_EXTRACT_DIR := $(if $(filter Darwin,$(shell uname -s)),ganak-mac-arm64,ganak-linux-amd64)
+$(BUILD_DIR)/ganak:
+	rm -rf $(TMP_DIR)/ganak
+	mkdir -p $(TMP_DIR)/ganak
+	tar xzf $(GANAK_ARCHIVE) -C $(TMP_DIR)/ganak
+	mkdir -p $(BUILD_DIR)
+	cp -R $(TMP_DIR)/ganak/$(GANAK_EXTRACT_DIR)/* $(BUILD_DIR)
+	chmod +x $(BUILD_DIR)/ganak.sh
 
 # used by default for model enumeration
 $(BUILD_DIR)/bc_minisat_all:
