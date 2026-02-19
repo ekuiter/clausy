@@ -129,7 +129,8 @@ $(BUILD_DIR)/bc_minisat_all:
 	mkdir -p $(BUILD_DIR)
 	cp $(TMP_DIR)/bc_minisat_all/bc_minisat_all-1.1.2/bc_minisat_all_* $(BUILD_DIR)/bc_minisat_all
 
-SAT_PATH := $(if $(filter Darwin,$(shell uname -s)),--sat-path tinisat,\# --sat-path tinisat)
+pound := \#
+SAT_PATH := $(if $(filter Darwin,$(shell uname -s)),--sat-path tinisat,$(pound) --sat-path tinisat)
 $(BUILD_DIR)/clausy.conf:
 	echo '$(SAT_PATH)' > $(BUILD_DIR)/clausy.conf
 	echo '# --sharp-sat-path ganak.sh' >> $(BUILD_DIR)/clausy.conf
