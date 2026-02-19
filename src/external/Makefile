@@ -10,7 +10,8 @@ CHECK_CMD = $(if $(shell command -v $(1)),,$(call CMD_NOT_FOUND,$(1)))
 external_linux: $(BUILD_DIR)/kissat \
 	$(BUILD_DIR)/d4 \
 	$(BUILD_DIR)/ganak \
-	$(BUILD_DIR)/bc_minisat_all
+	$(BUILD_DIR)/bc_minisat_all \
+	$(BUILD_DIR)/clausy.conf
 external_macos: $(BUILD_DIR)/tinisat \
 	$(BUILD_DIR)/d4-aarch64-darwin \
 	$(BUILD_DIR)/ganak \
@@ -21,7 +22,8 @@ external_all: $(BUILD_DIR)/tinisat \
 	$(BUILD_DIR)/sbva_cadical.py \
 	$(BUILD_DIR)/sharpsat-td \
 	$(BUILD_DIR)/d4 \
-	$(BUILD_DIR)/bc_minisat_all
+	$(BUILD_DIR)/bc_minisat_all \
+	$(BUILD_DIR)/clausy.conf
 kissat: $(BUILD_DIR)/kissat
 tinisat: $(BUILD_DIR)/tinisat
 sbva_cadical: $(BUILD_DIR)/sbva_cadical.py
@@ -127,5 +129,7 @@ $(BUILD_DIR)/bc_minisat_all:
 	mkdir -p $(BUILD_DIR)
 	cp $(TMP_DIR)/bc_minisat_all/bc_minisat_all-1.1.2/bc_minisat_all_* $(BUILD_DIR)/bc_minisat_all
 
+SAT_PATH := $(if $(filter Darwin,$(shell uname -s)),--sat-path tinisat,\# --sat-path tinisat)
 $(BUILD_DIR)/clausy.conf:
-	echo '--sat-path tinisat' > $(BUILD_DIR)/clausy.conf
+	echo '$(SAT_PATH)' > $(BUILD_DIR)/clausy.conf
+	echo '# --sharp-sat-path ganak.sh' >> $(BUILD_DIR)/clausy.conf

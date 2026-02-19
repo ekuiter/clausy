@@ -105,13 +105,20 @@ const CONFIG_FILE: &str = "clausy.conf";
 ///
 /// The config file (`clausy.conf`) contains whitespace-separated arguments,
 /// which are inserted before user-provided arguments (so CLI overrides config).
+/// Lines beginning with `#` are treated as comments and ignored.
 /// This is useful for providing platform-specific defaults via the Makefile.
 fn load_config_file_args() -> Vec<String> {
     env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|d| d.join(CONFIG_FILE)))
         .and_then(|p| std::fs::read_to_string(p).ok())
-        .map(|s| s.split_whitespace().map(String::from).collect())
+        .map(|s| {
+            s.lines()
+                .filter(|line| !line.trim_start().starts_with('#'))
+                .flat_map(|line| line.split_whitespace())
+                .map(String::from)
+                .collect()
+        })
         .unwrap_or_default()
 }
 
