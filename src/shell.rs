@@ -47,7 +47,7 @@ pub struct ToolPathOptions {
     #[arg(long = "kissat-path", default_value = "kissat")]
     pub kissat: String,
 
-    /// Path to a satisfiability solver that takes a .cnf file and outputs "s [UN]SATISFIABLE"
+    /// Path to a satisfiability solver that takes a .cnf file and outputs "s (UN)SATISFIABLE"
     #[arg(long = "sat-path")]
     pub sat: Option<String>,
 
@@ -55,7 +55,7 @@ pub struct ToolPathOptions {
     #[arg(long = "d4-path", default_value = "d4")]
     pub d4: String,
 
-    /// Path to a model counter that takes a .cnf file and outputs "s <model count>"
+    /// Path to a model counter that takes a .cnf file and outputs "s 'model count'"
     #[arg(long = "sharp-sat-path")]
     pub sharp_sat: Option<String>,
 
