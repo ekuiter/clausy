@@ -9,6 +9,7 @@ use crate::{
 };
 use clap::{Args, Parser};
 use std::env;
+use std::process;
 use std::sync::OnceLock;
 
 /// Transforms feature-model formulas into CNF.
@@ -101,6 +102,11 @@ pub fn options() -> &'static Options {
 /// we already need to know its name.
 const CONFIG_FILE: &str = "clausy.conf";
 
+/// Exit code for unsatisfiable formulas.
+/// 
+/// This allows distinguishing between unsatisfiability and other errors.
+const UNSAT_EXIT_CODE: i32 = 20;
+
 /// Loads default arguments from a config file next to the executable.
 ///
 /// The config file (`clausy.conf`) contains whitespace-separated arguments,
@@ -188,7 +194,15 @@ pub fn main() {
                 formula!(formulas).to_cnf_tseitin(true, &mut arena);
             }
             "to_clauses" => clauses = Some(formula!(formulas).to_clauses(&mut arena)),
-            "satisfy" => println!("{}", clauses!(clauses, arena, formulas).satisfy().unwrap()),
+            "satisfy" => {
+                if let Some(solution) = clauses!(clauses, arena, formulas).satisfy() {
+                    eprintln!("s SATISFIABLE");
+                    println!("c {solution}");
+                } else {
+                    eprintln!("s UNSATISFIABLE");
+                    process::exit(UNSAT_EXIT_CODE);
+                }
+            }
             "count" => println!("{}", clauses!(clauses, arena, formulas).count()),
             "assert_count" => {
                 let clauses = clauses!(clauses, arena, formulas);
