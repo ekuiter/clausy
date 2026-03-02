@@ -346,3 +346,93 @@ fn cnf_legacy_simple_line_shape() {
         "c 1 x\nc 2 y\nc 3 ab\nc 4 n\nc 5 abc\nc 6 bb\np cnf 6 7\n-1 0\n-2 0\n3 0\n-4 0\n5 0\n6 0\n1 2 0\n"
     );
 }
+
+#[test]
+// Checks canonicalization flattens nested same-kind operators.
+// We expect `And(And(a, b), c)` to become `And(a, b, c)` after `to_canon`.
+fn to_canon_flattens_nested_ands() {
+    let mut arena = Arena::new();
+    let a = arena.var_expr("a".to_string());
+    let b = arena.var_expr("b".to_string());
+    let c = arena.var_expr("c".to_string());
+    let inner = arena.expr(And(vec![a, b]));
+    let root = arena.expr(And(vec![inner, c]));
+    let mut formula = Formula::new(arena.var_ids(), root, None);
+
+    formula.to_canon(&mut arena);
+
+    assert_eq!(formula_string(&formula, &arena), "And(a, b, c)");
+}
+
+#[test]
+// Checks forcing foreign variables as assumptions while excluding selected vars.
+// We expect all non-sub vars except exclusions to be added as literals and included in sub_var_ids.
+fn force_foreign_vars_respects_exclusions() {
+    let mut arena = Arena::new();
+    let a_formula = parse_into(&mut arena, "a.sat", "c 1 a\np sat 1 1", "sat");
+    let _b_expr = arena.var_expr("b".to_string());
+    let _c_expr = arena.var_expr("c".to_string());
+    let b_id = arena
+        .get_var_named("b".to_string())
+        .expect("named variable 'b' should exist");
+    let c_id = arena
+        .get_var_named("c".to_string())
+        .expect("named variable 'c' should exist");
+
+    let mut exclude_ids = HashSet::new();
+    exclude_ids.insert(c_id);
+    let forced = a_formula.force_foreign_vars(false, &exclude_ids, &mut arena);
+
+    assert_eq!(formula_string(&forced, &arena), "And(a, Not(b))");
+    assert!(forced.sub_var_ids.contains(&b_id));
+    assert!(!forced.sub_var_ids.contains(&c_id));
+}
+
+#[test]
+// Checks variable-set operations and boolean composition helpers.
+// We expect disjoint vars to be partitioned correctly and composition operators to build expected formulas.
+fn vars_set_ops_and_formula_composition_behave_as_expected() {
+    let mut arena = Arena::new();
+    let left = parse_into(&mut arena, "left.sat", "c 1 a\np sat 1 1", "sat");
+    let right = parse_into(&mut arena, "right.sat", "c 1 b\np sat 1 1", "sat");
+
+    let common = left.common_vars(&right);
+    let all = left.all_vars(&right);
+    let left_only = left.except_vars(&right);
+    let right_only = right.except_vars(&left);
+    assert!(common.is_empty());
+    assert_eq!(all.len(), 2);
+    assert_eq!(left_only.len(), 1);
+    assert_eq!(right_only.len(), 1);
+
+    let conjunction = left.and(&right, &mut arena);
+    let implication = left.implies(&right, &mut arena);
+    assert_eq!(formula_string(&conjunction, &arena), "And(a, b)");
+    assert_eq!(formula_string(&implication, &arena), "And(a, Not(b))");
+}
+
+#[test]
+// Checks clause conversion edge-case for contradiction with no variables.
+// We expect one empty clause (`0`) so the result is unsatisfiable in DIMACS.
+fn clauses_render_empty_contradiction_without_variables() {
+    let mut arena = Arena::new();
+    let root = arena.expr(Or(vec![]));
+    let formula = Formula::new(HashSet::new(), root, None);
+
+    let dimacs = formula.to_clauses(&arena).to_string();
+
+    assert_eq!(dimacs, "p cnf 0 1\n0\n");
+}
+
+#[test]
+// Checks clause conversion edge-case for tautology with no variables.
+// We expect a DIMACS header with zero vars/clauses and no clause lines.
+fn clauses_render_empty_tautology_without_variables() {
+    let mut arena = Arena::new();
+    let root = arena.expr(And(vec![]));
+    let formula = Formula::new(HashSet::new(), root, None);
+
+    let dimacs = formula.to_clauses(&arena).to_string();
+
+    assert_eq!(dimacs, "p cnf 0 0\n");
+}
