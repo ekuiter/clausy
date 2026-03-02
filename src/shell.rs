@@ -6,6 +6,7 @@ use crate::parser::sat_inline::SatInlineFormulaParser;
 use crate::{
     core::{arena::Arena, formula::Formula},
     parser::{parser, FormulaParsee},
+    util::log::{log, scope},
 };
 use clap::{Args, Parser};
 use std::env;
@@ -79,6 +80,10 @@ pub struct OutputOptions {
     /// Prefix for auxiliary variables introduced by Tseitin transformation
     #[arg(long, default_value = "_aux_")]
     pub aux_prefix: String,
+
+    /// Disable optional SAT-style informational logs (`c ...`)
+    #[arg(short = 'q', long, default_value_t = false)]
+    pub quiet: bool,
 }
 
 /// All configuration options.
@@ -141,6 +146,8 @@ macro_rules! formula {
 macro_rules! clauses {
     ($clauses:expr, $arena:expr, $formulas:expr) => {{
         if $clauses.is_none() {
+            log("[SHELL] converting the current formula into its clause representation");
+            let _timing = scope("SHELL", "clause representation");
             $clauses = Some(formula!($formulas).to_clauses(&$arena));
         }
         $clauses
@@ -172,6 +179,10 @@ pub fn main() {
         commands.push("-".to_string());
     }
     if commands.len() == 1 && File::exists(&commands[0]) {
+        log(&format!(
+            "[SHELL] only an input file was provided, so the default pipeline will run for {}",
+            commands[0]
+        ));
         commands.push("to_cnf_dist".to_string());
         commands.push("to_clauses".to_string());
         commands.push("print".to_string());
@@ -179,6 +190,7 @@ pub fn main() {
     for command in &commands {
         let mut arguments: Vec<&str> = command.split_whitespace().collect();
         let action = arguments[0];
+        log(&format!("[SHELL] executing command {action}"));
         arguments.remove(0);
         match action {
             "print" => {
@@ -198,13 +210,27 @@ pub fn main() {
                     println!("{}", arena.as_formula(id).as_ref(&arena));
                 }
             }
-            "to_canon" => formula!(formulas).to_canon(&mut arena),
-            "to_nnf" => formula!(formulas).to_nnf(&mut arena),
-            "to_cnf_dist" => formula!(formulas).to_cnf_dist(&mut arena),
+            "to_canon" => {
+                let _timing = scope("SHELL", "transform to_canon");
+                formula!(formulas).to_canon(&mut arena);
+            }
+            "to_nnf" => {
+                let _timing = scope("SHELL", "transform to_nnf");
+                formula!(formulas).to_nnf(&mut arena);
+            }
+            "to_cnf_dist" => {
+                let _timing = scope("SHELL", "transform to_cnf_dist");
+                formula!(formulas).to_cnf_dist(&mut arena);
+            }
             "to_cnf_tseitin" => {
+                let _timing = scope("SHELL", "transform to_cnf_tseitin");
                 formula!(formulas).to_cnf_tseitin(true, &mut arena);
             }
-            "to_clauses" => clauses = Some(formula!(formulas).to_clauses(&mut arena)),
+            "to_clauses" => {
+                log("[SHELL] converting the current formula into its clause representation");
+                let _timing = scope("SHELL", "clause representation");
+                clauses = Some(formula!(formulas).to_clauses(&mut arena));
+            }
             "satisfy" => {
                 if let Some(solution) = clauses!(clauses, arena, formulas).satisfy() {
                     eprintln!("s SATISFIABLE");
@@ -222,6 +248,7 @@ pub fn main() {
                     .as_ref()
                     .expect("assert_count requires a formula parsed from a file")
                     .assert_count(clauses);
+                log("[SHELL] asserted model count matches the expected value");
             }
             "enumerate" => clauses!(clauses, arena, formulas).enumerate(),
             "count_inc" => {
@@ -252,8 +279,14 @@ pub fn main() {
                 if File::exists(command) {
                     let file = File::read(command);
                     let extension = file.extension();
+                    log(&format!(
+                        "[SHELL] parsing input file {} (detected format: {})",
+                        file.name,
+                        extension.as_deref().unwrap_or("no extension")
+                    ));
                     formulas.push(arena.parse(file, parser(extension)));
                 } else if SatInlineFormulaParser::can_parse(command) {
+                    log("[SHELL] parsing inline SAT expression from command arguments");
                     formulas.push(
                         SatInlineFormulaParser::new(&formulas, Some(false))
                             .parse_into(&command, &mut arena),

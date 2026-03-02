@@ -118,12 +118,16 @@ impl FormulaParser for CnfFormulaParser {
                 _ => unreachable!(),
             })
             .collect();
+        let parsed_clause_n: VarId = child_ids
+            .len()
+            .try_into()
+            .expect("number of parsed CNF clauses does not fit into VarId");
         assert_eq!(
             clause_n,
-            child_ids
-                .len()
-                .try_into()
-                .expect("number of parsed CNF clauses does not fit into VarId")
+            parsed_clause_n,
+            "error: CNF preamble declares {} clauses, but parser produced {} clauses",
+            clause_n,
+            parsed_clause_n
         );
 
         let root_id = arena.expr(And(child_ids));

@@ -82,8 +82,13 @@ while IFS= read -r -d '' txt_file; do
 
     # Run the command from test directory
     cd "$TEST_DIR"
+    stdout_file=$(mktemp)
+    stderr_file=$(mktemp)
     exit_code=0
-    actual_output=$(eval "$command_line" 2>&1) || exit_code=$?
+    eval "$command_line" >"$stdout_file" 2>"$stderr_file" || exit_code=$?
+    actual_output=$(cat "$stdout_file")
+    actual_stderr=$(cat "$stderr_file")
+    rm -f "$stdout_file" "$stderr_file"
 
     if [[ $exit_code -ne 0 ]]; then
         echo "FAIL: $test_name (exit code $exit_code)"
@@ -92,8 +97,12 @@ while IFS= read -r -d '' txt_file; do
         echo "  Command: $command_line"
         echo "  Expected: exit code 0"
         echo "  Actual: exit code $exit_code"
-        echo "  Output:"
+        echo "  Stdout:"
         print_limited "$actual_output"
+        if [[ -n "$actual_stderr" ]]; then
+            echo "  Stderr:"
+            print_limited "$actual_stderr"
+        fi
     elif [[ "$check_output" == true && "$actual_output" != "$expected_output" ]]; then
         if [[ "$update_mode" == true ]]; then
             # Update the test file with actual output
@@ -111,6 +120,10 @@ while IFS= read -r -d '' txt_file; do
             print_limited "$expected_output"
             echo "  Actual output:"
             print_limited "$actual_output"
+            if [[ -n "$actual_stderr" ]]; then
+                echo "  Stderr (ignored for comparison):"
+                print_limited "$actual_stderr"
+            fi
         fi
     else
         echo "PASS: $test_name"

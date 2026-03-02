@@ -81,7 +81,15 @@ impl File {
     /// Useful for checking the correctness of count-preserving algorithms (e.g., [super::formula::Formula::to_cnf_tseitin]).
     /// Internally calls FeatureIDE as a transformation baseline.
     pub(crate) fn assert_count(&self, clauses: &Clauses) {
-        assert_eq!(clauses.count(), self.count_with_featureide());
+        let clausy_count = clauses.count();
+        let featureide_count = self.count_with_featureide();
+        assert_eq!(
+            clausy_count,
+            featureide_count,
+            "error: clausy counts {} satisfying assignments, but FeatureIDE counts {}",
+            clausy_count,
+            featureide_count
+        );
     }
 
     /// Converts this file into a given format, if necessary.

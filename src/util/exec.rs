@@ -2,6 +2,7 @@
 
 use crate::core::{file::File, var::VarId};
 use crate::shell::options;
+use crate::util::log::{log, scope};
 use num::BigInt;
 use std::{
     env,
@@ -41,8 +42,12 @@ fn path(file_name: &str) -> String {
 pub(crate) fn sat(cnf: &str) -> Option<Vec<VarId>> {
     let tool_paths = &options().tool_paths;
     if let Some(sat_path) = &tool_paths.sat {
+        log(&format!(
+            "[EXEC] SAT solving will use the custom solver configured at {sat_path}"
+        ));
         arbitrary_sat(cnf, sat_path)
     } else {
+        log("[EXEC] SAT solving will use the default kissat solver");
         kissat(cnf)
     }
 }
@@ -53,6 +58,11 @@ pub(crate) fn sat(cnf: &str) -> Option<Vec<VarId>> {
 /// Returns Some with the satisfying assignment if satisfiable, None otherwise.
 fn kissat(cnf: &str) -> Option<Vec<VarId>> {
     let kissat_path = path(&options().tool_paths.kissat);
+    log(&format!(
+        "[EXEC] starting SAT solver process using executable {}",
+        kissat_path
+    ));
+    let _timing = scope("EXEC", "SAT solve via kissat");
     let process = Command::new(&kissat_path)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -101,6 +111,11 @@ fn arbitrary_sat(cnf: &str, solver_path: &str) -> Option<Vec<VarId>> {
     let mut tmp = NamedTempFile::new().expect("failed to create temporary file");
     write!(tmp, "{}", cnf).expect("failed to write CNF to temporary file");
     let resolved_path = path(solver_path);
+    log(&format!(
+        "[EXEC] starting custom SAT solver process using executable {}",
+        resolved_path
+    ));
+    let _timing = scope("EXEC", "SAT solve via custom solver");
     let output = Command::new(&resolved_path)
         .arg(tmp.path())
         .output()
@@ -122,8 +137,12 @@ fn arbitrary_sat(cnf: &str, solver_path: &str) -> Option<Vec<VarId>> {
 pub(crate) fn sharp_sat(cnf: &str) -> BigInt {
     let tool_paths = &options().tool_paths;
     if let Some(sharp_sat_path) = &tool_paths.sharp_sat {
+        log(&format!(
+            "[EXEC] model counting will use the custom #SAT solver configured at {sharp_sat_path}"
+        ));
         arbitrary_sharp_sat(cnf, sharp_sat_path)
     } else {
+        log("[EXEC] model counting will use the default d4 solver");
         d4(cnf)
     }
 }
@@ -135,6 +154,11 @@ fn d4(cnf: &str) -> BigInt {
     let mut tmp = NamedTempFile::new().expect("failed to create temporary file");
     write!(tmp, "{}", cnf).expect("failed to write CNF to temporary file");
     let d4_path = path(&options().tool_paths.d4);
+    log(&format!(
+        "[EXEC] starting #SAT solver process using executable {}",
+        d4_path
+    ));
+    let _timing = scope("EXEC", "#SAT solve via d4");
     let output = Command::new(&d4_path)
         .arg("-i")
         .arg(tmp.path())
@@ -166,6 +190,11 @@ fn arbitrary_sharp_sat(cnf: &str, solver_path: &str) -> BigInt {
     let mut tmp = NamedTempFile::new().expect("failed to create temporary file");
     write!(tmp, "{}", cnf).expect("failed to write CNF to temporary file");
     let resolved_path = path(solver_path);
+    log(&format!(
+        "[EXEC] starting custom #SAT solver process using executable {}",
+        resolved_path
+    ));
+    let _timing = scope("EXEC", "#SAT solve via custom solver");
     let output = Command::new(&resolved_path)
         .arg(tmp.path())
         .output()
@@ -194,6 +223,11 @@ pub(crate) fn bc_minisat_all(cnf: &str) -> (impl Iterator<Item = Vec<VarId>>, Na
     let mut tmp_in = NamedTempFile::new().expect("failed to create temporary file");
     write!(tmp_in, "{}", cnf).expect("failed to write CNF to temporary file");
     let solver_path = path(&options().tool_paths.bc_minisat_all);
+    log(&format!(
+        "[EXEC] starting AllSAT solver process using executable {}",
+        solver_path
+    ));
+    let _timing = scope("EXEC", "AllSAT solve");
     let process = Command::new(&solver_path)
         .arg(tmp_in.path())
         .stdin(Stdio::piped())
@@ -225,6 +259,11 @@ pub(crate) fn bc_minisat_all(cnf: &str) -> (impl Iterator<Item = Vec<VarId>>, Na
 /// Runs the tool FeatureIDE using the Java runtime environment, which is assumed to be available on the PATH variable.
 pub(crate) fn io(file: &File, output_format: &str, variables: &[&str]) -> File {
     let io_path = path(&options().tool_paths.io);
+    log(&format!(
+        "[EXEC] starting FeatureIDE conversion from {} to {} using {}",
+        file.name, output_format, io_path
+    ));
+    let _timing = scope("EXEC", "FeatureIDE conversion");
     let process = Command::new("java")
         .arg("-jar")
         .arg(&io_path)
