@@ -174,6 +174,11 @@ pub fn main() {
             output: cli.output_options,
         })
         .expect("global options were initialized more than once");
+    log(&format!(
+        "[SHELL] {} {}",
+        env!("CARGO_PKG_NAME"),
+        env!("CARGO_PKG_VERSION")
+    ));
 
     let mut commands = cli.commands;
     let mut arena = Arena::new();
