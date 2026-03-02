@@ -6,6 +6,7 @@ use crate::util::log::{log, scope};
 use num::BigInt;
 use std::{
     env,
+    ffi::OsString,
     io::{BufRead, BufReader, Read, Write},
     path::Path,
     process::{Command, Stdio},
@@ -34,6 +35,27 @@ fn path(file_name: &str) -> String {
         .to_owned()
 }
 
+/// Logs the exact command line about to be invoked for an external tool.
+fn log_invoked_command(program: &str, args: &[OsString]) {
+    fn shell_escape_if_needed(s: &str) -> String {
+        let safe = !s.is_empty()
+            && s.chars()
+                .all(|c| c.is_ascii_alphanumeric() || "_@%+=:,./-".contains(c));
+        if safe {
+            s.to_owned()
+        } else {
+            format!("'{}'", s.replace('\'', "'\\''"))
+        }
+    }
+
+    let mut command = shell_escape_if_needed(program);
+    for arg in args {
+        command.push(' ');
+        command.push_str(&shell_escape_if_needed(&arg.to_string_lossy()));
+    }
+    log(&format!("[EXEC] invoking command: {command}"));
+}
+
 /// Checks satisfiability of a CNF formula.
 ///
 /// Uses the user-specified SAT solver (--sat-path) if provided, otherwise falls back to kissat.
@@ -58,6 +80,7 @@ pub(crate) fn sat(cnf: &str) -> Option<Vec<VarId>> {
 /// Returns Some with the satisfying assignment if satisfiable, None otherwise.
 fn kissat(cnf: &str) -> Option<Vec<VarId>> {
     let kissat_path = path(&options().tool_paths.kissat);
+    log_invoked_command(&kissat_path, &[]);
     log(&format!(
         "[EXEC] starting SAT solver process using executable {}",
         kissat_path
@@ -111,13 +134,15 @@ fn arbitrary_sat(cnf: &str, solver_path: &str) -> Option<Vec<VarId>> {
     let mut tmp = NamedTempFile::new().expect("failed to create temporary file");
     write!(tmp, "{}", cnf).expect("failed to write CNF to temporary file");
     let resolved_path = path(solver_path);
+    let args = vec![tmp.path().as_os_str().to_owned()];
+    log_invoked_command(&resolved_path, &args);
     log(&format!(
         "[EXEC] starting custom SAT solver process using executable {}",
         resolved_path
     ));
     let _timing = scope("EXEC", "SAT solve via custom solver");
     let output = Command::new(&resolved_path)
-        .arg(tmp.path())
+        .args(&args)
         .output()
         .expect(&format!(
             "failed to run SAT solver '{resolved_path}'. \
@@ -154,16 +179,20 @@ fn d4(cnf: &str) -> BigInt {
     let mut tmp = NamedTempFile::new().expect("failed to create temporary file");
     write!(tmp, "{}", cnf).expect("failed to write CNF to temporary file");
     let d4_path = path(&options().tool_paths.d4);
+    let args = vec![
+        OsString::from("-i"),
+        tmp.path().as_os_str().to_owned(),
+        OsString::from("-m"),
+        OsString::from("counting"),
+    ];
+    log_invoked_command(&d4_path, &args);
     log(&format!(
         "[EXEC] starting #SAT solver process using executable {}",
         d4_path
     ));
     let _timing = scope("EXEC", "#SAT solve via d4");
     let output = Command::new(&d4_path)
-        .arg("-i")
-        .arg(tmp.path())
-        .arg("-m")
-        .arg("counting")
+        .args(&args)
         .output()
         .expect(&format!(
             "failed to run model counter '{d4_path}'. \
@@ -190,13 +219,15 @@ fn arbitrary_sharp_sat(cnf: &str, solver_path: &str) -> BigInt {
     let mut tmp = NamedTempFile::new().expect("failed to create temporary file");
     write!(tmp, "{}", cnf).expect("failed to write CNF to temporary file");
     let resolved_path = path(solver_path);
+    let args = vec![tmp.path().as_os_str().to_owned()];
+    log_invoked_command(&resolved_path, &args);
     log(&format!(
         "[EXEC] starting custom #SAT solver process using executable {}",
         resolved_path
     ));
     let _timing = scope("EXEC", "#SAT solve via custom solver");
     let output = Command::new(&resolved_path)
-        .arg(tmp.path())
+        .args(&args)
         .output()
         .expect(&format!(
             "failed to run #SAT solver '{resolved_path}'. \
@@ -223,13 +254,15 @@ pub(crate) fn bc_minisat_all(cnf: &str) -> (impl Iterator<Item = Vec<VarId>>, Na
     let mut tmp_in = NamedTempFile::new().expect("failed to create temporary file");
     write!(tmp_in, "{}", cnf).expect("failed to write CNF to temporary file");
     let solver_path = path(&options().tool_paths.bc_minisat_all);
+    let args = vec![tmp_in.path().as_os_str().to_owned()];
+    log_invoked_command(&solver_path, &args);
     log(&format!(
         "[EXEC] starting AllSAT solver process using executable {}",
         solver_path
     ));
     let _timing = scope("EXEC", "AllSAT solve");
     let process = Command::new(&solver_path)
-        .arg(tmp_in.path())
+        .args(&args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -259,17 +292,21 @@ pub(crate) fn bc_minisat_all(cnf: &str) -> (impl Iterator<Item = Vec<VarId>>, Na
 /// Runs the tool FeatureIDE using the Java runtime environment, which is assumed to be available on the PATH variable.
 pub(crate) fn io(file: &File, output_format: &str, variables: &[&str]) -> File {
     let io_path = path(&options().tool_paths.io);
+    let args = vec![
+        OsString::from("-jar"),
+        OsString::from(&io_path),
+        OsString::from(&file.name),
+        OsString::from(output_format),
+        OsString::from(variables.join(",")),
+    ];
+    log_invoked_command("java", &args);
     log(&format!(
         "[EXEC] starting FeatureIDE conversion from {} to {} using {}",
         file.name, output_format, io_path
     ));
     let _timing = scope("EXEC", "FeatureIDE conversion");
     let process = Command::new("java")
-        .arg("-jar")
-        .arg(&io_path)
-        .arg(&file.name)
-        .arg(output_format)
-        .arg(variables.join(","))
+        .args(&args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
