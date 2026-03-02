@@ -111,7 +111,10 @@ impl Clauses {
         solution
             .iter()
             .map(|literal| {
-                let idx: usize = literal.unsigned_abs().try_into().unwrap();
+                let idx: usize = literal
+                    .unsigned_abs()
+                    .try_into()
+                    .expect("solution literal index does not fit into usize");
                 format!(
                     "{}{}",
                     if *literal > 0 { "+" } else { "-" },
@@ -152,7 +155,12 @@ impl<'a> From<FormulaRef<'a>> for Clauses {
             .sub_vars(formula_ref.arena)
             .into_iter()
             .for_each(|(var_id, var)| {
-                var_remap.insert(var_id, vars.len().try_into().unwrap());
+                var_remap.insert(
+                    var_id,
+                    vars.len()
+                        .try_into()
+                        .expect("number of clause variables does not fit into VarId"),
+                );
                 vars.push(var.clone());
             });
         Self {
@@ -176,7 +184,10 @@ impl fmt::Display for Clauses {
         writeln!(f, "p cnf {} {}", self.vars.len() - 1, self.clauses.len())?;
         for clause in &self.clauses {
             for literal in clause {
-                let var: usize = literal.unsigned_abs().try_into().unwrap();
+                let var: usize = literal
+                    .unsigned_abs()
+                    .try_into()
+                    .expect("clause literal index does not fit into usize");
                 debug_assert_ne!(var, 0);
                 debug_assert!(var < self.vars.len());
                 write!(f, "{} ", literal)?;

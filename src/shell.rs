@@ -131,7 +131,9 @@ fn load_config_file_args() -> Vec<String> {
 /// Returns the most recently parsed formula.
 macro_rules! formula {
     ($formulas:expr) => {
-        $formulas.last_mut().unwrap()
+        $formulas
+            .last_mut()
+            .expect("no formula loaded; provide an input file or inline expression first")
     };
 }
 
@@ -141,7 +143,9 @@ macro_rules! clauses {
         if $clauses.is_none() {
             $clauses = Some(formula!($formulas).to_clauses(&$arena));
         }
-        $clauses.as_ref().unwrap()
+        $clauses
+            .as_ref()
+            .expect("failed to materialize clauses from formula")
     }};
 }
 
@@ -156,7 +160,7 @@ pub fn main() {
     OPTIONS.set(Options {
         tool_paths: cli.tool_paths,
         output: cli.output_options,
-    }).unwrap();
+    }).expect("global options were initialized more than once");
 
     let mut commands = cli.commands;
     let mut arena = Arena::new();
@@ -177,7 +181,12 @@ pub fn main() {
         match action {
             "print" => {
                 if clauses.is_some() {
-                    print!("{}", clauses.as_ref().unwrap());
+                    print!(
+                        "{}",
+                        clauses
+                            .as_ref()
+                            .expect("print requested but no clause representation is available")
+                    );
                 } else {
                     println!("{}", formula!(formulas).as_ref(&arena));
                 };
@@ -209,7 +218,7 @@ pub fn main() {
                 formula!(formulas)
                     .file
                     .as_ref()
-                    .unwrap()
+                    .expect("assert_count requires a formula parsed from a file")
                     .assert_count(clauses);
             }
             "enumerate" => clauses!(clauses, arena, formulas).enumerate(),
@@ -247,7 +256,10 @@ pub fn main() {
         #[cfg(debug_assertions)]
         {
             if formulas.last().is_some() {
-                formulas.last_mut().unwrap().assert_canon(&mut arena);
+                formulas
+                    .last_mut()
+                    .expect("formula list changed unexpectedly during debug canonicality check")
+                    .assert_canon(&mut arena);
             }
         }
     }
