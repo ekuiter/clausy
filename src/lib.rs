@@ -9,5 +9,6 @@
 mod core;
 mod parser;
 pub mod shell;
+#[cfg(test)]
 mod tests;
 mod util;

@@ -1,261 +1,348 @@
-//! Unit tests.
+//! Unit tests for parser and core formula/arena behavior.
 
-#![allow(unused_imports)]
+use std::collections::HashSet;
 
-use crate::core::{arena::Arena, clauses::Clauses, expr::Expr::*};
+use crate::{
+    core::{
+        arena::Arena,
+        expr::Expr::*,
+        file::File,
+        formula::Formula,
+        var::{Var, VarId},
+    },
+    parser::{parser, sat_inline::SatInlineFormulaParser, FormulaParsee},
+};
 
-// this commit https://github.com/ekuiter/clausy/commit/2587e835d4e827fddb39a54a9e323e7744a540cd rendered the tests invalid
-// if I find time, I can reintroduce them later
+fn parse_into(arena: &mut Arena, name: &str, contents: &str, extension: &str) -> Formula {
+    arena.parse(
+        File::new(name.to_string(), contents.to_string()),
+        parser(Some(extension.to_string())),
+    )
+}
 
-// mod formula {
-//     use super::*;
+fn parse_new(name: &str, contents: &str, extension: &str) -> (Arena, Formula) {
+    let mut arena = Arena::new();
+    let formula = parse_into(&mut arena, name, contents, extension);
+    (arena, formula)
+}
 
-//     mod valid {
-//         use super::*;
+fn formula_string(formula: &Formula, arena: &Arena) -> String {
+    formula.as_ref(arena).to_string()
+}
 
-//         #[test]
-//         #[should_panic]
-//         fn empty() {
-//             Arena::new().assert_valid();
-//         }
+fn parse_model_new(name: &str, contents: &str) -> (Arena, Formula) {
+    parse_new(name, contents, "model")
+}
 
-//         #[test]
-//         #[should_panic]
-//         fn no_root() {
-//             let mut f = Arena::new();
-//             let a = f.var_expr("a".to_string());
-//             f.expr(Not(a));
-//             f.assert_valid();
-//         }
+fn parse_sat_new(name: &str, contents: &str) -> (Arena, Formula) {
+    parse_new(name, contents, "sat")
+}
 
-//         #[test]
-//         fn valid() {
-//             let mut f = Arena::new();
-//             let a = f.var_expr("a".to_string());
-//             let not_a = f.expr(Not(a));
-//             f.set_root_expr(not_a);
-//             f.assert_valid();
-//         }
-//     }
+fn parse_cnf_new(name: &str, contents: &str) -> (Arena, Formula) {
+    parse_new(name, contents, "cnf")
+}
 
-//     mod nnf {
-//         use super::*;
+#[test]
+// Checks canonicalization for commutative operators.
+// We expect `Or(a, b)` and `Or(b, a)` to resolve to the same expression id because the arena sorts/deduplicates operands.
+fn arena_expr_deduplicates_commutative_operands() {
+    let mut arena = Arena::new();
+    let a = arena.var_expr("a".to_string());
+    let b = arena.var_expr("b".to_string());
+    let or_ab = arena.expr(Or(vec![a, b]));
+    let or_ba = arena.expr(Or(vec![b, a]));
 
-//         #[test]
-//         fn not_a() {
-//             let mut f = Arena::new();
-//             let a = f.var_expr("a".to_string());
-//             let not_a = f.expr(Not(a));
-//             f.set_root_expr(not_a);
-//             assert_eq!(
-//                 f.assert_valid().to_nnf().assert_valid().to_string(),
-//                 "Not(a)"
-//             );
-//         }
+    assert_eq!(or_ab, or_ba);
+}
 
-//         #[test]
-//         fn not_not_a() {
-//             let mut f = Arena::new();
-//             let a = f.var_expr("a".to_string());
-//             let not_a = f.expr(Not(a));
-//             let not_not_a = f.expr(Not(not_a));
-//             f.set_root_expr(not_not_a);
-//             assert_eq!(f.assert_valid().to_nnf().assert_valid().to_string(), "a");
-//         }
+#[test]
+// Checks simplification of double negation.
+// We expect `Not(Not(a))` to collapse to `a` because the arena removes double negation in `simp_expr`.
+fn arena_expr_simplifies_double_negation() {
+    let mut arena = Arena::new();
+    let a = arena.var_expr("a".to_string());
+    let not_a = arena.expr(Not(a));
+    let not_not_a = arena.expr(Not(not_a));
 
-//         #[test]
-//         fn and_not_not_a() {
-//             let mut f = Arena::new();
-//             let a = f.var_expr("a".to_string());
-//             let not_a = f.expr(Not(a));
-//             let not_not_a = f.expr(Not(not_a));
-//             let and = f.expr(And(vec![not_not_a]));
-//             f.set_root_expr(and);
-//             assert_eq!(f.assert_valid().to_nnf().assert_valid().to_string(), "a");
-//         }
+    assert_eq!(a, not_not_a);
+}
 
-//         #[test]
-//         fn complex() {
-//             let mut f = Arena::new();
-//             let a = f.var_expr("a".to_string());
-//             let b = f.var_expr("b".to_string());
-//             let c = f.var_expr("c".to_string());
-//             let not_a = f.expr(Not(a));
-//             let not_b = f.expr(Not(b));
-//             let not_c = f.expr(Not(c));
-//             let not_not_c = f.expr(Not(not_c));
-//             let not_a_and_c = f.expr(And(vec![not_a, c]));
-//             let not_b_or_not_not_c_or_not_a_and_c = f.expr(Or(vec![not_b, not_not_c, not_a_and_c]));
-//             let not_not_b_or_not_not_c_or_not_a_and_c =
-//                 f.expr(Not(not_b_or_not_not_c_or_not_a_and_c));
-//             let not_not_not_b_or_not_not_c_or_not_a_and_c =
-//                 f.expr(Not(not_not_b_or_not_not_c_or_not_a_and_c));
-//             let root = f.expr(Or(vec![
-//                 not_a_and_c,
-//                 not_not_b_or_not_not_c_or_not_a_and_c,
-//                 not_not_not_b_or_not_not_c_or_not_a_and_c,
-//             ]));
-//             f.set_root_expr(root);
-//             assert_eq!(
-//                 f.assert_valid().to_nnf().assert_valid().to_string(),
-//                 "Or(c, Not(b), And(c, Not(a)), And(b, Not(c), Or(a, Not(c))))"
-//             );
-//         }
+#[test]
+// Checks SAT comment-variable mapping.
+// We expect DIMACS ids to be parsed as named variables because comment lines starting with `c` bind ids to names.
+fn sat_parser_uses_comment_variable_names() {
+    let sat = "c 1 feature_a\nc 2 feature_b\np sat 2 *(1 -(2))";
+    let (arena, formula) = parse_sat_new("test.sat", sat);
 
-//         #[test]
-//         fn idempotent() {
-//             let f = Arena::from(
-//                 "(((!def(a)))&(((def(c)|!def(a)))|((def(a))&(def(c)|!(def(a)|def(b))))))",
-//             )
-//             .assert_valid()
-//             .to_nnf()
-//             .assert_valid();
-//             let s = f.to_string();
-//             assert_eq!(s, f.assert_valid().to_nnf().assert_valid().to_string());
-//         }
+    assert_eq!(formula_string(&formula, &arena), "And(feature_a, Not(feature_b))");
+}
 
-//         #[test]
-//         fn shared() {
-//             Arena::from("((((!(def(a))&def(a)))&(!(!(def(a))&def(a))))&((!(!(def(a))&def(a)))&(!((def(a))&def(a)))))")
-//             .assert_valid()
-//             .to_nnf()
-//             .assert_valid();
-//         }
-//     }
+#[test]
+// Checks CNF parser structure for clauses with positive/negative literals.
+// We expect an `And` with one disjunction and one unit clause because each CNF line becomes one clause.
+fn cnf_parser_builds_expected_formula_structure() {
+    let cnf = "c 1 a\nc 2 b\np cnf 2 2\n1 -2 0\n2 0\n";
+    let (arena, formula) = parse_cnf_new("test.cnf", cnf);
+    let rendered = formula_string(&formula, &arena);
 
-//     mod cnf_dist {
-//         use super::*;
+    assert_eq!(rendered, "And(b, Or(a, Not(b)))");
+}
 
-//         #[test]
-//         fn simple() {
-//             let mut f = Arena::new();
-//             let a = f.var_expr("a".to_string());
-//             let b = f.var_expr("b".to_string());
-//             let a_and_b = f.expr(And(vec![a, b]));
-//             let a_or_a_and_b = f.expr(Or(vec![a, a_and_b]));
-//             let a_and_a_or_a_and_b = f.expr(And(vec![a, a_or_a_and_b]));
-//             f.set_root_expr(a_and_a_or_a_and_b);
-//             f = f
-//                 .assert_valid()
-//                 .to_nnf()
-//                 .assert_valid()
-//                 .to_cnf_dist()
-//                 .assert_valid();
-//             assert_eq!(f.to_string(), "And(a, Or(a, b))");
-//         }
+#[test]
+// Checks model parser support for `<unsupported>` (introduced by torte on KClause extraction).
+// We expect it to survive as a placeholder variable so unsupported constructs remain represented unchanged.
+fn model_parser_handles_unsupported_literal() {
+    let model = "# comment\n(def(a)&<unsupported>)\n";
+    let (arena, formula) = parse_model_new("test.model", model);
 
-//         #[test]
-//         fn complex() {
-//             let mut f = Arena::new();
-//             let a = f.var_expr("a".to_string());
-//             let b = f.var_expr("b".to_string());
-//             let c = f.var_expr("c".to_string());
-//             let not_a = f.expr(Not(a));
-//             let not_b = f.expr(Not(b));
-//             let not_c = f.expr(Not(c));
-//             let not_not_c = f.expr(Not(not_c));
-//             let a_and_c = f.expr(And(vec![not_a, c]));
-//             let b_or_c = f.expr(Or(vec![not_b, not_not_c, a_and_c]));
-//             let not_b_or_c = f.expr(Not(b_or_c));
-//             let not_not_b_or_c = f.expr(Not(not_b_or_c));
-//             let root = f.expr(Or(vec![a_and_c, not_b_or_c, not_not_b_or_c]));
-//             f.set_root_expr(root);
-//             f = f
-//                 .assert_valid()
-//                 .to_nnf()
-//                 .assert_valid()
-//                 .to_cnf_dist()
-//                 .assert_valid();
-//             assert_eq!(
-//                 f.to_string(),
-//                 "And(Or(b, c, Not(b)), Or(c, Not(b), Not(c)), \
-//                  Or(a, c, Not(b), Not(c)), Or(b, c, Not(a), Not(b)), \
-//                  Or(c, Not(a), Not(b), Not(c)), Or(a, c, Not(a), Not(b), Not(c)))"
-//             );
-//         }
+    assert_eq!(formula_string(&formula, &arena), "And(a, <unsupported>)");
+}
 
-//         #[test]
-//         fn shared_expr() {
-//             let model = "((def(a)|!def(a))&(def(a)|!(def(a)|def(a))))";
-//             let f = Arena::from(model)
-//                 .assert_valid()
-//                 .to_nnf()
-//                 .assert_valid()
-//                 .to_cnf_dist()
-//                 .assert_valid();
-//             Clauses::from(&f).assert_count(&model, "model");
-//             let model = "(((!def(a)))&(((def(c)|!def(a)))|((def(a))&(def(c)|!(def(a)|def(b))))))";
-//             let f = Arena::from(model)
-//                 .assert_valid()
-//                 .to_nnf()
-//                 .assert_valid()
-//                 .to_cnf_dist()
-//                 .assert_valid();
-//             Clauses::from(&f).assert_count(&model, "model");
-//         }
+#[test]
+// Checks inline SAT parser references (and simplifies) previous formulas correctly.
+// We expect `+(1 -2)` to combine formula #1 and negated formula #2, yielding `Or(a, b)`.
+fn sat_inline_parser_can_reference_previous_formulas() {
+    let mut arena = Arena::new();
+    let f1 = parse_into(&mut arena, "a.sat", "c 1 a\np sat 1 1", "sat");
+    let f2 = parse_into(&mut arena, "b.sat", "c 1 b\np sat 1 -(1)", "sat");
 
-//         #[test]
-//         fn idempotent() {
-//             let model = "(((!def(a)))&(((def(c)|!def(a)))|((def(a))&(def(c)|!(def(a)|def(b))))))";
-//             let f = Arena::from(model)
-//                 .assert_valid()
-//                 .to_nnf()
-//                 .assert_valid()
-//                 .to_cnf_dist()
-//                 .assert_valid();
-//             let s = f.to_string();
-//             let f = f.assert_valid().to_cnf_dist().assert_valid();
-//             assert_eq!(s, f.to_string());
-//             Clauses::from(&f).assert_count(&model, "model");
-//         }
+    let formulas = vec![f1.clone(), f2.clone()];
+    let inline = SatInlineFormulaParser::new(&formulas, None)
+        .parse_into(&"+(1 -2)".to_string(), &mut arena);
 
-//         #[test]
-//         fn shared() {
-//             let model = "((((!(def(a))&def(a)))&(!(!(def(a))&def(a))))&((!(!(def(a))&def(a)))&(!((def(a))&def(a)))))";
-//             let f = Arena::from(model)
-//                 .assert_valid()
-//                 .to_nnf()
-//                 .assert_valid()
-//                 .to_cnf_dist()
-//                 .assert_valid();
-//             Clauses::from(&f).assert_count(&model, "model");
-//         }
-//     }
-// }
+    assert_eq!(formula_string(&inline, &arena), "Or(a, b)");
+}
 
-// mod cnf {
-//     use super::*;
+#[test]
+// Checks NNF conversion pushes negation to leaves.
+// We expect `-(*(1 2))` to become `Or(Not(a), Not(b))` by De Morgan.
+fn to_nnf_pushes_negations_to_leaves() {
+    let sat = "c 1 a\nc 2 b\np sat 2 -(*(1 2))";
+    let (mut arena, mut formula) = parse_sat_new("nnf.sat", sat);
 
-//     #[test]
-//     fn simple() {
-//         let model = "((def(x)|def(y))&def(ab)&!def(n)&(def(abc)&!(def(x)|def(y))&def(bb)))";
-//         let f = Arena::from(model)
-//             .assert_valid()
-//             .to_nnf()
-//             .assert_valid()
-//             .to_cnf_dist()
-//             .assert_valid();
-//         let cnf = Clauses::from(&f);
-//         assert_eq!(cnf.to_string().lines().count(), 14);
-//         cnf.assert_count(&model, "model");
-//     }
-// }
+    formula.to_nnf(&mut arena);
 
-// mod parser {
-//     use super::*;
+    assert_eq!(formula_string(&formula, &arena), "Or(Not(a), Not(b))");
+}
 
-//     #[test]
-//     fn simple() {
-//         let model = "# comment
-//             (def(x)|def(y))
-//             # coaoeu
-//             def( ab )
-//             !def(n)
-//             (def( abc)& !(def(x)|def(y))   & def( bb ))";
-//         let f = Arena::from(model).assert_valid();
-//         assert_eq!(
-//             f.to_string(),
-//             "And(Or(x, y), ab, Not(n), And(abc, Not(Or(x, y)), bb))"
-//         );
-//     }
-// }
+#[test]
+// Checks distributive CNF conversion.
+// We expect `Or(And(a,b), c)` to become `And(Or(a,c), Or(b,c))` because OR is distributed over AND.
+fn to_cnf_dist_distributes_or_over_and() {
+    let sat = "c 1 a\nc 2 b\nc 3 c\np sat 3 +(*(1 2) 3)";
+    let (mut arena, mut formula) = parse_sat_new("cnf_dist.sat", sat);
+
+    formula.to_cnf_dist(&mut arena);
+
+    assert_eq!(formula_string(&formula, &arena), "And(Or(a, c), Or(b, c))");
+}
+
+#[test]
+// Checks Tseitin CNF introduces auxiliary variables.
+// We expect more sub-variables and at least one `Var::Aux` because complex subexpressions get fresh helper vars.
+fn to_cnf_tseitin_adds_auxiliary_variables() {
+    let sat = "c 1 a\nc 2 b\nc 3 c\np sat 3 +(*(1 2) 3)";
+    let (mut arena, mut formula) = parse_sat_new("cnf_tseitin.sat", sat);
+    let before = formula.sub_var_ids.len();
+
+    formula.to_cnf_tseitin(true, &mut arena);
+
+    assert!(formula.sub_var_ids.len() > before);
+    let has_aux = formula.sub_var_ids.iter().any(|id| {
+        let idx: usize = (*id)
+            .try_into()
+            .expect("sub-variable id should fit into usize");
+        matches!(arena.vars[idx], Var::Aux(_))
+    });
+    assert!(has_aux);
+}
+
+#[test]
+// Checks selective constraint removal.
+// We expect constraints mentioning `b` to be dropped, leaving only `a`, because `remove_constraints` filters by variable usage.
+fn remove_constraints_drops_constraints_with_removed_variables() {
+    let sat = "c 1 a\nc 2 b\np sat 2 *(+(1 2) 1)";
+    let (mut arena, formula) = parse_sat_new("remove.sat", sat);
+
+    let b_id: VarId = arena
+        .get_var_named("b".to_string())
+        .expect("named variable 'b' should exist");
+
+    let mut remove_ids = HashSet::new();
+    remove_ids.insert(b_id);
+    let reduced = formula.remove_constraints(&remove_ids, &mut arena);
+
+    assert_eq!(formula_string(&reduced, &arena), "a");
+}
+
+#[test]
+// Checks diff partitioning on variables and constraints.
+// We expect one common and one side-specific element per side because formulas share one part and differ in one part.
+fn diff_vars_and_constraints_report_expected_partition() {
+    let mut arena = Arena::new();
+    let a = parse_into(
+        &mut arena,
+        "left.sat",
+        "c 1 a\nc 2 b\np sat 2 *(1 +(1 2))",
+        "sat",
+    );
+    let b = parse_into(
+        &mut arena,
+        "right.sat",
+        "c 1 a\nc 2 c\np sat 2 *(1 +(1 2))",
+        "sat",
+    );
+
+    let (common_vars, left_vars, right_vars) = a.diff_vars(&b);
+    assert_eq!(common_vars.len(), 1);
+    assert_eq!(left_vars.len(), 1);
+    assert_eq!(right_vars.len(), 1);
+
+    let (common_constraints, left_constraints, right_constraints) = a.diff_constraints(&b, &mut arena);
+    assert_eq!(common_constraints.len(), 1);
+    assert_eq!(left_constraints.len(), 1);
+    assert_eq!(right_constraints.len(), 1);
+}
+
+#[test]
+// Checks DIMACS serialization basics.
+// We expect a CNF header and `0`-terminated clause lines because DIMACS requires explicit clause termination.
+fn clauses_render_dimacs_with_zero_terminated_clauses() {
+    let sat = "c 1 a\nc 2 b\np sat 2 *(+(1 -2) 2)";
+    let (arena, formula) = parse_sat_new("clauses.sat", sat);
+    let dimacs = formula.to_clauses(&arena).to_string();
+
+    assert!(dimacs.contains("p cnf 2 2"));
+
+    let clause_lines: Vec<&str> = dimacs
+        .lines()
+        .filter(|line| !line.starts_with("c ") && !line.starts_with("p "))
+        .collect();
+    assert_eq!(clause_lines.len(), 2);
+    assert!(clause_lines.iter().all(|line| line.ends_with(" 0")));
+}
+
+#[test]
+#[should_panic]
+// Checks proto-CNF guard rejects non-conjunctive roots.
+// We expect panic for a literal root because proto-CNF requires a non-empty top-level conjunction.
+fn assert_proto_cnf_panics_on_literal_formula() {
+    let (arena, formula) = parse_sat_new("literal.sat", "c 1 a\np sat 1 1");
+    formula.assert_proto_cnf(&arena);
+}
+
+#[test]
+#[should_panic]
+// Checks proto-CNF guard rejects empty conjunctions.
+// We expect panic because an empty `And` is disallowed by the precondition check.
+fn assert_proto_cnf_panics_on_empty_conjunction() {
+    let mut arena = Arena::new();
+    let root = arena.expr(And(vec![]));
+    let formula = Formula::new(arena.var_ids(), root, None);
+    formula.assert_proto_cnf(&arena);
+}
+
+#[test]
+// Checks parser regression scenario with comments/spacing/nesting.
+// We expect all components to be preserved semantically despite formatting noise.
+fn parser_simple_legacy_scenario() {
+    let model = "# comment
+            (def(x)|def(y))
+            # coaoeu
+            def( ab )
+            !def(n)
+            (def( abc)& !(def(x)|def(y))   & def( bb ))";
+    let (arena, formula) = parse_model_new("legacy.model", model);
+    let rendered = formula_string(&formula, &arena);
+    assert_eq!(rendered, "And(Or(x, y), ab, Not(n), And(Not(Or(x, y)), abc, bb))");
+}
+
+#[test]
+// Checks NNF base case.
+// We expect `!def(a)` to remain `Not(a)` because negation is already at leaf level.
+fn nnf_not_a() {
+    let (mut arena, mut formula) = parse_model_new("not_a.model", "!def(a)");
+    formula.to_nnf(&mut arena);
+    assert_eq!(formula_string(&formula, &arena), "Not(a)");
+}
+
+#[test]
+// Checks NNF double-negation case.
+// We expect `!!def(a)` to simplify to `a` due to negation normalization.
+fn nnf_not_not_a() {
+    let (mut arena, mut formula) = parse_model_new("not_not_a.model", "!!def(a)");
+    formula.to_nnf(&mut arena);
+    assert_eq!(formula_string(&formula, &arena), "a");
+}
+
+#[test]
+// Checks NNF idempotence check.
+// We expect identical output after a second `to_nnf` call because NNF transform should be stable.
+fn nnf_complex_is_idempotent() {
+    let model = "((!def(a))&(((def(c)|!def(a)))|((def(a))&(def(c)|!(def(a)|def(b))))))";
+    let (mut arena, mut formula) = parse_model_new("nnf_complex.model", model);
+    formula.to_nnf(&mut arena);
+    let once = formula_string(&formula, &arena);
+    formula.to_nnf(&mut arena);
+    let twice = formula_string(&formula, &arena);
+    assert_eq!(once, twice);
+}
+
+#[test]
+// Checks shared-subexpression case for NNF.
+// We expect successful conversion and printable output.
+fn nnf_shared_expression_no_panic() {
+    let model = "((((!(def(a))&def(a)))&(!(!(def(a))&def(a))))&((!(!(def(a))&def(a)))&(!((def(a))&def(a)))))";
+    let (mut arena, mut formula) = parse_model_new("nnf_shared.model", model);
+    formula.to_nnf(&mut arena);
+    let printed = formula_string(&formula, &arena);
+    assert_eq!(printed, "And(Not(a), Or())");
+}
+
+#[test]
+// Checks simple distributive CNF shape.
+// We expect `And(a, Or(a, b))` after CNF conversion because the input is equivalent to that normal form.
+fn cnf_dist_simple_legacy_shape() {
+    let sat = "c 1 a\nc 2 b\np sat 2 *(1 +(1 2))";
+    let (mut arena, mut formula) = parse_sat_new("cnf_simple.sat", sat);
+    formula.to_cnf_dist(&mut arena);
+    assert_eq!(formula_string(&formula, &arena), "And(a, Or(a, b))");
+}
+
+#[test]
+// Checks CNF idempotence check.
+// We expect unchanged output after reapplying `to_cnf_dist` because the formula is already in canonical CNF.
+fn cnf_dist_idempotent() {
+    let sat = "c 1 a\nc 2 b\nc 3 c\np sat 3 *(+(1 2) +(1 3))";
+    let (mut arena, mut formula) = parse_sat_new("cnf_idempotent.sat", sat);
+    formula.to_cnf_dist(&mut arena);
+    let once = formula_string(&formula, &arena);
+    formula.to_cnf_dist(&mut arena);
+    let twice = formula_string(&formula, &arena);
+    assert_eq!(once, twice);
+}
+
+#[test]
+// Checks shared-subexpression case for CNF distribution.
+// We expect no panic and non-empty output because distribution handles shared nodes and simplification safely.
+fn cnf_dist_shared_expression_no_panic() {
+    let sat = "c 1 a\np sat 1 *(-(1) -(-(1)))";
+    let (mut arena, mut formula) = parse_sat_new("cnf_shared.sat", sat);
+    formula.to_cnf_dist(&mut arena);
+    let printed = formula_string(&formula, &arena);
+    assert_eq!(printed, "Or()");
+}
+
+#[test]
+// Checks CNF rendering.
+// We expect DIMACS metadata and clause terminators to ensure serialized output remains solver-compatible.
+fn cnf_legacy_simple_line_shape() {
+    let sat = "c 1 x\nc 2 y\nc 3 ab\nc 4 n\nc 5 abc\nc 6 bb\np sat 6 *(+(1 2) 3 -(4) *(5 -(+(1 2)) 6))";
+    let (mut arena, mut formula) = parse_sat_new("legacy_cnf.sat", sat);
+    formula.to_cnf_dist(&mut arena);
+    let dimacs = formula.to_clauses(&arena).to_string();
+    assert_eq!(
+        dimacs,
+        "c 1 x\nc 2 y\nc 3 ab\nc 4 n\nc 5 abc\nc 6 bb\np cnf 6 7\n-1 0\n-2 0\n3 0\n-4 0\n5 0\n6 0\n1 2 0\n"
+    );
+}

@@ -175,7 +175,7 @@ impl Arena {
     /// Looks ups the identifier of a named variable in this arena.
     ///
     /// Works analogously to [Arena::get_expr] (see [Arena::vars_inv]).
-    fn get_var_named(&mut self, name: String) -> Option<VarId> {
+    pub(crate) fn get_var_named(&mut self, name: String) -> Option<VarId> {
         Some(*self.vars_inv.get(&Var::Named(name))?)
     }
 
