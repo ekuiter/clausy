@@ -84,11 +84,9 @@ impl File {
         let clausy_count = clauses.count();
         let featureide_count = self.count_with_featureide();
         assert_eq!(
-            clausy_count,
-            featureide_count,
+            clausy_count, featureide_count,
             "error: clausy counts {} satisfying assignments, but FeatureIDE counts {}",
-            clausy_count,
-            featureide_count
+            clausy_count, featureide_count
         );
     }
 

@@ -5,6 +5,8 @@ use self::{io::IoFormulaParser, model::ModelFormulaParser, sat::SatFormulaParser
 use crate::core::arena::Arena;
 use crate::core::file::File;
 use crate::core::formula::Formula;
+use crate::shell::options;
+use crate::util::log::log;
 
 mod cnf;
 mod io;
@@ -38,6 +40,10 @@ pub(crate) trait FormulaParsee {
 
 /// Returns the appropriate parser for a file extension.
 pub(crate) fn parser(extension: Option<String>) -> Box<dyn FormulaParser> {
+    if options().output.force_io {
+        log("[SHELL] forcing FeatureIDE I/O parser");
+        return Box::new(IoFormulaParser);
+    }
     match extension {
         Some(extension) => match extension.as_str() {
             "cnf" | "dimacs" => Box::new(CnfFormulaParser),

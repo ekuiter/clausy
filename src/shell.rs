@@ -84,6 +84,10 @@ pub struct OutputOptions {
     /// Disable optional SAT-style informational logs (`c ...`)
     #[arg(short = 'q', long, default_value_t = false)]
     pub quiet: bool,
+
+    /// Force parsing all input files through the FeatureIDE I/O interface
+    #[arg(long, default_value_t = false)]
+    pub force_io: bool,
 }
 
 /// All configuration options.
@@ -293,7 +297,7 @@ pub fn main() {
                     );
                 } else {
                     panic!(
-                        "{} is neither an existing file nor a parsable inline expression",
+                        "{} is not a command, an existing file, or a parsable inline expression",
                         command
                     );
                 }
