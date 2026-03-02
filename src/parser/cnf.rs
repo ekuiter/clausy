@@ -22,9 +22,8 @@ pub(super) struct CnfFormulaParser;
 
 impl FormulaParser for CnfFormulaParser {
     fn parse_into(&self, file: File, arena: &mut Arena) -> Formula {
-        let mut pairs = CnfFormulaParser::parse(Rule::file, &file.contents).unwrap_or_else(|err| {
-            panic!("failed to parse CNF file '{}': {err}", file.name)
-        });
+        let mut pairs = CnfFormulaParser::parse(Rule::file, &file.contents)
+            .unwrap_or_else(|err| panic!("failed to parse CNF file '{}': {err}", file.name));
 
         let mut sub_var_ids = HashSet::<VarId>::new();
         let mut variable_names = HashMap::<VarId, &str>::new();
@@ -97,7 +96,7 @@ impl FormulaParser for CnfFormulaParser {
                     let children_ids = pair
                         .clone()
                         .into_inner()
-                    .map(|pair| {
+                        .map(|pair| {
                             let var: VarId = pair
                                 .as_str()
                                 .parse()

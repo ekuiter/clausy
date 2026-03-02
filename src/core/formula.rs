@@ -14,8 +14,9 @@ use super::{
 };
 use std::{
     collections::HashSet,
+    io::Write,
     str::FromStr,
-    time::{Duration, Instant}, io::Write,
+    time::{Duration, Instant},
 };
 
 /// Commands for computing differences of feature-model formulas.

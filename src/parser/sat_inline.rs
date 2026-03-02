@@ -36,8 +36,8 @@ impl<'a> SatInlineFormulaParser<'a> {
     }
 
     pub(crate) fn parse_into(&self, file: &String, arena: &mut Arena) -> Formula {
-        let mut pairs =
-            SatInlineFormulaParser::parse(Rule::file, file).expect("failed to parse inline SAT expression");
+        let mut pairs = SatInlineFormulaParser::parse(Rule::file, file)
+            .expect("failed to parse inline SAT expression");
         let root_id = self.parse_pair(
             pairs
                 .next()

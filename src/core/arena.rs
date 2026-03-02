@@ -403,11 +403,7 @@ impl Arena {
     ///
     /// The created formula references all variables of this arena, use [Formula::new] for more fine-grained sub-variables.
     pub(crate) fn as_formula<'a>(&'a self, root_id: ExprId) -> Formula {
-        Formula::new(
-            self.var_ids(),
-            root_id,
-            None,
-        )
+        Formula::new(self.var_ids(), root_id, None)
     }
 
     /// Visits all sub-expressions of a given root expression using a reverse preorder traversal.

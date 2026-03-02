@@ -35,8 +35,7 @@ pub(crate) fn name_from_io(str: &str) -> String {
 
 /// Given a UVL file, only returns its feature hierarchy, omitting its constraints.
 pub(crate) fn uvl_remove_constraints(uvl: &str) -> &str {
-    uvl
-        .split("\nconstraints\n")
+    uvl.split("\nconstraints\n")
         .next()
         .expect("failed to split UVL file while removing constraints")
         .trim()
@@ -50,12 +49,10 @@ pub(crate) fn uvl_append(uvl: &str, appendix: &str) -> String {
 /// Appends variables as abstract features to an existing UVL feature hierarchy.
 pub(crate) fn uvl_add_vars(label: &str, vars: &[Var]) -> String {
     let mut uvl = String::new();
-    writeln!(uvl, "\t\tmandatory")
-        .expect("failed to build UVL: writing mandatory section");
+    writeln!(uvl, "\t\tmandatory").expect("failed to build UVL: writing mandatory section");
     writeln!(uvl, "\t\t\t\"{label}\" {{abstract}}")
         .expect("failed to build UVL: writing variable group label");
-    writeln!(uvl, "\t\t\t\toptional")
-        .expect("failed to build UVL: writing optional block");
+    writeln!(uvl, "\t\t\t\toptional").expect("failed to build UVL: writing optional block");
     for var in vars {
         writeln!(uvl, "\t\t\t\t\t\"{var}\" {{abstract}}")
             .expect("failed to build UVL: writing variable entry");
@@ -93,8 +90,7 @@ pub(crate) fn to_uvl_string(clauses: &Clauses) -> String {
         .collect();
     writeln!(uvl, "{}", uvl_add_vars("Auxiliary Variables", &vars))
         .expect("failed to build UVL: writing auxiliary variable section");
-    writeln!(uvl, "\nconstraints")
-        .expect("failed to build UVL: writing constraints header");
+    writeln!(uvl, "\nconstraints").expect("failed to build UVL: writing constraints header");
     for clause in &clauses.clauses {
         write!(uvl, "\t").expect("failed to build UVL: writing clause indentation");
         for literal in clause {
@@ -132,8 +128,7 @@ pub(crate) fn xml_with_constraints(xml: &str, constraints: &str) -> String {
 pub(crate) fn to_xml_string(clauses: &Clauses) -> String {
     let mut xml = "\t<constraints>\n".to_string();
     for clause in &clauses.clauses {
-        write!(xml, "\t\t<rule><disj>")
-            .expect("failed to build XML: writing rule header");
+        write!(xml, "\t\t<rule><disj>").expect("failed to build XML: writing rule header");
         for literal in clause {
             let var: usize = literal
                 .unsigned_abs()
@@ -148,8 +143,7 @@ pub(crate) fn to_xml_string(clauses: &Clauses) -> String {
             )
             .expect("failed to build XML: writing clause literal");
         }
-        writeln!(xml, "</disj></rule>")
-            .expect("failed to build XML: terminating rule");
+        writeln!(xml, "</disj></rule>").expect("failed to build XML: terminating rule");
     }
     xml + "\t</constraints>"
 }

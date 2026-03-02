@@ -4,8 +4,9 @@ use super::FormulaParser;
 use crate::core::{
     arena::Arena,
     expr::{Expr::*, ExprId},
+    file::File,
     formula::Formula,
-    var::VarId, file::File,
+    var::VarId,
 };
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
@@ -70,9 +71,8 @@ fn parse_pair(pair: Pair<Rule>, vars: &[ExprId], arena: &mut Arena) -> ExprId {
 
 impl FormulaParser for SatFormulaParser {
     fn parse_into(&self, file: File, arena: &mut Arena) -> Formula {
-        let mut pairs = SatFormulaParser::parse(Rule::file, &file.contents).unwrap_or_else(|err| {
-            panic!("failed to parse SAT file '{}': {err}", file.name)
-        });
+        let mut pairs = SatFormulaParser::parse(Rule::file, &file.contents)
+            .unwrap_or_else(|err| panic!("failed to parse SAT file '{}': {err}", file.name));
 
         let mut sub_var_ids = HashSet::<VarId>::new();
         let mut variable_names = HashMap::<VarId, &str>::new();

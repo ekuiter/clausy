@@ -97,13 +97,13 @@ pub fn options() -> &'static Options {
 }
 
 /// Name of the config file that can be placed next to the executable.
-/// 
+///
 /// This is hardcoded and cannot be configured, because at the point of loading the config file,
 /// we already need to know its name.
 const CONFIG_FILE: &str = "clausy.conf";
 
 /// Exit code for unsatisfiable formulas.
-/// 
+///
 /// This allows distinguishing between unsatisfiability and other errors.
 const UNSAT_EXIT_CODE: i32 = 20;
 
@@ -157,10 +157,12 @@ pub fn main() {
     let config_file_args = load_config_file_args();
     args.splice(1..1, config_file_args);
     let cli = CliOptions::parse_from(args);
-    OPTIONS.set(Options {
-        tool_paths: cli.tool_paths,
-        output: cli.output_options,
-    }).expect("global options were initialized more than once");
+    OPTIONS
+        .set(Options {
+            tool_paths: cli.tool_paths,
+            output: cli.output_options,
+        })
+        .expect("global options were initialized more than once");
 
     let mut commands = cli.commands;
     let mut arena = Arena::new();
@@ -224,7 +226,10 @@ pub fn main() {
             "enumerate" => clauses!(clauses, arena, formulas).enumerate(),
             "count_inc" => {
                 let [a, b] = &formulas[..] else { panic!() };
-                println!("{}", a.count_inc(b, arguments.into_iter().next(), &mut arena));
+                println!(
+                    "{}",
+                    a.count_inc(b, arguments.into_iter().next(), &mut arena)
+                );
             }
             "diff" => {
                 let [a, b] = &formulas[..] else { panic!() };
@@ -233,9 +238,15 @@ pub fn main() {
                     Some("top-strong") => DiffKind::Strong(true),
                     Some("bottom-strong") | Some("strong") => DiffKind::Strong(false),
                     Some("weak") | None => DiffKind::Weak,
-                    _ => panic!()
+                    _ => panic!(),
                 };
-                a.diff(b, parse_argument(), parse_argument(), arguments.next(), &mut arena);
+                a.diff(
+                    b,
+                    parse_argument(),
+                    parse_argument(),
+                    arguments.next(),
+                    &mut arena,
+                );
             }
             _ => {
                 if File::exists(command) {
@@ -248,7 +259,10 @@ pub fn main() {
                             .parse_into(&command, &mut arena),
                     );
                 } else {
-                    panic!("{} is neither an existing file nor a parsable inline expression", command);
+                    panic!(
+                        "{} is neither an existing file nor a parsable inline expression",
+                        command
+                    );
                 }
                 clauses = None;
             }

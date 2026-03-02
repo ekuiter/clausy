@@ -74,7 +74,10 @@ fn sat_parser_uses_comment_variable_names() {
     let sat = "c 1 feature_a\nc 2 feature_b\np sat 2 *(1 -(2))";
     let (arena, formula) = parse_sat_new("test.sat", sat);
 
-    assert_eq!(formula_string(&formula, &arena), "And(feature_a, Not(feature_b))");
+    assert_eq!(
+        formula_string(&formula, &arena),
+        "And(feature_a, Not(feature_b))"
+    );
 }
 
 #[test]
@@ -107,8 +110,8 @@ fn sat_inline_parser_can_reference_previous_formulas() {
     let f2 = parse_into(&mut arena, "b.sat", "c 1 b\np sat 1 -(1)", "sat");
 
     let formulas = vec![f1.clone(), f2.clone()];
-    let inline = SatInlineFormulaParser::new(&formulas, None)
-        .parse_into(&"+(1 -2)".to_string(), &mut arena);
+    let inline =
+        SatInlineFormulaParser::new(&formulas, None).parse_into(&"+(1 -2)".to_string(), &mut arena);
 
     assert_eq!(formula_string(&inline, &arena), "Or(a, b)");
 }
@@ -198,7 +201,8 @@ fn diff_vars_and_constraints_report_expected_partition() {
     assert_eq!(left_vars.len(), 1);
     assert_eq!(right_vars.len(), 1);
 
-    let (common_constraints, left_constraints, right_constraints) = a.diff_constraints(&b, &mut arena);
+    let (common_constraints, left_constraints, right_constraints) =
+        a.diff_constraints(&b, &mut arena);
     assert_eq!(common_constraints.len(), 1);
     assert_eq!(left_constraints.len(), 1);
     assert_eq!(right_constraints.len(), 1);
@@ -254,7 +258,10 @@ fn parser_simple_legacy_scenario() {
             (def( abc)& !(def(x)|def(y))   & def( bb ))";
     let (arena, formula) = parse_model_new("legacy.model", model);
     let rendered = formula_string(&formula, &arena);
-    assert_eq!(rendered, "And(Or(x, y), ab, Not(n), And(Not(Or(x, y)), abc, bb))");
+    assert_eq!(
+        rendered,
+        "And(Or(x, y), ab, Not(n), And(Not(Or(x, y)), abc, bb))"
+    );
 }
 
 #[test]
@@ -337,7 +344,8 @@ fn cnf_dist_shared_expression_no_panic() {
 // Checks CNF rendering.
 // We expect DIMACS metadata and clause terminators to ensure serialized output remains solver-compatible.
 fn cnf_legacy_simple_line_shape() {
-    let sat = "c 1 x\nc 2 y\nc 3 ab\nc 4 n\nc 5 abc\nc 6 bb\np sat 6 *(+(1 2) 3 -(4) *(5 -(+(1 2)) 6))";
+    let sat =
+        "c 1 x\nc 2 y\nc 3 ab\nc 4 n\nc 5 abc\nc 6 bb\np sat 6 *(+(1 2) 3 -(4) *(5 -(+(1 2)) 6))";
     let (mut arena, mut formula) = parse_sat_new("legacy_cnf.sat", sat);
     formula.to_cnf_dist(&mut arena);
     let dimacs = formula.to_clauses(&arena).to_string();

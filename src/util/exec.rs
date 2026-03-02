@@ -24,8 +24,7 @@ fn path(file_name: &str) -> String {
     if path.exists() {
         return format!("./{}", file_name);
     }
-    let mut exe_path = env::current_exe()
-        .expect("failed to determine path of clausy executable");
+    let mut exe_path = env::current_exe().expect("failed to determine path of clausy executable");
     exe_path.pop();
     exe_path.push(file_name);
     exe_path
@@ -80,7 +79,10 @@ fn kissat(cnf: &str) -> Option<Vec<VarId>> {
         .filter(|line| line.starts_with("v "))
         .flat_map(|line| line[2..].split(' '))
         .filter(|s| !s.is_empty())
-        .map(|s| s.parse().expect(&format!("invalid literal in kissat output: '{s}'")))
+        .map(|s| {
+            s.parse()
+                .expect(&format!("invalid literal in kissat output: '{s}'"))
+        })
         .filter(|literal| *literal != 0)
         .collect();
     if solution.len() > 0 {
@@ -147,10 +149,13 @@ fn d4(cnf: &str) -> BigInt {
     let count_line = stdout
         .lines()
         .find(|line| line.starts_with("s "))
-        .expect(&format!("d4 output missing solution count (expected 's <count>'):\n{stdout}"));
+        .expect(&format!(
+            "d4 output missing solution count (expected 's <count>'):\n{stdout}"
+        ));
     let count_str = count_line.split_at(2).1;
-    BigInt::from_str(count_str)
-        .expect(&format!("d4 output contains invalid model count: '{count_str}'"))
+    BigInt::from_str(count_str).expect(&format!(
+        "d4 output contains invalid model count: '{count_str}'"
+    ))
 }
 
 /// Counts solutions using an arbitrary #SAT solver.
@@ -172,10 +177,13 @@ fn arbitrary_sharp_sat(cnf: &str, solver_path: &str) -> BigInt {
     let count_line = stdout
         .lines()
         .find(|line| line.starts_with("s "))
-        .expect(&format!("#SAT solver output missing count (expected 's <count>'):\n{stdout}"));
+        .expect(&format!(
+            "#SAT solver output missing count (expected 's <count>'):\n{stdout}"
+        ));
     let count_str = count_line.split_at(2).1;
-    BigInt::from_str(count_str)
-        .expect(&format!("#SAT solver output contains invalid model count: '{count_str}'"))
+    BigInt::from_str(count_str).expect(&format!(
+        "#SAT solver output contains invalid model count: '{count_str}'"
+    ))
 }
 
 /// Enumerates all solutions of some CNF in DIMACS format.
@@ -202,7 +210,10 @@ pub(crate) fn bc_minisat_all(cnf: &str) -> (impl Iterator<Item = Vec<VarId>>, Na
             let line = line.expect("failed to read bc_minisat_all output");
             line.split(' ')
                 .filter(|s| !s.is_empty())
-                .map(|s| s.parse().expect(&format!("invalid literal in bc_minisat_all output: '{s}'")))
+                .map(|s| {
+                    s.parse()
+                        .expect(&format!("invalid literal in bc_minisat_all output: '{s}'"))
+                })
                 .filter(|literal| *literal != 0)
                 .collect::<Vec<VarId>>()
         });
@@ -258,7 +269,11 @@ pub(crate) fn io(file: &File, output_format: &str, variables: &[&str]) -> File {
         "FeatureIDE conversion failed for '{}' -> '{}': {}",
         file.name,
         output_format,
-        if error.is_empty() { "no output produced" } else { &error }
+        if error.is_empty() {
+            "no output produced"
+        } else {
+            &error
+        }
     );
     File::new(format!("-.{}", output_format), output)
 }

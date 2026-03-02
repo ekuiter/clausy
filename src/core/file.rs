@@ -88,7 +88,7 @@ impl File {
     pub(crate) fn convert_with_featureide(&self, output_format: &str) -> File {
         if self
             .extension()
-            .filter(|extension|  extension == output_format)
+            .filter(|extension| extension == output_format)
             .is_none()
         {
             exec::io(&self, output_format, &[])
