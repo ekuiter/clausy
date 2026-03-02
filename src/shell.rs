@@ -26,24 +26,26 @@ use std::sync::OnceLock;
 - The config file clausy.conf next to the clausy executable can be used to set recurring default options."#)]
 struct CliOptions {
     /// Input file and commands to run on the formula.
-    /// Use "-" for stdin, or provide a file followed by commands like "to_cnf_dist", "print", etc.
+    /// Use "-" for stdin, or provide a file followed by commands like "to_cnf_dist", "print", and so on
     #[arg(trailing_var_arg = true)]
     commands: Vec<String>,
 
     #[command(flatten)]
-    tool_paths: ToolPathOptions,
+    tool_options: ToolOptions,
 
     #[command(flatten)]
     output_options: OutputOptions,
 }
 
-/// Paths to external tools used for SAT solving, model counting, etc.
+/// Options of external tools used for SAT solving, model counting, etc.
 ///
-/// Paths are looked up based on these strings. The supplied paths can be absolute or relative.
+/// Most options here are paths that define where tools are looked up.
+/// The supplied paths can be absolute or relative.
 /// Relative paths are first resolved against the working directory, and then against the directory of the clausy executable.
+/// Some options like `--force-io` control specific tool behavior.
 #[derive(Args, Default, Debug)]
-#[command(next_help_heading = "Tool Path Options")]
-pub struct ToolPathOptions {
+#[command(next_help_heading = "Tool Options")]
+pub struct ToolOptions {
     /// Path to the satisfiability solver kissat
     #[arg(long = "kissat-path", default_value = "kissat")]
     pub kissat: String,
@@ -67,6 +69,10 @@ pub struct ToolPathOptions {
     /// Path to the FeatureIDE I/O interface
     #[arg(long = "io-path", default_value = "io.jar")]
     pub io: String,
+
+    /// Force parsing all input files through the FeatureIDE I/O interface
+    #[arg(long, default_value_t = false)]
+    pub force_io: bool,
 }
 
 /// Output formatting options.
@@ -85,15 +91,12 @@ pub struct OutputOptions {
     #[arg(short = 'q', long, default_value_t = false)]
     pub quiet: bool,
 
-    /// Force parsing all input files through the FeatureIDE I/O interface
-    #[arg(long, default_value_t = false)]
-    pub force_io: bool,
 }
 
 /// All configuration options.
 #[derive(Default, Debug)]
 pub struct Options {
-    pub tool_paths: ToolPathOptions,
+    pub tool: ToolOptions,
     pub output: OutputOptions,
 }
 
@@ -170,7 +173,7 @@ pub fn main() {
     let cli = CliOptions::parse_from(args);
     OPTIONS
         .set(Options {
-            tool_paths: cli.tool_paths,
+            tool: cli.tool_options,
             output: cli.output_options,
         })
         .expect("global options were initialized more than once");

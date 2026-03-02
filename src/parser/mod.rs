@@ -40,7 +40,7 @@ pub(crate) trait FormulaParsee {
 
 /// Returns the appropriate parser for a file extension.
 pub(crate) fn parser(extension: Option<String>) -> Box<dyn FormulaParser> {
-    if options().output.force_io {
+    if options().tool.force_io {
         log("[SHELL] forcing FeatureIDE I/O parser");
         return Box::new(IoFormulaParser);
     }
