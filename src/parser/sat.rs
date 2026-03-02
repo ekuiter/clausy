@@ -32,11 +32,14 @@ fn parse_pair(pair: Pair<Rule>, vars: &[ExprId], arena: &mut Arena) -> ExprId {
                 .clone()
                 .into_inner()
                 .peek()
-                .unwrap()
+                .expect("SAT variable token missing integer payload")
                 .as_str()
                 .parse()
-                .unwrap();
-            let var: usize = var.unsigned_abs().try_into().unwrap();
+                .expect("SAT variable token contains invalid integer");
+            let var: usize = var
+                .unsigned_abs()
+                .try_into()
+                .expect("SAT variable index does not fit into usize");
             if pair.as_str().starts_with("-") {
                 arena.expr(Not(vars[var]))
             } else {
@@ -44,7 +47,13 @@ fn parse_pair(pair: Pair<Rule>, vars: &[ExprId], arena: &mut Arena) -> ExprId {
             }
         }
         Rule::not => {
-            let child_id = parse_pair(pair.into_inner().next().unwrap(), vars, arena);
+            let child_id = parse_pair(
+                pair.into_inner()
+                    .next()
+                    .expect("SAT NOT expression missing child"),
+                vars,
+                arena,
+            );
             arena.expr(Not(child_id))
         }
         Rule::and => {
@@ -61,16 +70,36 @@ fn parse_pair(pair: Pair<Rule>, vars: &[ExprId], arena: &mut Arena) -> ExprId {
 
 impl FormulaParser for SatFormulaParser {
     fn parse_into(&self, file: File, arena: &mut Arena) -> Formula {
-        let mut pairs = SatFormulaParser::parse(Rule::file, &file.contents).unwrap();
+        let mut pairs = SatFormulaParser::parse(Rule::file, &file.contents).unwrap_or_else(|err| {
+            panic!("failed to parse SAT file '{}': {err}", file.name)
+        });
 
         let mut sub_var_ids = HashSet::<VarId>::new();
         let mut variable_names = HashMap::<VarId, &str>::new();
-        while let Rule::comment = pairs.peek().unwrap().as_rule() {
-            let pair = pairs.next().unwrap().into_inner().next().unwrap();
+        while let Rule::comment = pairs
+            .peek()
+            .expect("SAT parser unexpectedly reached EOF while scanning comments")
+            .as_rule()
+        {
+            let pair = pairs
+                .next()
+                .expect("SAT parser expected comment pair")
+                .into_inner()
+                .next()
+                .expect("SAT comment missing inner payload");
             if let Rule::comment_var = pair.as_rule() {
                 let mut pairs = pair.into_inner();
-                let var: VarId = pairs.next().unwrap().as_str().parse().unwrap();
-                let name = pairs.next().unwrap().as_str().trim();
+                let var: VarId = pairs
+                    .next()
+                    .expect("SAT comment_var missing variable id")
+                    .as_str()
+                    .parse()
+                    .expect("SAT comment_var contains invalid variable id");
+                let name = pairs
+                    .next()
+                    .expect("SAT comment_var missing variable name")
+                    .as_str()
+                    .trim();
                 debug_assert!(!variable_names.contains_key(&var));
                 variable_names.insert(var, name);
             }
@@ -78,13 +107,13 @@ impl FormulaParser for SatFormulaParser {
 
         let n: VarId = pairs
             .next()
-            .unwrap()
+            .expect("SAT parser missing preamble")
             .into_inner()
             .next()
-            .unwrap()
+            .expect("SAT preamble missing variable count")
             .as_str()
             .parse()
-            .unwrap();
+            .expect("SAT preamble contains invalid variable count");
         let mut vars: Vec<ExprId> = vec![0];
         for i in 1..=n {
             if variable_names.contains_key(&i) {
@@ -100,7 +129,11 @@ impl FormulaParser for SatFormulaParser {
         }
         debug_assert!(variable_names.is_empty());
 
-        let root_id = parse_pair(pairs.next().unwrap(), &vars, arena);
+        let root_id = parse_pair(
+            pairs.next().expect("SAT parser missing root expression"),
+            &vars,
+            arena,
+        );
         Formula::new(sub_var_ids, root_id, Some(file))
     }
 }

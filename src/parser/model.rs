@@ -33,7 +33,7 @@ fn parse_pair(pair: Pair<Rule>, arena: &mut Arena, var_ids: &mut HashSet<VarId>)
             let (expr_id, var_id) = arena.var_expr_with_id(
                 pair.into_inner()
                     .next()
-                    .unwrap()
+                    .expect("model variable token missing feature name")
                     .as_str()
                     .trim()
                     .to_string(),
@@ -47,7 +47,13 @@ fn parse_pair(pair: Pair<Rule>, arena: &mut Arena, var_ids: &mut HashSet<VarId>)
             expr_id
         }
         Rule::not => {
-            let child_id = parse_pair(pair.into_inner().next().unwrap(), arena, var_ids);
+            let child_id = parse_pair(
+                pair.into_inner()
+                    .next()
+                    .expect("model NOT expression missing child"),
+                arena,
+                var_ids,
+            );
             arena.expr(Not(child_id))
         }
         Rule::and => {
@@ -67,9 +73,9 @@ fn parse_into(file: File, arena: &mut Arena) -> Formula {
     let mut sub_var_ids = HashSet::<VarId>::new();
     for line in file.contents.lines() {
         let pair = ModelFormulaParser::parse(Rule::line, line)
-            .unwrap()
+            .unwrap_or_else(|err| panic!("failed to parse model line '{}': {err}", line))
             .next()
-            .unwrap();
+            .expect("model parser produced no line pair");
 
         match pair.as_rule() {
             Rule::EOI => (),

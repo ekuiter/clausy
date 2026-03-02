@@ -92,6 +92,7 @@ impl Formula {
 
     /// Returns a formula that forces all variables only occurring in the given arena to true or false.
     ///
+    /// The parameter `top` specifies whether to force the affected variables to true or false.
     /// Does not modify this formula.
     pub(crate) fn force_foreign_vars(
         &self,
@@ -487,7 +488,7 @@ impl Formula {
         let mut a2_file = a2.file.clone();
         let mut b2_file = b2.file.clone();
         if let DiffKind::Weak = left_diff_kind {
-            (a2, a2_file) = measure_time!(a2_file.as_ref().unwrap().slice_featureide(
+            (a2, a2_file) = measure_time!(a2_file.as_ref().unwrap().slice_with_featureide(
                 &common_var_ids,
                 arena,
                 write_files
@@ -496,7 +497,7 @@ impl Formula {
             no_duration!();
         }
         if let DiffKind::Weak = right_diff_kind {
-            (b2, b2_file) = measure_time!(b2_file.as_ref().unwrap().slice_featureide(
+            (b2, b2_file) = measure_time!(b2_file.as_ref().unwrap().slice_with_featureide(
                 &common_var_ids,
                 arena,
                 write_files
@@ -507,7 +508,7 @@ impl Formula {
         if let DiffKind::Strong(top) = left_diff_kind {
             b2 = b2.force_foreign_vars(top, &b_var_ids, arena);
             if write_files {
-                let mut file = b2_file.as_ref().unwrap().convert("uvl");
+                let mut file = b2_file.as_ref().unwrap().convert_with_featureide("uvl");
                 io::uvl_file_add_vars(&mut file, "Removed Features", &a_var_ids, arena);
                 b2_file = Some(file);
             }
@@ -515,14 +516,14 @@ impl Formula {
         if let DiffKind::Strong(top) = right_diff_kind {
             a2 = a2.force_foreign_vars(top, &a_var_ids, arena);
             if write_files {
-                let mut file = a2_file.as_ref().unwrap().convert("uvl");
+                let mut file = a2_file.as_ref().unwrap().convert_with_featureide("uvl");
                 io::uvl_file_add_vars(&mut file, "Added Features", &b_var_ids, arena);
                 a2_file = Some(file);
             }
         }
         if write_files {
-            a2_file = Some(a2_file.as_ref().unwrap().convert("uvl"));
-            b2_file = Some(b2_file.as_ref().unwrap().convert("uvl"));
+            a2_file = Some(a2_file.as_ref().unwrap().convert_with_featureide("uvl"));
+            b2_file = Some(b2_file.as_ref().unwrap().convert_with_featureide("uvl"));
         }
         let minus_one = -1.to_bigint().unwrap();
         let mut cnt_a = minus_one.clone();

@@ -13,7 +13,8 @@ use pest_derive::Parser;
 /// Parses inline input in a .sat-like format.
 ///
 /// In this format, identifiers refer to previously parsed inputs.
-/// Optionally, the parsed formula can add negative backbone literals to align differing sets of variables.
+/// Optionally, the parsed formula can add backbone literals to align differing sets of variables.
+/// This is done by Thüm et al. in "Reasoning about Edits to Feature Models" and related literature.
 /// As sub-variables, the parsed formula has the union of the sub-variables of all given formulas.
 #[derive(Parser)]
 #[grammar = "parser/sat_inline.pest"]
@@ -35,8 +36,14 @@ impl<'a> SatInlineFormulaParser<'a> {
     }
 
     pub(crate) fn parse_into(&self, file: &String, arena: &mut Arena) -> Formula {
-        let mut pairs = SatInlineFormulaParser::parse(Rule::file, file).unwrap();
-        let root_id = self.parse_pair(pairs.next().unwrap(), arena);
+        let mut pairs =
+            SatInlineFormulaParser::parse(Rule::file, file).expect("failed to parse inline SAT expression");
+        let root_id = self.parse_pair(
+            pairs
+                .next()
+                .expect("inline SAT parser missing root expression"),
+            arena,
+        );
         let sub_var_ids = if self.force_foreign_vars.is_some() {
             arena.var_ids()
         } else {
@@ -61,16 +68,23 @@ impl<'a> SatInlineFormulaParser<'a> {
                     .clone()
                     .into_inner()
                     .peek()
-                    .unwrap()
+                    .expect("inline SAT variable token missing integer payload")
                     .as_str()
                     .parse()
-                    .unwrap();
-                let idx: usize = arg.try_into().unwrap();
+                    .expect("inline SAT variable token contains invalid integer");
+                let idx: usize = arg
+                    .try_into()
+                    .expect("inline SAT variable reference must be positive");
                 let formula = &self.formulas[idx - 1];
                 let mut root_id = formula.root_id;
                 if self.force_foreign_vars.is_some() {
                     root_id = formula
-                        .force_foreign_vars(self.force_foreign_vars.unwrap(), &HashSet::new(), arena)
+                        .force_foreign_vars(
+                            self.force_foreign_vars
+                                .expect("force_foreign_vars flag unexpectedly missing"),
+                            &HashSet::new(),
+                            arena,
+                        )
                         .root_id;
                 }
                 if pair.as_str().starts_with("-") {
@@ -80,7 +94,12 @@ impl<'a> SatInlineFormulaParser<'a> {
                 }
             }
             Rule::not => {
-                let child_id = self.parse_pair(pair.into_inner().next().unwrap(), arena);
+                let child_id = self.parse_pair(
+                    pair.into_inner()
+                        .next()
+                        .expect("inline SAT NOT expression missing child"),
+                    arena,
+                );
                 arena.expr(Not(child_id))
             }
             Rule::and => {

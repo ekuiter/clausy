@@ -35,7 +35,11 @@ pub(crate) fn name_from_io(str: &str) -> String {
 
 /// Given a UVL file, only returns its feature hierarchy, omitting its constraints.
 pub(crate) fn uvl_remove_constraints(uvl: &str) -> &str {
-    uvl.split("\nconstraints\n").nth(0).unwrap().trim()
+    uvl
+        .split("\nconstraints\n")
+        .next()
+        .expect("failed to split UVL file while removing constraints")
+        .trim()
 }
 
 /// Given a UVL file with a feature hierarchy and given features or constraints, creates a merged UVL file.
@@ -46,11 +50,15 @@ pub(crate) fn uvl_append(uvl: &str, appendix: &str) -> String {
 /// Appends variables as abstract features to an existing UVL feature hierarchy.
 pub(crate) fn uvl_add_vars(label: &str, vars: &[Var]) -> String {
     let mut uvl = String::new();
-    writeln!(uvl, "\t\tmandatory").unwrap();
-    writeln!(uvl, "\t\t\t\"{label}\" {{abstract}}").unwrap();
-    writeln!(uvl, "\t\t\t\toptional").unwrap();
+    writeln!(uvl, "\t\tmandatory")
+        .expect("failed to build UVL: writing mandatory section");
+    writeln!(uvl, "\t\t\t\"{label}\" {{abstract}}")
+        .expect("failed to build UVL: writing variable group label");
+    writeln!(uvl, "\t\t\t\toptional")
+        .expect("failed to build UVL: writing optional block");
     for var in vars {
-        writeln!(uvl, "\t\t\t\t\t\"{var}\" {{abstract}}").unwrap();
+        writeln!(uvl, "\t\t\t\t\t\"{var}\" {{abstract}}")
+            .expect("failed to build UVL: writing variable entry");
     }
     uvl
 }
@@ -83,28 +91,33 @@ pub(crate) fn to_uvl_string(clauses: &Clauses) -> String {
         })
         .map(|var| var.clone())
         .collect();
-    writeln!(uvl, "{}", uvl_add_vars("Auxiliary Variables", &vars)).unwrap();
-    writeln!(uvl, "\nconstraints").unwrap();
+    writeln!(uvl, "{}", uvl_add_vars("Auxiliary Variables", &vars))
+        .expect("failed to build UVL: writing auxiliary variable section");
+    writeln!(uvl, "\nconstraints")
+        .expect("failed to build UVL: writing constraints header");
     for clause in &clauses.clauses {
-        write!(uvl, "\t").unwrap();
+        write!(uvl, "\t").expect("failed to build UVL: writing clause indentation");
         for literal in clause {
-            let var: usize = literal.unsigned_abs().try_into().unwrap();
+            let var: usize = literal
+                .unsigned_abs()
+                .try_into()
+                .expect("clause literal index does not fit into usize");
             write!(
                 uvl,
                 "{}\"{}\" | ",
                 if *literal > 0 { "" } else { "!" },
                 clauses.vars[var]
             )
-            .unwrap();
+            .expect("failed to build UVL: writing clause literal");
         }
         if clause.len() > 0 {
             for _ in 1..=3 {
                 uvl.pop();
             }
         } else {
-            write!(uvl, "false").unwrap();
+            write!(uvl, "false").expect("failed to build UVL: writing empty-clause marker");
         }
-        writeln!(uvl).unwrap();
+        writeln!(uvl).expect("failed to build UVL: terminating clause line");
     }
     uvl.truncate(uvl.trim_end().len());
     uvl
@@ -119,9 +132,13 @@ pub(crate) fn xml_with_constraints(xml: &str, constraints: &str) -> String {
 pub(crate) fn to_xml_string(clauses: &Clauses) -> String {
     let mut xml = "\t<constraints>\n".to_string();
     for clause in &clauses.clauses {
-        write!(xml, "\t\t<rule><disj>").unwrap();
+        write!(xml, "\t\t<rule><disj>")
+            .expect("failed to build XML: writing rule header");
         for literal in clause {
-            let var: usize = literal.unsigned_abs().try_into().unwrap();
+            let var: usize = literal
+                .unsigned_abs()
+                .try_into()
+                .expect("clause literal index does not fit into usize");
             write!(
                 xml,
                 "{}<var>{}</var>{}",
@@ -129,9 +146,10 @@ pub(crate) fn to_xml_string(clauses: &Clauses) -> String {
                 clauses.vars[var],
                 if *literal > 0 { "" } else { "</not>" }
             )
-            .unwrap();
+            .expect("failed to build XML: writing clause literal");
         }
-        writeln!(xml, "</disj></rule>").unwrap();
+        writeln!(xml, "</disj></rule>")
+            .expect("failed to build XML: terminating rule");
     }
     xml + "\t</constraints>"
 }
@@ -149,7 +167,7 @@ pub(crate) fn write_uvl_and_xml(
             "-.uvl".to_string(),
             uvl_remove_constraints(&uvl).to_string(),
         )
-        .convert("xml")
+        .convert_with_featureide("xml")
         .contents,
         &xml_constraints,
     );
@@ -161,8 +179,10 @@ pub(crate) fn write_uvl_and_xml(
 pub(crate) fn write_vars(name: String, arena: &Arena, var_ids: &HashSet<VarId>) {
     let mut f = String::new();
     for id in var_ids {
-        let id: usize = (*id).try_into().unwrap();
-        writeln!(f, "{}", arena.vars[id]).unwrap();
+        let id: usize = (*id)
+            .try_into()
+            .expect("variable id does not fit into usize");
+        writeln!(f, "{}", arena.vars[id]).expect("failed to write variable to output buffer");
     }
     File::new(name, f).write();
 }
@@ -171,7 +191,8 @@ pub(crate) fn write_vars(name: String, arena: &Arena, var_ids: &HashSet<VarId>) 
 pub(crate) fn write_constraints(name: String, arena: &Arena, constraint_ids: &HashSet<ExprId>) {
     let mut f = String::new();
     for id in constraint_ids {
-        writeln!(f, "{}", arena.as_formula(*id).as_ref(arena)).unwrap();
+        writeln!(f, "{}", arena.as_formula(*id).as_ref(arena))
+            .expect("failed to write constraint to output buffer");
     }
     File::new(name, f).write();
 }

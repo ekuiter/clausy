@@ -42,16 +42,20 @@ impl File {
         let mut contents;
         if name.starts_with("-") {
             contents = String::new();
-            std::io::stdin().read_to_string(&mut contents).unwrap();
+            std::io::stdin()
+                .read_to_string(&mut contents)
+                .expect("failed to read formula contents from stdin");
         } else {
-            contents = fs::read_to_string(name).unwrap();
+            contents = fs::read_to_string(name)
+                .unwrap_or_else(|err| panic!("failed to read file '{}': {err}", name));
         };
         File::new(name.to_string(), contents)
     }
 
     /// Writes this file to its destination.
     pub(crate) fn write(&self) {
-        fs::write(&self.name, &self.contents).unwrap();
+        fs::write(&self.name, &self.contents)
+            .unwrap_or_else(|err| panic!("failed to write file '{}': {err}", self.name));
     }
 
     /// Returns the extension of this file, if any.
@@ -62,22 +66,26 @@ impl File {
             .map(|e| e.to_string())
     }
 
-    /// Counts the number of solutions of the formula this file represents using FeatureIDE.
+    /// Counts the number of solutions of the formula this file represents.
     ///
+    /// Uses FeatureIDE's internal distributive CNF transformation directly on this file.
     /// The file extension must be given so FeatureIDE can detect the correct format.
-    pub(crate) fn count_featureide(&self) -> BigInt {
-        exec::sharp_sat(&self.convert("cnf").contents)
+    /// This function is useful as a baseline to ensure the correctness of clausy's transformations.
+    /// However, it will not terminate for large formulas due to exponential blowup.
+    pub(crate) fn count_with_featureide(&self) -> BigInt {
+        exec::sharp_sat(&self.convert_with_featureide("cnf").contents)
     }
 
     /// Panics if the formula this file represents has a different model count than that of the given clauses.
     ///
     /// Useful for checking the correctness of count-preserving algorithms (e.g., [super::formula::Formula::to_cnf_tseitin]).
+    /// Internally calls FeatureIDE as a transformation baseline.
     pub(crate) fn assert_count(&self, clauses: &Clauses) {
-        assert_eq!(clauses.count(), self.count_featureide());
+        assert_eq!(clauses.count(), self.count_with_featureide());
     }
 
     /// Converts this file into a given format, if necessary.
-    pub(crate) fn convert(&self, output_format: &str) -> File {
+    pub(crate) fn convert_with_featureide(&self, output_format: &str) -> File {
         if self
             .extension()
             .filter(|extension|  extension == output_format)
@@ -91,8 +99,10 @@ impl File {
 
     /// Slices the formula this file represents such that only the given variables remain.
     ///
-    /// Internally, this uses FeatureIDE, so it operates on an intermediate CNF representation created by distributive transformation.
-    pub(crate) fn slice_featureide(
+    /// Internally, this uses FeatureIDE's slicing algorithm.
+    /// Thus, it operates on an intermediate CNF representation created by distributive transformation.
+    /// Consequently, it will not terminate for large formulas due to exponential blowup.
+    pub(crate) fn slice_with_featureide(
         &self,
         var_ids: &HashSet<VarId>,
         arena: &mut Arena,
@@ -101,11 +111,18 @@ impl File {
         let vars = var_ids
             .iter()
             .map(|var_id| {
-                let var_id: usize = var_id.unsigned_abs().try_into().unwrap();
-                if let Var::Named(name) = &arena.vars[var_id] {
+                let var_id_usize: usize = var_id
+                    .unsigned_abs()
+                    .try_into()
+                    .expect("variable id does not fit into usize");
+                if let Var::Named(name) = &arena.vars[var_id_usize] {
                     io::name_to_io(name)
                 } else {
-                    unreachable!()
+                    panic!(
+                        "FeatureIDE slicing requires named variables, found auxiliary variable id {} while converting file '{}'",
+                        var_id,
+                        self.name
+                    )
                 }
             })
             .collect::<Vec<String>>();

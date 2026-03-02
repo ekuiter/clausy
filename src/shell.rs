@@ -229,8 +229,8 @@ pub fn main() {
                 a.diff(b, parse_argument(), parse_argument(), arguments.next(), &mut arena);
             }
             _ => {
-                if File::exists(action) {
-                    let file = File::read(action);
+                if File::exists(command) {
+                    let file = File::read(command);
                     let extension = file.extension();
                     formulas.push(arena.parse(file, parser(extension)));
                 } else if SatInlineFormulaParser::can_parse(command) {
@@ -239,7 +239,7 @@ pub fn main() {
                             .parse_into(&command, &mut arena),
                     );
                 } else {
-                    unreachable!();
+                    panic!("{} is neither an existing file nor a parsable inline expression", command);
                 }
                 clauses = None;
             }

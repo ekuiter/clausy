@@ -22,16 +22,36 @@ pub(super) struct CnfFormulaParser;
 
 impl FormulaParser for CnfFormulaParser {
     fn parse_into(&self, file: File, arena: &mut Arena) -> Formula {
-        let mut pairs = CnfFormulaParser::parse(Rule::file, &file.contents).unwrap();
+        let mut pairs = CnfFormulaParser::parse(Rule::file, &file.contents).unwrap_or_else(|err| {
+            panic!("failed to parse CNF file '{}': {err}", file.name)
+        });
 
         let mut sub_var_ids = HashSet::<VarId>::new();
         let mut variable_names = HashMap::<VarId, &str>::new();
-        while let Rule::comment = pairs.peek().unwrap().as_rule() {
-            let pair = pairs.next().unwrap().into_inner().next().unwrap();
+        while let Rule::comment = pairs
+            .peek()
+            .expect("CNF parser unexpectedly reached EOF while scanning comments")
+            .as_rule()
+        {
+            let pair = pairs
+                .next()
+                .expect("CNF parser expected comment pair")
+                .into_inner()
+                .next()
+                .expect("CNF comment missing inner payload");
             if let Rule::comment_var = pair.as_rule() {
                 let mut pairs = pair.into_inner();
-                let var: VarId = pairs.next().unwrap().as_str().parse().unwrap();
-                let name = pairs.next().unwrap().as_str().trim();
+                let var: VarId = pairs
+                    .next()
+                    .expect("CNF comment_var missing variable id")
+                    .as_str()
+                    .parse()
+                    .expect("CNF comment_var contains invalid variable id");
+                let name = pairs
+                    .next()
+                    .expect("CNF comment_var missing variable name")
+                    .as_str()
+                    .trim();
                 debug_assert!(!variable_names.contains_key(&var));
                 variable_names.insert(var, name);
             }
@@ -40,9 +60,22 @@ impl FormulaParser for CnfFormulaParser {
         let mut vars: Vec<ExprId> = vec![0];
         let clause_n: VarId;
         {
-            let mut pairs = pairs.next().unwrap().into_inner();
-            let var_n: VarId = pairs.next().unwrap().as_str().parse().unwrap();
-            clause_n = pairs.next().unwrap().as_str().parse().unwrap();
+            let mut pairs = pairs
+                .next()
+                .expect("CNF parser missing preamble")
+                .into_inner();
+            let var_n: VarId = pairs
+                .next()
+                .expect("CNF preamble missing variable count")
+                .as_str()
+                .parse()
+                .expect("CNF preamble contains invalid variable count");
+            clause_n = pairs
+                .next()
+                .expect("CNF preamble missing clause count")
+                .as_str()
+                .parse()
+                .expect("CNF preamble contains invalid clause count");
             for i in 1..=var_n {
                 if variable_names.contains_key(&i) {
                     let (expr_id, var_id) = arena.var_expr_with_id(variable_names[&i].to_string());
@@ -64,9 +97,15 @@ impl FormulaParser for CnfFormulaParser {
                     let children_ids = pair
                         .clone()
                         .into_inner()
-                        .map(|pair| {
-                            let var: VarId = pair.as_str().parse().unwrap();
-                            let var: usize = var.unsigned_abs().try_into().unwrap();
+                    .map(|pair| {
+                            let var: VarId = pair
+                                .as_str()
+                                .parse()
+                                .expect("CNF clause contains invalid literal");
+                            let var: usize = var
+                                .unsigned_abs()
+                                .try_into()
+                                .expect("CNF literal index does not fit into usize");
                             if pair.as_str().starts_with("-") {
                                 arena.expr(Not(vars[var]))
                             } else {
@@ -80,7 +119,13 @@ impl FormulaParser for CnfFormulaParser {
                 _ => unreachable!(),
             })
             .collect();
-        assert_eq!(clause_n, child_ids.len().try_into().unwrap());
+        assert_eq!(
+            clause_n,
+            child_ids
+                .len()
+                .try_into()
+                .expect("number of parsed CNF clauses does not fit into VarId")
+        );
 
         let root_id = arena.expr(And(child_ids));
         Formula::new(sub_var_ids, root_id, Some(file))
