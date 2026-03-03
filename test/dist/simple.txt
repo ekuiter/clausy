@@ -1,5 +1,5 @@
 # this is a very simple input that should be easily transformable by distribution
-$clausy input/simple.sat
+$clausy -i input/simple.sat -t cnf-dist print
 ---
 c 1 a
 c 2 b

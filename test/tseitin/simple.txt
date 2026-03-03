@@ -1,5 +1,5 @@
 # this is a very simple input that should be easily transformable by distribution
-$clausy input/simple.sat to_cnf_tseitin to_clauses print
+$clausy -i input/simple.sat -t cnf-tseitin print
 ---
 c 1 a
 c 2 b

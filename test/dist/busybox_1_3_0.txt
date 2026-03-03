@@ -1,6 +1,6 @@
 # this is BusyBox 1.3.0 as extracted with torte
 # this tests the .model pest parser and formula simplification
-$clausy input/busybox_1_3_0.model
+$clausy -i input/busybox_1_3_0.model -t cnf-dist print
 ---
 c 1 FEATURE_SH_IS_ASH
 c 2 FEATURE_SH_IS_HUSH

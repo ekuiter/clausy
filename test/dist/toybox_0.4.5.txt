@@ -1,6 +1,6 @@
 # this is an excerpt of toybox 0.4.5 as extracted with torte
 # this tests the .model pest parser and formula simplification
-$clausy input/toybox_0.4.5.model
+$clausy -i input/toybox_0.4.5.model -t cnf-dist print
 ---
 c 1 TOYBOX
 c 2 TOYBOX_HELP

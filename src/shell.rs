@@ -8,7 +8,7 @@ use crate::{
     parser::{parser, FormulaParsee},
     util::log::{log, scope},
 };
-use clap::{Args, Parser};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::env;
 use std::process;
 use std::sync::OnceLock;
@@ -18,6 +18,10 @@ use std::sync::OnceLock;
 #[command(name = "clausy")]
 #[command(version)]
 #[command(after_help = r#"A few notes on these options:
+- Inputs are supplied via repeated --input/-i options, and parsed in order.
+- Transformations are supplied via repeated --transform/-t options, and applied in order.
+- All --input options are processed before all --transform options, no matter how they are interleaved.
+  The --transform options are applied to the final --input (if not overridden by the specified command).
 - External tools are only used by certain commands. CNF transformation does not require any external tools on built-in formats.
 - The only exception are non-standard formats, which require a Java runtime environment in the PATH and a correct --io-path.
 - All tool paths can be absolute or relative. Relative paths are resolved against the working directory and the clausy executable directory.
@@ -25,10 +29,27 @@ use std::sync::OnceLock;
   You can override this with an arbitrary tool (e.g., using --sat-path), which has to conform to the specified I/O conventions.
 - The config file clausy.conf next to the clausy executable can be used to set recurring default options."#)]
 struct CliOptions {
-    /// Input file and commands to run on the formula.
-    /// Use "-" for stdin, or provide a file followed by commands like "to_cnf_dist", "print", and so on
-    #[arg(trailing_var_arg = true)]
-    commands: Vec<String>,
+    /// Input item (file path, stdin with - or -.extension, or inline .sat expression)
+    #[arg(
+        short = 'i',
+        long = "input",
+        action = clap::ArgAction::Append,
+        value_name = "INPUT",
+        allow_hyphen_values = true
+    )]
+    inputs: Vec<String>,
+
+    /// Transformation step
+    #[arg(
+        short = 't',
+        long = "transform",
+        action = clap::ArgAction::Append,
+        value_name = "TRANSFORM"
+    )]
+    transforms: Vec<Transform>,
+
+    #[command(subcommand)]
+    action: Option<Action>,
 
     #[command(flatten)]
     tool_options: ToolOptions,
@@ -90,7 +111,118 @@ pub struct OutputOptions {
     /// Disable optional SAT-style informational logs (`c ...`)
     #[arg(short = 'q', long, default_value_t = false)]
     pub quiet: bool,
+}
 
+/// Supported transformations.
+#[derive(Clone, Debug, ValueEnum)]
+enum Transform {
+    Canon,
+    Nnf,
+    #[value(name = "cnf-dist", alias = "dist")]
+    CnfDist,
+    #[value(name = "cnf-tseitin", alias = "tseitin")]
+    CnfTseitin,
+}
+
+/// Top-level actions.
+#[derive(Subcommand, Debug)]
+enum Action {
+    /// Print the transformed formula as CNF clauses (default).
+    #[command(alias = "print")]
+    PrintClauses,
+
+    /// Print the transformed formula expression.
+    PrintFormula,
+
+    /// Print all sub-expressions of the transformed formula.
+    PrintSubExprs,
+
+    /// Check satisfiability and print a satisfying assignment, if any.
+    ///
+    /// This calls an external SAT solver as specified with `--kissat-path` or `--sat-path`.
+    /// If set with `--sat-path`, no satisfying assignment will be printed.
+    Satisfy,
+
+    /// Count satisfying assignments.
+    ///
+    /// This calls an external model counter as specified with `--d4-path` or `--sharp-sat-path`.
+    Count,
+
+    /// Check model count against FeatureIDE as baseline.
+    ///
+    /// This can be used to validate the correctness of the CNF transformation, given that the transformation in FeatureIDE is correct.
+    /// For this, the formula must originate from a file.
+    /// This will not terminate for large formulas due to exponential blowup in FeatureIDE.
+    AssertCount,
+
+    /// Enumerate satisfying assignments.
+    ///
+    /// This calls an external AllSAT solver as specified with `--bc-minisat-all-path`.
+    Enumerate,
+
+    /// Compute incremental counting expression between two formulas.
+    ///
+    /// This expects exactly two formulas to be loaded with `--input`.
+    /// All `--transform` options will be ignored by this command, which implements its own transformation logic.
+    /// This will print an expression that, when evaluated, counts the number of models in the right formula.
+    /// The expression takes as input the model count of the left formula and can be evaluated in Bash using `bc`.
+    /// If the optional `left_model_count` is specified, the model count of the right formula will be computed instead of printing an expression.
+    ///
+    /// This was originally intended to speed up model counting of the right formula if the model count of the left formula is known.
+    /// Intuitively, the difference between both formulas should be rather small, so the incremental counting expression should be more efficient to determine than counting the right formula from scratch.
+    /// However, for a time series of exponentially growing formulas, the difference grows exponentially as well, so the performance benefit of this method is rather small.
+    /// Still, the resulting expression can be useful, as it splits up the differences between both formulas in different terms.
+    /// This idea is further developed in the `diff` command, of which this command is an early predecessor.
+    CountInc(CountIncArgs),
+
+    /// Compute difference between two formulas.
+    ///
+    /// This expects exactly two formulas to be loaded with `--input`.
+    /// All `--transform` options will be ignored by this command, which implements its own transformation logic.
+    Diff(DiffArgs),
+}
+
+/// Options for `count-inc`.
+#[derive(Args, Debug)]
+struct CountIncArgs {
+    /// Optional known model count for the left formula.
+    left_model_count: Option<String>,
+}
+
+/// Diff mode for one side.
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum DiffMode {
+    Weak,
+    #[value(name = "top-strong")]
+    TopStrong,
+    #[value(name = "bottom-strong", alias = "strong")]
+    BottomStrong,
+}
+
+impl DiffMode {
+    fn into_diff_kind(self) -> DiffKind {
+        match self {
+            DiffMode::Weak => DiffKind::Weak,
+            DiffMode::TopStrong => DiffKind::Strong(true),
+            DiffMode::BottomStrong => DiffKind::Strong(false),
+        }
+    }
+}
+
+/// Options for `diff`.
+#[derive(Args, Debug)]
+struct DiffArgs {
+    /// Left-side diff mode.
+    #[arg(long, default_value = "weak")]
+    left: DiffMode,
+
+    /// Right-side diff mode.
+    #[arg(long, default_value = "weak")]
+    right: DiffMode,
+
+    /// Optional output prefix for serialized diff artifacts.
+    #[arg(long)]
+    output_prefix: Option<String>,
 }
 
 /// All configuration options.
@@ -140,37 +272,127 @@ fn load_config_file_args() -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// Returns the most recently parsed formula.
-macro_rules! formula {
-    ($formulas:expr) => {
-        $formulas
-            .last_mut()
-            .expect("no formula loaded; provide an input file or inline expression first")
-    };
+fn current_formula(formulas: &mut [Formula]) -> &mut Formula {
+    formulas
+        .last_mut()
+        .expect("no formula loaded; provide at least one --input item")
 }
 
-/// Converts a formula into its clause representation, if not done yet.
-macro_rules! clauses {
-    ($clauses:expr, $arena:expr, $formulas:expr) => {{
-        if $clauses.is_none() {
-            log("[SHELL] converting the current formula into its clause representation");
-            let _timing = scope("SHELL", "clause representation");
-            $clauses = Some(formula!($formulas).to_clauses(&$arena));
+fn formulas_pair(formulas: &[Formula]) -> (&Formula, &Formula) {
+    let [a, b] = formulas else {
+        panic!("this command requires exactly two loaded formulas");
+    };
+    (a, b)
+}
+
+fn parse_inputs(inputs: &[String], arena: &mut Arena) -> Vec<Formula> {
+    let mut formulas = Vec::<Formula>::new();
+    for input in inputs {
+        let _timing = scope("SHELL", "parse input");
+        if File::exists(input) {
+            let file = File::read(input);
+            let extension = file.extension();
+            log(&format!(
+                "[SHELL] parsing input file {} (detected format: {})",
+                file.name,
+                extension.as_deref().unwrap_or("no extension")
+            ));
+            formulas.push(arena.parse(file, parser(extension)));
+        } else if SatInlineFormulaParser::can_parse(input) {
+            log("[SHELL] parsing inline SAT expression from --input item");
+            formulas
+                .push(SatInlineFormulaParser::new(&formulas, Some(false)).parse_into(input, arena));
+        } else {
+            panic!(
+                "{} is not an existing file, stdin token (- or -.<extension>), or parsable inline expression",
+                input
+            );
         }
-        $clauses
-            .as_ref()
-            .expect("failed to materialize clauses from formula")
-    }};
+    }
+    formulas
+}
+
+fn apply_transforms(formulas: &mut [Formula], transforms: &[Transform], arena: &mut Arena) {
+    for transform in transforms {
+        let _timing = scope("SHELL", &format!("transform {:?}", transform));
+        match transform {
+            Transform::Canon => {
+                current_formula(formulas).to_canon(arena);
+                #[cfg(debug_assertions)]
+                {
+                    current_formula(formulas).assert_canon(arena);
+                }
+            }
+            Transform::Nnf => current_formula(formulas).to_nnf(arena),
+            Transform::CnfDist => current_formula(formulas).to_cnf_dist(arena),
+            Transform::CnfTseitin => current_formula(formulas).to_cnf_tseitin(true, arena),
+        }
+    }
+}
+
+fn execute_action(action: Action, formulas: &mut [Formula], arena: &mut Arena) {
+    let action_name = format!("{action:?}");
+    let action_name = action_name.split('(').next().unwrap_or(&action_name);
+    let _timing = scope("SHELL", &format!("action {action_name}"));
+    match action {
+        Action::PrintClauses => print!("{}", current_formula(formulas).to_clauses(arena)),
+        Action::PrintFormula => println!("{}", current_formula(formulas).as_ref(arena)),
+        Action::PrintSubExprs => {
+            let sub_expr_ids = current_formula(formulas).sub_exprs(arena);
+            for id in sub_expr_ids {
+                println!("{}", arena.as_formula(id).as_ref(arena));
+            }
+        }
+        Action::Satisfy => {
+            if let Some(solution) = current_formula(formulas).to_clauses(arena).satisfy() {
+                eprintln!("s SATISFIABLE");
+                println!("c {solution}");
+            } else {
+                eprintln!("s UNSATISFIABLE");
+                process::exit(UNSAT_EXIT_CODE);
+            }
+        }
+        Action::Count => println!("{}", current_formula(formulas).to_clauses(arena).count()),
+        Action::AssertCount => {
+            let formula = current_formula(formulas);
+            let clauses = formula.to_clauses(arena);
+            formula
+                .file
+                .as_ref()
+                .expect("assert-count requires a formula parsed from a file")
+                .assert_count(&clauses);
+            log("[SHELL] asserted model count matches the expected value");
+        }
+        Action::Enumerate => current_formula(formulas).to_clauses(arena).enumerate(),
+        Action::CountInc(args) => {
+            let (a, b) = formulas_pair(formulas);
+            println!(
+                "{}",
+                a.count_inc(b, args.left_model_count.as_deref(), arena)
+            );
+        }
+        Action::Diff(args) => {
+            let (a, b) = formulas_pair(formulas);
+            a.diff(
+                b,
+                args.left.into_diff_kind(),
+                args.right.into_diff_kind(),
+                args.output_prefix.as_deref(),
+                arena,
+            );
+        }
+    }
 }
 
 /// Main entry point.
 ///
-/// Parses CLI arguments and runs each command in order.
+/// Parses .conf/CLI arguments and executes the structured pipeline of inputs, transforms, and an action.
 pub fn main() {
     let mut args: Vec<String> = env::args().collect();
     let config_file_args = load_config_file_args();
     args.splice(1..1, config_file_args);
-    let cli = CliOptions::parse_from(args);
+    let mut cli = CliOptions::parse_from(args);
+
     OPTIONS
         .set(Options {
             tool: cli.tool_options,
@@ -183,143 +405,22 @@ pub fn main() {
         env!("CARGO_PKG_VERSION")
     ));
 
-    let mut commands = cli.commands;
+    if cli.inputs.is_empty() {
+        log("[SHELL] no input specified, defaulting to - (stdin)");
+        cli.inputs.push("-".to_string());
+    }
+    if cli.transforms.is_empty() {
+        log("[SHELL] no transform specified, defaulting to cnf-dist");
+        cli.transforms.push(Transform::CnfDist);
+    }
+    if cli.action.is_none() {
+        log("[SHELL] no action specified, defaulting to print-clauses");
+        cli.action = Some(Action::PrintClauses);
+    }
+
+    let _timing = scope("SHELL", &format!("clausy"));
     let mut arena = Arena::new();
-    let mut formulas = Vec::<Formula>::new();
-    let mut clauses = None;
-    if commands.is_empty() {
-        commands.push("-".to_string());
-    }
-    if commands.len() == 1 && File::exists(&commands[0]) {
-        log(&format!(
-            "[SHELL] only an input file was provided, so the default pipeline will run for {}",
-            commands[0]
-        ));
-        commands.push("to_cnf_dist".to_string());
-        commands.push("to_clauses".to_string());
-        commands.push("print".to_string());
-    }
-    for command in &commands {
-        let mut arguments: Vec<&str> = command.split_whitespace().collect();
-        let action = arguments[0];
-        log(&format!("[SHELL] executing command {action}"));
-        arguments.remove(0);
-        match action {
-            "print" => {
-                if clauses.is_some() {
-                    print!(
-                        "{}",
-                        clauses
-                            .as_ref()
-                            .expect("print requested but no clause representation is available")
-                    );
-                } else {
-                    println!("{}", formula!(formulas).as_ref(&arena));
-                };
-            }
-            "print_sub_exprs" => {
-                for id in formula!(formulas).sub_exprs(&mut arena) {
-                    println!("{}", arena.as_formula(id).as_ref(&arena));
-                }
-            }
-            "to_canon" => {
-                let _timing = scope("SHELL", "transform to_canon");
-                formula!(formulas).to_canon(&mut arena);
-            }
-            "to_nnf" => {
-                let _timing = scope("SHELL", "transform to_nnf");
-                formula!(formulas).to_nnf(&mut arena);
-            }
-            "to_cnf_dist" => {
-                let _timing = scope("SHELL", "transform to_cnf_dist");
-                formula!(formulas).to_cnf_dist(&mut arena);
-            }
-            "to_cnf_tseitin" => {
-                let _timing = scope("SHELL", "transform to_cnf_tseitin");
-                formula!(formulas).to_cnf_tseitin(true, &mut arena);
-            }
-            "to_clauses" => {
-                log("[SHELL] converting the current formula into its clause representation");
-                let _timing = scope("SHELL", "clause representation");
-                clauses = Some(formula!(formulas).to_clauses(&mut arena));
-            }
-            "satisfy" => {
-                if let Some(solution) = clauses!(clauses, arena, formulas).satisfy() {
-                    eprintln!("s SATISFIABLE");
-                    println!("c {solution}");
-                } else {
-                    eprintln!("s UNSATISFIABLE");
-                    process::exit(UNSAT_EXIT_CODE);
-                }
-            }
-            "count" => println!("{}", clauses!(clauses, arena, formulas).count()),
-            "assert_count" => {
-                let clauses = clauses!(clauses, arena, formulas);
-                formula!(formulas)
-                    .file
-                    .as_ref()
-                    .expect("assert_count requires a formula parsed from a file")
-                    .assert_count(clauses);
-                log("[SHELL] asserted model count matches the expected value");
-            }
-            "enumerate" => clauses!(clauses, arena, formulas).enumerate(),
-            "count_inc" => {
-                let [a, b] = &formulas[..] else { panic!() };
-                println!(
-                    "{}",
-                    a.count_inc(b, arguments.into_iter().next(), &mut arena)
-                );
-            }
-            "diff" => {
-                let [a, b] = &formulas[..] else { panic!() };
-                let mut arguments = arguments.into_iter();
-                let mut parse_argument = || match arguments.next() {
-                    Some("top-strong") => DiffKind::Strong(true),
-                    Some("bottom-strong") | Some("strong") => DiffKind::Strong(false),
-                    Some("weak") | None => DiffKind::Weak,
-                    _ => panic!(),
-                };
-                a.diff(
-                    b,
-                    parse_argument(),
-                    parse_argument(),
-                    arguments.next(),
-                    &mut arena,
-                );
-            }
-            _ => {
-                if File::exists(command) {
-                    let file = File::read(command);
-                    let extension = file.extension();
-                    log(&format!(
-                        "[SHELL] parsing input file {} (detected format: {})",
-                        file.name,
-                        extension.as_deref().unwrap_or("no extension")
-                    ));
-                    formulas.push(arena.parse(file, parser(extension)));
-                } else if SatInlineFormulaParser::can_parse(command) {
-                    log("[SHELL] parsing inline SAT expression from command arguments");
-                    formulas.push(
-                        SatInlineFormulaParser::new(&formulas, Some(false))
-                            .parse_into(&command, &mut arena),
-                    );
-                } else {
-                    panic!(
-                        "{} is not a command, an existing file, or a parsable inline expression",
-                        command
-                    );
-                }
-                clauses = None;
-            }
-        }
-        #[cfg(debug_assertions)]
-        {
-            if formulas.last().is_some() {
-                formulas
-                    .last_mut()
-                    .expect("formula list changed unexpectedly during debug canonicality check")
-                    .assert_canon(&mut arena);
-            }
-        }
-    }
+    let mut formulas = parse_inputs(&cli.inputs, &mut arena);
+    apply_transforms(&mut formulas, &cli.transforms, &mut arena);
+    execute_action(cli.action.unwrap(), &mut formulas, &mut arena);
 }

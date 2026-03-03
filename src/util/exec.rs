@@ -191,13 +191,10 @@ fn d4(cnf: &str) -> BigInt {
         d4_path
     ));
     let _timing = scope("EXEC", "#SAT solve via d4");
-    let output = Command::new(&d4_path)
-        .args(&args)
-        .output()
-        .expect(&format!(
-            "failed to run model counter '{d4_path}'. \
+    let output = Command::new(&d4_path).args(&args).output().expect(&format!(
+        "failed to run model counter '{d4_path}'. \
              Make sure d4 is installed, or specify a custom solver with --sharp-sat-path"
-        ));
+    ));
     let stdout = String::from_utf8_lossy(&output.stdout);
     let count_line = stdout
         .lines()

@@ -17,7 +17,7 @@ cat meta/simple.sat | docker run --rm -i clausy
 # option 2: build locally into build/ directory
 make
 make external # optional: compile external solvers
-build/clausy meta/simple.sat
+build/clausy -i meta/simple.sat
 
 # option 3: download precompiled binaries for 64-bit Linux
 wget https://nightly.link/ekuiter/clausy/workflows/static/main/build.zip
@@ -31,35 +31,35 @@ Depending on the invocation, external tools may be needed (e.g., Java for parsin
 Documentation for clausy is available [online](https://elias-kuiter.de/clausy/).
 
 ```
-# equivalent to the above, but more verbose
-build/clausy meta/simple.sat to_cnf_dist to_clauses print
+# equivalent to the above, but more explicit
+build/clausy -i meta/simple.sat -t cnf-dist print
 
 # read from standard input and count solutions with Tseitin transformation
-cat model.uvl | build/clausy -- -.uvl to_cnf_tseitin count
+cat model.uvl | build/clausy -i -.uvl -t cnf-tseitin count
 
 # read from command line and find some solution
-echo '(!def(a)|def(b))' | build/clausy -- -.model to_cnf_dist satisfy
+echo '(!def(a)|def(b))' | build/clausy -i -.model -t cnf-dist satisfy
 
 # prove a tautology
-! echo '(def(a)|!def(a))' | build/clausy -- -.model '(-1)' to_cnf_tseitin satisfy &>/dev/null
+echo '(def(a)|!def(a))' | build/clausy -i -.model -i '(-1)' -t cnf-tseitin satisfy &>/dev/null; test $? -eq 20
 
 # prove model equivalence
-! build/clausy a.model b.model '+(*(-1 2) *(1 -2))' to_cnf_tseitin satisfy &>/dev/null
+build/clausy -i a.model -i b.model -i '+(*(-1 2) *(1 -2))' -t cnf-tseitin satisfy &>/dev/null; test $? -eq 20
 
 # compute diff statistics
-build/clausy a.model b.model diff
+build/clausy -i a.model -i b.model diff
 
 # serialize diff
-build/clausy a.model b.model 'diff weak weak a_to_b'
+build/clausy -i a.model -i b.model diff --left weak --right weak --output-prefix a_to_b
  
 # simplify a given CNF
-build/clausy model.dimacs
+build/clausy -i model.dimacs
 
 # advanced usage via Docker (file I/O with standard input)
-cat meta/simple.sat | docker run --rm -i clausy -- -.sat to_cnf_tseitin count
+cat meta/simple.sat | docker run --rm -i clausy -i -.sat -t cnf-tseitin count
 
 # advanced usage via Docker (file I/O with volumes)
-docker run --rm -v ./a.xml:/a.xml -v ./b.xml:/b.xml -v ./diff:/diff clausy /a.xml /b.xml 'diff weak weak /diff/a_to_b'
+docker run --rm -v ./a.xml:/a.xml -v ./b.xml:/b.xml -v ./diff:/diff clausy -i /a.xml -i /b.xml diff --left weak --right weak --output-prefix /diff/a_to_b
 
 # run tests
 make test
