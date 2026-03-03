@@ -137,7 +137,9 @@ enum Action {
     /// Print all sub-expressions of the transformed formula.
     PrintSubExprs,
 
-    /// Performs no action after parsing and transformation (useful for profiling).
+    /// Performs no action after parsing and transformation.
+    /// 
+    /// This is useful for profiling, when no output is desired.
     Nop,
 
     /// Check satisfiability and print a satisfying assignment, if any.
