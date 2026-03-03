@@ -6,10 +6,8 @@ use super::{
     var::{Var, VarId},
 };
 use crate::shell::options;
-use std::{
-    collections::{HashMap, HashSet},
-    fmt, slice,
-};
+use rustc_hash::FxHashMap;
+use std::{collections::HashSet, fmt, slice};
 
 /// Simplifies an expression in an arena to an equivalent one.
 ///
@@ -89,7 +87,8 @@ pub(crate) struct Arena {
     /// However, we simplify the inverse lookup of variables by cloning variables.
     /// This needs more memory, but (a) we do not expect many variables and (b) this avoids the hash collisions discussed for [Arena::exprs_inv].
     /// Also, variables and their identifiers are never mutated after creation, so we need no additional [Vec] for updates.
-    vars_inv: HashMap<Var, VarId>,
+    /// FxHashMap is functionally equivalent to Rust's built-in HashMap, but performs a bit faster in our experiments.
+    vars_inv: FxHashMap<Var, VarId>,
 
     /// Stores all expressions in this arena.
     ///
@@ -124,7 +123,7 @@ pub(crate) struct Arena {
     /// By this design, [Arena::exprs_inv] indeed maps any sub-expression (precisely: its hash) to its unique identifier
     /// (precisely: the first identifier whose expression is equal to the given sub-expression).
     /// This information can be used to enforce structural sharing by calling [Arena::canon_visitor].
-    exprs_inv: HashMap<u64, Vec<ExprId>>,
+    exprs_inv: FxHashMap<u64, Vec<ExprId>>,
 
     /// Specifies the identifier of the most recently added auxiliary variable.
     ///
@@ -149,9 +148,9 @@ impl Arena {
     pub(crate) fn new() -> Self {
         Self {
             vars: vec![],
-            vars_inv: HashMap::new(),
+            vars_inv: FxHashMap::default(),
             exprs: vec![],
-            exprs_inv: HashMap::new(),
+            exprs_inv: FxHashMap::default(),
             var_aux_id: 0,
             new_exprs: None,
             new_vars: None,
