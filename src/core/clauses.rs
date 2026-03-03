@@ -7,7 +7,10 @@ use super::{
     formula_ref::FormulaRef,
     var::{Var, VarId},
 };
-use crate::{core::file::File, util::{exec, log::log}};
+use crate::{
+    core::file::File,
+    util::{exec, log::log},
+};
 use std::{collections::HashMap, fmt, slice};
 
 /// A [super::formula::Formula] in its clause representation.
@@ -40,7 +43,10 @@ impl Clauses {
                 Var(var_id) => clause.push(var_remap[&var_id]),
                 Not(child_id) => match &formula_ref.arena.exprs[*child_id] {
                     Var(var_id) => clause.push(-var_remap[&var_id]),
-                    Not(_) => panic!("unexpected double negation in clause representation: {:?}", formula_ref.arena.exprs[*child_id]),
+                    Not(_) => panic!(
+                        "unexpected double negation in clause representation: {:?}",
+                        formula_ref.arena.exprs[*child_id]
+                    ),
                     And(child_ids) => {
                         if child_ids.is_empty() {
                             // Not(And()) is a contradiction and can be omitted from the current clause

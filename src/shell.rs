@@ -138,7 +138,7 @@ enum Action {
     PrintSubExprs,
 
     /// Performs no action after parsing and transformation.
-    /// 
+    ///
     /// This is useful for profiling, when no output is desired.
     Nop,
 

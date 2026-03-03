@@ -97,7 +97,7 @@ pub(crate) struct Arena {
     /// Expressions are stored in the order of their creation, so new expressions are appended with [Vec::push].
     /// Also, while algorithms may update expressions in-place, no expression is ever removed.
     /// We refer to all expressions that appear below the root expression of a [Formula] as its sub-expressions (including the root expression).
-    /// 
+    ///
     /// By not ever removing any expressions, we keep all non-sub-expressions indefinitely.
     /// This potentially requires a lot of memory, but avoids explicit reference counting or garbage collection.
     /// We also experimented with Thunderdome, an off-the-shelf generational arena library (using ThunderdomeArena<Expr> here).
