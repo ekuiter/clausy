@@ -137,6 +137,9 @@ enum Action {
     /// Print all sub-expressions of the transformed formula.
     PrintSubExprs,
 
+    /// Performs no action after parsing and transformation (useful for profiling).
+    Nop,
+
     /// Check satisfiability and print a satisfying assignment, if any.
     ///
     /// This calls an external SAT solver as specified with `--kissat-path` or `--sat-path`.
@@ -347,6 +350,7 @@ fn execute_action(action: Action, formulas: &mut [Formula], arena: &mut Arena) {
                 println!("{}", arena.as_formula(id).as_ref(arena));
             }
         }
+        Action::Nop => {}
         Action::Satisfy => {
             if let Some(solution) = current_formula(formulas).to_clauses(arena).satisfy() {
                 eprintln!("s SATISFIABLE");
