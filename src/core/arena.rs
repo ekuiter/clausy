@@ -6,7 +6,7 @@ use super::{
     var::{Var, VarId},
 };
 use crate::shell::options;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::{collections::HashSet, fmt, slice};
 
 /// Simplifies an expression in an arena to an equivalent one.
@@ -427,7 +427,7 @@ impl Arena {
         mut visitor: impl FnMut(&mut Self, ExprId) -> (),
     ) {
         let mut remaining_ids = vec![*root_id];
-        let mut visited_ids = HashSet::<ExprId>::new();
+        let mut visited_ids = FxHashSet::<ExprId>::default();
         while !remaining_ids.is_empty() {
             let id = remaining_ids.pop().unwrap();
             if !visited_ids.contains(&id) {
@@ -449,8 +449,8 @@ impl Arena {
         mut visitor: impl FnMut(&mut Self, ExprId) -> (),
     ) {
         let mut remaining_ids = vec![*root_id];
-        let mut seen_ids = HashSet::<ExprId>::new();
-        let mut visited_ids = HashSet::<ExprId>::new();
+        let mut seen_ids = FxHashSet::<ExprId>::default();
+        let mut visited_ids = FxHashSet::<ExprId>::default();
         while !remaining_ids.is_empty() {
             let id = remaining_ids.last().unwrap();
             let child_ids = self.exprs[*id].children();
@@ -481,8 +481,8 @@ impl Arena {
         mut post_visitor: impl FnMut(&mut Self, ExprId) -> (),
     ) {
         let mut remaining_ids = vec![*root_id];
-        let mut seen_ids: HashSet<usize> = HashSet::<ExprId>::new();
-        let mut visited_ids = HashSet::<ExprId>::new();
+        let mut seen_ids = FxHashSet::<ExprId>::default();
+        let mut visited_ids = FxHashSet::<ExprId>::default();
         while !remaining_ids.is_empty() {
             let id = remaining_ids.last().unwrap();
             if !self.exprs[*id].children().is_empty()
@@ -628,7 +628,7 @@ impl Arena {
     /// Returns whether the given expression contains any given expression.
     pub(super) fn contains_expr(&self, root_id: ExprId, ids: &HashSet<ExprId>) -> bool {
         let mut remaining_ids = vec![root_id];
-        let mut visited_ids = HashSet::<ExprId>::new();
+        let mut visited_ids = FxHashSet::<ExprId>::default();
         while !remaining_ids.is_empty() {
             let id = remaining_ids.pop().unwrap();
             if !visited_ids.contains(&id) {
