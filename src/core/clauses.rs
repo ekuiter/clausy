@@ -7,7 +7,7 @@ use super::{
     formula_ref::FormulaRef,
     var::{Var, VarId},
 };
-use crate::{core::file::File, util::exec};
+use crate::{core::file::File, util::{exec, log::log}};
 use std::{collections::HashMap, fmt, slice};
 
 /// A [super::formula::Formula] in its clause representation.
@@ -40,31 +40,36 @@ impl Clauses {
                 Var(var_id) => clause.push(var_remap[&var_id]),
                 Not(child_id) => match &formula_ref.arena.exprs[*child_id] {
                     Var(var_id) => clause.push(-var_remap[&var_id]),
-                    Not(_) => unreachable!(),
+                    Not(_) => panic!("unexpected double negation in clause representation: {:?}", formula_ref.arena.exprs[*child_id]),
                     And(child_ids) => {
                         if child_ids.is_empty() {
+                            // Not(And()) is a contradiction and can be omitted from the current clause
                         } else {
-                            unreachable!();
+                            panic!("unexpected And in clause representation");
                         }
                     }
                     Or(child_ids) => {
                         if child_ids.is_empty() {
+                            // Not(Or()) is a vacuous truth and satisfies the current clause
                             return true;
                         } else {
-                            unreachable!();
+                            panic!("unexpected Or in clause representation");
                         }
                     }
                 },
                 And(child_ids) => {
                     if child_ids.is_empty() {
+                        // And() is a vacuous truth and satisfies the current clause
                         return true;
                     } else {
-                        unreachable!();
+                        panic!("unexpected And in clause representation");
                     }
                 }
                 Or(child_ids) => {
-                    if !child_ids.is_empty() {
-                        unreachable!();
+                    if child_ids.is_empty() {
+                        // Or() is a contradiction and can be omitted from the current clause
+                    } else {
+                        panic!("unexpected Or in clause representation");
                     }
                 }
             };
@@ -72,22 +77,38 @@ impl Clauses {
         };
         let mut add_clause = |child_ids: &[ExprId]| {
             let mut clause = Vec::<VarId>::new();
-            let contradictory = child_ids.is_empty();
             let mut tautological = false;
             for child_id in child_ids {
                 tautological = tautological || add_literal(*child_id, &mut clause);
             }
             if tautological {
+                // this clause is a tautology, so we can skip it in principle
                 if !var_remap.is_empty() {
+                    // however, if there are variables, add a trivial clause, just to be sure
+                    // we do this because not all solvers handle the zero-clause formula correctly
+                    // (which may emerge if this is the only clause)
                     clauses.push(vec![1, -1]);
+                } else {
+                    log("[CLAUSES] WARNING: encountered a tautological clause in a zero-variable formula");
+                    log("[CLAUSES] WARNING: in case that this leads to an overall tautology, not all solvers will handle it correctly");
                 }
-            } else {
-                if contradictory && !var_remap.is_empty() {
+            } else if clause.is_empty() {
+                // if the clause is still empty after all literals have been processed, it is a contradiction
+                // in principle, we could just push the empty clause here - but again, not all solvers handle this correctly
+                if !var_remap.is_empty() {
+                    // so, if at least one variable is available, we push an explicit contradiction to be safe
                     clauses.push(vec![1]);
                     clauses.push(vec![-1]);
                 } else {
+                    // this contradiction cannot be expressed because there are no variables
+                    // so we are forced to emit an empty clause
                     clauses.push(clause);
+                    log("[CLAUSES] WARNING: encountered a contradictory clause in a zero-variable formula");
+                    log("[CLAUSES] WARNING: this leads to an overall contradiction, but not all solvers will handle it correctly");
                 }
+            } else {
+                // this is now a normal clause (the typical and nice case)
+                clauses.push(clause);
             }
         };
         match &formula_ref.arena.exprs[formula_ref.formula.root_id] {
@@ -98,7 +119,7 @@ impl Clauses {
                     match &formula_ref.arena.exprs[*child_id] {
                         Var(_) | Not(_) => add_clause(slice::from_ref(child_id)),
                         Or(child_ids) => add_clause(&child_ids),
-                        _ => unreachable!(),
+                        And(_) => panic!("unexpected nested And in clause representation"),
                     }
                 }
             }
