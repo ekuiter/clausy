@@ -312,6 +312,10 @@ fn parse_inputs(inputs: &[String], arena: &mut Arena) -> Vec<Formula> {
     formulas
 }
 
+fn ignores_transforms(action: &Action) -> bool {
+    matches!(action, Action::Diff(_) | Action::CountInc(_))
+}
+
 fn apply_transforms(formulas: &mut [Formula], transforms: &[Transform], arena: &mut Arena) {
     for transform in transforms {
         let _timing = scope("SHELL", &format!("transform {:?}", transform));
@@ -409,18 +413,26 @@ pub fn main() {
         log("[SHELL] no input specified, defaulting to - (stdin)");
         cli.inputs.push("-".to_string());
     }
-    if cli.transforms.is_empty() {
+    let action = if let Some(action) = cli.action {
+        action
+    } else {
+        log("[SHELL] no action specified, defaulting to print-clauses");
+        Action::PrintClauses
+    };
+    if ignores_transforms(&action) {
+        if !cli.transforms.is_empty() {
+            log("[SHELL] ignoring --transform options for this action");
+        }
+    } else if cli.transforms.is_empty() {
         log("[SHELL] no transform specified, defaulting to cnf-dist");
         cli.transforms.push(Transform::CnfDist);
-    }
-    if cli.action.is_none() {
-        log("[SHELL] no action specified, defaulting to print-clauses");
-        cli.action = Some(Action::PrintClauses);
     }
 
     let _timing = scope("SHELL", &format!("clausy"));
     let mut arena = Arena::new();
     let mut formulas = parse_inputs(&cli.inputs, &mut arena);
-    apply_transforms(&mut formulas, &cli.transforms, &mut arena);
-    execute_action(cli.action.unwrap(), &mut formulas, &mut arena);
+    if !ignores_transforms(&action) {
+        apply_transforms(&mut formulas, &cli.transforms, &mut arena);
+    }
+    execute_action(action, &mut formulas, &mut arena);
 }
