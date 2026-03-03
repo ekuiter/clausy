@@ -225,3 +225,5 @@ clausy -q -i 'linux/v6.12[x86].model' -t cnf-tseitin print
 - [ ] Run `cargo test`
 - [ ] Run `make integration-test`
 - [ ] Re-measure same three workloads
+
+tried this and it did not improve performance at all
