@@ -3,6 +3,7 @@
 use crate::core::{file::File, var::VarId};
 use crate::shell::options;
 use crate::util::log::{log, scope};
+use clap::ValueEnum;
 use num::BigInt;
 use std::{
     env,
@@ -63,7 +64,7 @@ fn log_invoked_command(program: &str, args: &[OsString]) {
 /// This is because arbitrary solvers (e.g., tinisat) do not generally support extracting solutions.
 pub(crate) fn sat(cnf: &str) -> Option<Vec<VarId>> {
     let tool = &options().tool;
-    if let Some(sat_path) = &tool.sat {
+    if let Some(sat_path) = &tool.sat_path {
         log(&format!(
             "[EXEC] SAT solving will use the custom solver configured at {sat_path}"
         ));
@@ -79,7 +80,7 @@ pub(crate) fn sat(cnf: &str) -> Option<Vec<VarId>> {
 /// Runs the external satisfiability solver kissat, which performs well on all known feature-model formulas.
 /// Returns Some with the satisfying assignment if satisfiable, None otherwise.
 fn kissat(cnf: &str) -> Option<Vec<VarId>> {
-    let kissat_path = path(&options().tool.kissat);
+    let kissat_path = path(&options().tool.kissat_path);
     log_invoked_command(&kissat_path, &[]);
     log(&format!(
         "[EXEC] starting SAT solver process using executable {}",
@@ -161,7 +162,7 @@ fn arbitrary_sat(cnf: &str, solver_path: &str) -> Option<Vec<VarId>> {
 ///
 /// Uses the user-specified #SAT solver (--sharp-sat-path) if provided, otherwise falls back to d4.
 pub(crate) fn sharp_sat(cnf: &str) -> BigInt {
-    if let Some(sharp_sat_path) = &options().tool.sharp_sat {
+    if let Some(sharp_sat_path) = &options().tool.sharp_sat_path {
         log(&format!(
             "[EXEC] model counting will use the custom #SAT solver configured at {sharp_sat_path}"
         ));
@@ -178,13 +179,19 @@ pub(crate) fn sharp_sat(cnf: &str) -> BigInt {
 fn d4(cnf: &str) -> BigInt {
     let mut tmp = NamedTempFile::new().expect("failed to create temporary file");
     write!(tmp, "{}", cnf).expect("failed to write CNF to temporary file");
-    let d4_path = path(&options().tool.d4);
-    let d4_mode = options().tool.d4_mode.as_str();
+    let d4_path = path(&options().tool.d4_path);
+    let d4_mode = options()
+        .tool
+        .d4_mode
+        .to_possible_value()
+        .expect("invalid d4 mode")
+        .get_name()
+        .to_owned();
     let args = vec![
         OsString::from("-i"),
         tmp.path().as_os_str().to_owned(),
         OsString::from("-m"),
-        OsString::from(d4_mode),
+        OsString::from(&d4_mode),
     ];
     log_invoked_command(&d4_path, &args);
     log(&format!(
@@ -253,7 +260,7 @@ fn arbitrary_sharp_sat(cnf: &str, solver_path: &str) -> BigInt {
 pub(crate) fn bc_minisat_all(cnf: &str) -> (impl Iterator<Item = Vec<VarId>>, NamedTempFile) {
     let mut tmp_in = NamedTempFile::new().expect("failed to create temporary file");
     write!(tmp_in, "{}", cnf).expect("failed to write CNF to temporary file");
-    let solver_path = path(&options().tool.bc_minisat_all);
+    let solver_path = path(&options().tool.bc_minisat_all_path);
     let args = vec![tmp_in.path().as_os_str().to_owned()];
     log_invoked_command(&solver_path, &args);
     log(&format!(
@@ -291,7 +298,7 @@ pub(crate) fn bc_minisat_all(cnf: &str) -> (impl Iterator<Item = Vec<VarId>>, Na
 ///
 /// Runs the tool FeatureIDE using the Java runtime environment, which is assumed to be available on the PATH variable.
 pub(crate) fn io(file: &File, output_format: &str, variables: &[&str]) -> File {
-    let io_path = path(&options().tool.io);
+    let io_path = path(&options().tool.io_path);
     let args = vec![
         OsString::from("-jar"),
         OsString::from(&io_path),

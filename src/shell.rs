@@ -69,37 +69,49 @@ struct CliOptions {
 #[derive(Args, Default, Debug)]
 #[command(next_help_heading = "Tool Options")]
 pub struct ToolOptions {
-    /// Path to the satisfiability solver kissat
-    #[arg(long = "kissat-path", default_value = "kissat")]
-    pub kissat: String,
+    /// Path to the satisfiability solver kissat.
+    #[arg(long, default_value = "kissat")]
+    pub kissat_path: String,
 
-    /// Path to a satisfiability solver that takes a .cnf file and outputs "s (UN)SATISFIABLE"
-    #[arg(long = "sat-path")]
-    pub sat: Option<String>,
+    /// Path to a satisfiability solver that takes a .cnf file and outputs "s (UN)SATISFIABLE".
+    #[arg(long)]
+    pub sat_path: Option<String>,
 
-    /// Path to the model counter d4
-    #[arg(long = "d4-path", default_value = "d4")]
-    pub d4: String,
+    /// Path to the model counter d4.
+    #[arg(long, default_value = "d4")]
+    pub d4_path: String,
 
-    /// d4 counting mode (`counting`, `projMC`, or `proj-ddnnf-compiler`)
-    #[arg(long = "d4-mode", default_value = "counting")]
-    pub d4_mode: String,
+    /// d4 counting mode.
+    #[arg(long, default_value = "counting")]
+    pub d4_mode: D4Mode,
 
-    /// Path to a model counter that takes a .cnf file and outputs "s 'model count'"
-    #[arg(long = "sharp-sat-path")]
-    pub sharp_sat: Option<String>,
+    /// Path to a model counter that takes a .cnf file and outputs "s 'model count'".
+    #[arg(long)]
+    pub sharp_sat_path: Option<String>,
 
-    /// Path to the AllSAT solver bc_minisat_all
-    #[arg(long = "bc-minisat-all-path", default_value = "bc_minisat_all")]
-    pub bc_minisat_all: String,
+    /// Path to the AllSAT solver bc_minisat_all.
+    #[arg(long, default_value = "bc_minisat_all")]
+    pub bc_minisat_all_path: String,
 
-    /// Path to the FeatureIDE I/O interface
-    #[arg(long = "io-path", default_value = "io.jar")]
-    pub io: String,
+    /// Path to the FeatureIDE I/O interface.
+    #[arg(long, default_value = "io.jar")]
+    pub io_path: String,
 
-    /// Force parsing all input files through the FeatureIDE I/O interface
+    /// Force parsing all input files through the FeatureIDE I/O interface.
     #[arg(long, default_value_t = false)]
     pub force_io: bool,
+}
+
+/// Supported d4 execution modes.
+#[derive(Clone, Copy, Debug, ValueEnum, Default)]
+pub enum D4Mode {
+    #[default]
+    #[value(name = "counting")]
+    Counting,
+    #[value(name = "projMC")]
+    ProjMc,
+    #[value(name = "proj-ddnnf-compiler")]
+    ProjDdnnfCompiler,
 }
 
 /// Output formatting options.
