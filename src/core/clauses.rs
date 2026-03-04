@@ -180,15 +180,22 @@ impl Clauses {
     }
 
     /// Counts the projected number of solutions of this clause representation.
+    pub(crate) fn proj_count(&self, proj_vars: &HashSet<VarId>) -> BigInt {
+        exec::sharp_sat(&self.to_projected_string(proj_vars), true)
+    }
+
+    /// Returns a CNF file of this clause representation that is annotated for projected model counting.
     ///
     /// The projection variables must be provided in the context of the original [Arena]
     /// from when this clause representation was created.
     /// We use the standard format for projected model counting here, as specified in `meta/mccomp_format_24.pdf`:
-    /// `c t pmc\nc p show <proj_var_1> <proj_var_2> ... 0\np cnf <num_vars> <num_clauses> ...`
+    /// `c t pmc\np cnf <num_vars> <num_clauses> ...\nc p show <proj_var_1> <proj_var_2> ... 0\n`
     /// d4 and Ganak both support this format. d4 also supports an alternative format:
     /// `p pcnf <num_vars> <num_clauses> <num_proj_vars>\nvp <proj_var_1> <proj_var_2> ... 0\n...`
     /// We do not use this format here because it is specific to d4.
-    pub(crate) fn proj_count(&self, proj_vars: &HashSet<VarId>) -> BigInt {
+    /// Note that `p show` may occur anywhere according to `meta/mccomp_format_24.pdf`,
+    /// but Ganak requires it to be at the end.
+    pub(crate) fn to_projected_string(&self, proj_vars: &HashSet<VarId>) -> String {
         let mut proj_vars: Vec<VarId> = proj_vars
             .iter()
             .map(|var_id| {
@@ -203,13 +210,13 @@ impl Clauses {
         proj_vars.sort_unstable();
         let mut cnf = String::new();
         cnf.push_str("c t pmc\n");
+        write!(&mut cnf, "{}", self).unwrap();
         cnf.push_str("c p show ");
         for var in proj_vars {
-            cnf.push_str(&format!("{var} "));
+            write!(&mut cnf, "{var} ").unwrap();
         }
         cnf.push_str("0\n");
-        write!(&mut cnf, "{}", self).unwrap();
-        exec::sharp_sat(&cnf, true)
+        cnf
     }
 }
 

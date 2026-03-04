@@ -4,12 +4,14 @@ use crate::core::file::File;
 use crate::core::formula::DiffKind;
 use crate::parser::sat_inline::SatInlineFormulaParser;
 use crate::{
-    core::{arena::Arena, formula::Formula},
+    core::{arena::Arena, formula::Formula, var::VarId},
     parser::{parser, FormulaParsee},
     util::log::{log, scope},
 };
 use clap::{Args, Parser, Subcommand, ValueEnum};
+use std::collections::HashSet;
 use std::env;
+use std::fs;
 use std::process;
 use std::sync::OnceLock;
 
@@ -129,7 +131,7 @@ enum Transform {
 enum Action {
     /// Print the transformed formula as CNF clauses (default).
     #[command(alias = "print")]
-    PrintClauses,
+    PrintClauses(ProjectionArgs),
 
     /// Print the transformed formula expression.
     PrintFormula,
@@ -153,7 +155,7 @@ enum Action {
     /// This calls an external model counter as specified with `--d4-path` or `--sharp-sat-path`.
     /// If a model counter set with `--sharp-sat-path` does not support projected model counting,
     /// `--projection` and `--slice` will be ignored and the model count will be computed normally.
-    Count,
+    Count(ProjectionArgs),
 
     /// Check model count against FeatureIDE as baseline.
     ///
@@ -187,6 +189,46 @@ enum Action {
     /// This expects exactly two formulas to be loaded with `--input`.
     /// All `--transform` options will be ignored by this command, which implements its own transformation logic.
     Diff(DiffArgs),
+}
+
+/// Options for projection-aware actions (`print-clauses`, `count`).
+#[derive(Args, Debug, Default)]
+struct ProjectionArgs {
+    /// Variables to project to (comma-separated).
+    #[arg(
+        long = "project",
+        value_name = "VAR",
+        num_args = 1..,
+        value_delimiter = ',',
+        conflicts_with_all = ["slice", "project_file", "slice_file"]
+    )]
+    project: Vec<String>,
+
+    /// Variables to slice away (comma-separated).
+    #[arg(
+        long = "slice",
+        value_name = "VAR",
+        num_args = 1..,
+        value_delimiter = ',',
+        conflicts_with_all = ["project", "project_file", "slice_file"]
+    )]
+    slice: Vec<String>,
+
+    /// Path to a newline-separated file of variable names to project to.
+    #[arg(
+        long = "project-file",
+        value_name = "FILE",
+        conflicts_with_all = ["project", "slice", "slice_file"]
+    )]
+    project_file: Option<String>,
+
+    /// Path to a newline-separated file of variable names to slice away.
+    #[arg(
+        long = "slice-file",
+        value_name = "FILE",
+        conflicts_with_all = ["project", "slice", "project_file"]
+    )]
+    slice_file: Option<String>,
 }
 
 /// Options for `count-inc`.
@@ -279,12 +321,16 @@ fn load_config_file_args() -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// Returns the most recently loaded formula.
+///
+/// This is the formula that subsequent transformations and most actions operate on.
 fn current_formula(formulas: &mut [Formula]) -> &mut Formula {
     formulas
         .last_mut()
         .expect("no formula loaded; provide at least one --input item")
 }
 
+/// Returns both formulas required by pair-based actions.
 fn formulas_pair(formulas: &[Formula]) -> (&Formula, &Formula) {
     let [a, b] = formulas else {
         panic!("this command requires exactly two loaded formulas");
@@ -292,6 +338,7 @@ fn formulas_pair(formulas: &[Formula]) -> (&Formula, &Formula) {
     (a, b)
 }
 
+/// Parses all `--input` items into formulas within a shared arena.
 fn parse_inputs(inputs: &[String], arena: &mut Arena) -> Vec<Formula> {
     let mut formulas = Vec::<Formula>::new();
     for input in inputs {
@@ -319,10 +366,12 @@ fn parse_inputs(inputs: &[String], arena: &mut Arena) -> Vec<Formula> {
     formulas
 }
 
+/// Returns whether a command ignores transform flags.
 fn ignores_transforms(action: &Action) -> bool {
     matches!(action, Action::Diff(_) | Action::CountInc(_))
 }
 
+/// Applies the selected transformation pipeline to the current formula.
 fn apply_transforms(formulas: &mut [Formula], transforms: &[Transform], arena: &mut Arena) {
     for transform in transforms {
         let _timing = scope("SHELL", &format!("transform {:?}", transform));
@@ -341,12 +390,87 @@ fn apply_transforms(formulas: &mut [Formula], transforms: &[Transform], arena: &
     }
 }
 
+/// Reads newline-separated variable names from a text file.
+fn read_variable_name_file(path: &str) -> Vec<String> {
+    fs::read_to_string(path)
+        .unwrap_or_else(|e| panic!("failed to read variable-name file '{}': {}", path, e))
+        .lines()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty())
+        .map(|line| line.to_string())
+        .collect()
+}
+
+/// Resolves variable names to arena variable identifiers.
+fn resolve_named_var_ids(arena: &mut Arena, names: &[String]) -> HashSet<VarId> {
+    names
+        .iter()
+        .map(|name| {
+            arena
+                .get_var_named(name.clone())
+                .unwrap_or_else(|| panic!("unknown variable name in projection/slice: '{}'", name))
+        })
+        .collect()
+}
+
+/// Computes the projection variable set for projected model counting.
+///
+/// Returns `None` if projected model counting is not needed.
+/// If the projection variable set is empty, the project model counter will decide satisfiability.
+fn count_projection_vars(
+    args: &ProjectionArgs,
+    formula: &Formula,
+    arena: &mut Arena,
+) -> Option<HashSet<VarId>> {
+    let source: Option<(Vec<String>, bool)> = if !args.project.is_empty() {
+        Some((args.project.clone(), false))
+    } else if !args.slice.is_empty() {
+        Some((args.slice.clone(), true))
+    } else if let Some(file) = &args.project_file {
+        Some((read_variable_name_file(file), false))
+    } else if let Some(file) = &args.slice_file {
+        Some((read_variable_name_file(file), true))
+    } else {
+        None
+    };
+
+    let (variable_names, is_slice) = source?;
+    let variable_ids = resolve_named_var_ids(arena, &variable_names);
+    let projection = if is_slice {
+        formula
+            .sub_var_ids
+            .difference(&variable_ids)
+            .copied()
+            .collect::<HashSet<VarId>>()
+    } else {
+        variable_ids
+    };
+    if projection == formula.sub_var_ids {
+        None
+    } else {
+        Some(projection)
+    }
+}
+
+/// Executes the selected top-level action on parsed/transformed formulas.
 fn execute_action(action: Action, formulas: &mut [Formula], arena: &mut Arena) {
     let action_name = format!("{action:?}");
     let action_name = action_name.split('(').next().unwrap_or(&action_name);
     let _timing = scope("SHELL", &format!("action {action_name}"));
     match action {
-        Action::PrintClauses => print!("{}", current_formula(formulas).to_clauses(arena)),
+        Action::PrintClauses(args) => {
+            let formula = current_formula(formulas);
+            let clauses = formula.to_clauses(arena);
+            let projection = count_projection_vars(&args, formula, arena);
+            if let Some(proj_vars) = projection {
+                log(&format!(
+                    "[SHELL] printing clauses for projected model counting",
+                ));
+                print!("{}", clauses.to_projected_string(&proj_vars));
+            } else {
+                print!("{}", clauses);
+            }
+        }
         Action::PrintFormula => println!("{}", current_formula(formulas).as_ref(arena)),
         Action::PrintSubExprs => {
             let sub_expr_ids = current_formula(formulas).sub_exprs(arena);
@@ -364,7 +488,20 @@ fn execute_action(action: Action, formulas: &mut [Formula], arena: &mut Arena) {
                 process::exit(UNSAT_EXIT_CODE);
             }
         }
-        Action::Count => println!("{}", current_formula(formulas).to_clauses(arena).count()),
+        Action::Count(args) => {
+            let formula = current_formula(formulas);
+            let clauses = formula.to_clauses(arena);
+            let projection = count_projection_vars(&args, formula, arena);
+            if let Some(proj_vars) = projection {
+                log(&format!(
+                    "[SHELL] performing projected model counting onto {} variables",
+                    proj_vars.len()
+                ));
+                println!("{}", clauses.proj_count(&proj_vars));
+            } else {
+                println!("{}", clauses.count());
+            }
+        }
         Action::AssertCount => {
             let formula = current_formula(formulas);
             let clauses = formula.to_clauses(arena);
@@ -425,7 +562,7 @@ pub fn main() {
         action
     } else {
         log("[SHELL] no action specified, defaulting to print-clauses");
-        Action::PrintClauses
+        Action::PrintClauses(ProjectionArgs::default())
     };
     if ignores_transforms(&action) {
         if !cli.transforms.is_empty() {
