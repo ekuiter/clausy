@@ -105,13 +105,30 @@ pub struct ToolOptions {
 /// Supported d4 execution modes.
 #[derive(Clone, Copy, Debug, ValueEnum, Default)]
 pub enum D4Mode {
+    /// Model counting (d4).
+    /// 
+    /// Default implementation for model counting in d4
+    /// implemented [here](https://github.com/SoftVarE-Group/d4v2/blob/main/src/methods/DpllStyleMethod.hpp).
+    /// Also supports projected model counting.
     #[default]
     #[value(name = "counting")]
     Counting,
-    #[value(name = "projMC")]
-    ProjMc,
+
+    /// Projected d-DNNF compilation (pd4).
+    /// 
+    /// See "Efficient Slicing of Feature Models via Projected d-DNNF Compilation" by Sundermann et al.
+    /// implemented [here](https://github.com/SoftVarE-Group/d4v2/blob/main/src/methods/ProjDpllStyleMethod.hpp).
+    /// Performs particularly well for projected model counting.
     #[value(name = "proj-ddnnf-compiler")]
     ProjDdnnfCompiler,
+
+    /// Projected model counting (projMC).
+    /// 
+    /// See "A Recursive Algorithm for Projected Model Counting" by J.-M. Lagniez and P. Marquis
+    /// implemented [here](https://github.com/SoftVarE-Group/d4v2/blob/main/src/methods/ProjMCMethod.hpp).
+    /// Seems to perform overall less well for projected model counting than the other two modes.
+    #[value(name = "projMC")]
+    ProjMc,
 }
 
 /// Output formatting options.

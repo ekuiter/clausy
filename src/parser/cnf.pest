@@ -11,4 +11,4 @@ problem = { "p" ~ "cnf" ~ number ~ number }
 var = ${ "-"? ~ non_leading_zero_number }
 clause = { var* ~ "0" }
 
-file = _{ SOI ~ comment* ~ problem ~ clause* ~ EOI }
+file = _{ SOI ~ comment* ~ problem ~ (clause | comment)* ~ EOI }

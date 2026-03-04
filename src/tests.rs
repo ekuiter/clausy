@@ -92,6 +92,17 @@ fn cnf_parser_builds_expected_formula_structure() {
 }
 
 #[test]
+// Checks CNF parser compatibility with projection comments after clauses.
+// We expect trailing `c p show ...` lines to be ignored and clause parsing to remain unchanged.
+fn cnf_parser_accepts_trailing_projection_comment_line() {
+    let cnf = "p cnf 2 2\n1 -2 0\n2 0\nc p show 1 2 0\n";
+    let (arena, formula) = parse_cnf_new("test.dimacs", cnf);
+    let rendered = formula_string(&formula, &arena);
+
+    assert_eq!(rendered, "And(2, Or(1, Not(2)))");
+}
+
+#[test]
 // Checks model parser support for `<unsupported>` (introduced by torte on KClause extraction).
 // We expect it to survive as a placeholder variable so unsupported constructs remain represented unchanged.
 fn model_parser_handles_unsupported_literal() {

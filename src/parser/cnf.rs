@@ -90,11 +90,11 @@ impl FormulaParser for CnfFormulaParser {
             assert!(variable_names.is_empty());
         }
 
-        let child_ids: Vec<ExprId> = pairs
-            .map_while(|pair| match pair.as_rule() {
+        let mut child_ids: Vec<ExprId> = Vec::new();
+        for pair in pairs {
+            match pair.as_rule() {
                 Rule::clause => {
                     let children_ids = pair
-                        .clone()
                         .into_inner()
                         .map(|pair| {
                             let var: VarId = pair
@@ -112,12 +112,12 @@ impl FormulaParser for CnfFormulaParser {
                             }
                         })
                         .collect();
-                    Some(arena.expr(Or(children_ids)))
+                    child_ids.push(arena.expr(Or(children_ids)));
                 }
-                Rule::EOI => None,
+                Rule::comment | Rule::EOI => {}
                 _ => unreachable!(),
-            })
-            .collect();
+            }
+        }
         let parsed_clause_n: VarId = child_ids
             .len()
             .try_into()
