@@ -7,11 +7,12 @@ use super::{
     formula_ref::FormulaRef,
     var::{Var, VarId},
 };
-use crate::{
-    core::file::File,
-    util::{exec, log::log},
+use crate::util::{exec, log::log};
+use std::fmt::Write as _;
+use std::{
+    collections::{HashMap, HashSet},
+    fmt, slice,
 };
-use std::{collections::HashMap, fmt, slice};
 
 /// A [super::formula::Formula] in its clause representation.
 ///
@@ -21,12 +22,19 @@ pub(crate) struct Clauses {
     ///
     /// A clause is a [Vec] of literals, each given as an absolute-value index into [Clauses::vars].
     /// Negative values indicate negated variable occurrences.
+    /// These variable IDs are unrelated to the variables from the original [Arena], but they index into [Clauses::vars].
     pub(crate) clauses: Vec<Vec<VarId>>,
 
     /// The variables of this clause representation.
     ///
     /// This list is indexed into by the absolute values stored in [Clauses::clauses].
     pub(crate) vars: Vec<Var>,
+
+    /// Maps the original [Arena]'s variable IDs to [Clauses::vars]'s variable IDs.
+    ///
+    /// Must be stored explicitly for [Clauses::proj_count], in which users provide variable IDs from the
+    /// original [Arena], while external model counters operate on [Clauses::vars]'s variable IDs.
+    pub(crate) var_remap: HashMap<VarId, VarId>,
 }
 
 impl Clauses {
@@ -168,8 +176,40 @@ impl Clauses {
 
     /// Counts the number of solutions of this clause representation.
     pub(crate) fn count(&self) -> BigInt {
-        let file = File::new("-.dimacs".to_string(), self.to_string());
-        exec::sharp_sat(&file.contents)
+        exec::sharp_sat(&self.to_string(), false)
+    }
+
+    /// Counts the projected number of solutions of this clause representation.
+    ///
+    /// The projection variables must be provided in the context of the original [Arena]
+    /// from when this clause representation was created.
+    /// We use the standard format for projected model counting here, as specified in `meta/mccomp_format_24.pdf`:
+    /// `c t pmc\nc p show <proj_var_1> <proj_var_2> ... 0\np cnf <num_vars> <num_clauses> ...`
+    /// d4 and Ganak both support this format. d4 also supports an alternative format:
+    /// `p pcnf <num_vars> <num_clauses> <num_proj_vars>\nvp <proj_var_1> <proj_var_2> ... 0\n...`
+    /// We do not use this format here because it is specific to d4.
+    pub(crate) fn proj_count(&self, proj_vars: &HashSet<VarId>) -> BigInt {
+        let mut proj_vars: Vec<VarId> = proj_vars
+            .iter()
+            .map(|var_id| {
+                *self.var_remap.get(var_id).unwrap_or_else(|| {
+                    panic!(
+                        "projection variable id {} is not part of this clause representation",
+                        var_id
+                    )
+                })
+            })
+            .collect();
+        proj_vars.sort_unstable();
+        let mut cnf = String::new();
+        cnf.push_str("c t pmc\n");
+        cnf.push_str("c p show ");
+        for var in proj_vars {
+            cnf.push_str(&format!("{var} "));
+        }
+        cnf.push_str("0\n");
+        write!(&mut cnf, "{}", self).unwrap();
+        exec::sharp_sat(&cnf, true)
     }
 }
 
@@ -193,6 +233,7 @@ impl<'a> From<FormulaRef<'a>> for Clauses {
         Self {
             clauses: Self::clauses(&formula_ref, &var_remap),
             vars,
+            var_remap,
         }
     }
 }

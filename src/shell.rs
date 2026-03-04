@@ -151,6 +151,8 @@ enum Action {
     /// Count satisfying assignments.
     ///
     /// This calls an external model counter as specified with `--d4-path` or `--sharp-sat-path`.
+    /// If a model counter set with `--sharp-sat-path` does not support projected model counting,
+    /// `--projection` and `--slice` will be ignored and the model count will be computed normally.
     Count,
 
     /// Check model count against FeatureIDE as baseline.

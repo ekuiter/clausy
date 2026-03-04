@@ -6,7 +6,7 @@ use super::{arena::Arena, formula::Formula};
 
 /// A shared reference to a feature-model formula.
 ///
-/// This is useful whenever we need to pass a formula around and need the containing arena is not available.
+/// This is useful whenever we need to pass a formula around and also need the containing arena.
 pub(crate) struct FormulaRef<'a> {
     pub(crate) arena: &'a Arena,
     pub(crate) formula: &'a Formula,
