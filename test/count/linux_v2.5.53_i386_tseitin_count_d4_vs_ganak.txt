@@ -1,0 +1,4 @@
+# count linux 2.5.53[i386] with Tseitin and verify d4 matches Ganak
+D4_COUNT=$($clausy -q -i 'input/v2.5.53[i386].model' -t cnf-tseitin --d4-path ../build/d4 count)
+GANAK_COUNT=$($clausy -q -i 'input/v2.5.53[i386].model' -t cnf-tseitin --sharp-sat-path ../build/ganak.sh count)
+test "$D4_COUNT" = "$GANAK_COUNT"

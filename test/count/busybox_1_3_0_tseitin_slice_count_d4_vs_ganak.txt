@@ -1,0 +1,4 @@
+# count sliced busybox 1.3.0 with Tseitin and verify d4 matches Ganak
+D4_COUNT=$($clausy -q -i input/busybox_1_3_0.model -t cnf-tseitin --d4-path ../build/d4 count --slice-file input/busybox_1_3_0_slice)
+GANAK_COUNT=$($clausy -q -i input/busybox_1_3_0.model -t cnf-tseitin --sharp-sat-path ../build/ganak.sh count --slice-file input/busybox_1_3_0_slice)
+test "$D4_COUNT" = "$GANAK_COUNT"
