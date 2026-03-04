@@ -81,6 +81,10 @@ pub struct ToolOptions {
     #[arg(long = "d4-path", default_value = "d4")]
     pub d4: String,
 
+    /// d4 counting mode (`counting`, `projMC`, or `proj-ddnnf-compiler`)
+    #[arg(long = "d4-mode", default_value = "counting")]
+    pub d4_mode: String,
+
     /// Path to a model counter that takes a .cnf file and outputs "s 'model count'"
     #[arg(long = "sharp-sat-path")]
     pub sharp_sat: Option<String>,

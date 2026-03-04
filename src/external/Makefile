@@ -113,7 +113,7 @@ $(BUILD_DIR)/ganak:
 	tar xzf $(GANAK_ARCHIVE) -C $(TMP_DIR)/ganak
 	mkdir -p $(BUILD_DIR)
 	cp -R $(TMP_DIR)/ganak/$(GANAK_EXTRACT_DIR)/* $(BUILD_DIR)
-	printf '#!/bin/sh\n"$$(dirname "$$0")/ganak" "$$1" | grep -v ^s | sed "s/c s exact arb int/s/"\n' > $(BUILD_DIR)/ganak.sh
+	printf '#!/bin/sh\n"$$(dirname "$$0")/ganak" "$$@" | grep -v ^s | sed "s/c s exact arb int/s/"\n' > $(BUILD_DIR)/ganak.sh
 	chmod +x $(BUILD_DIR)/ganak.sh
 
 # used by default for model enumeration

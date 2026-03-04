@@ -73,7 +73,7 @@ impl File {
     /// This function is useful as a baseline to ensure the correctness of clausy's transformations.
     /// However, it will not terminate for large formulas due to exponential blowup.
     pub(crate) fn count_with_featureide(&self) -> BigInt {
-        exec::sharp_sat(&self.convert_with_featureide("cnf").contents, false)
+        exec::sharp_sat(&self.convert_with_featureide("cnf").contents)
     }
 
     /// Panics if the formula this file represents has a different model count than that of the given clauses.
