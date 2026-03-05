@@ -12,6 +12,7 @@ use std::{
     path::Path,
     process::{Command, Stdio},
     str::FromStr,
+    sync::OnceLock,
 };
 use tempfile::NamedTempFile;
 
@@ -63,14 +64,15 @@ fn log_invoked_command(program: &str, args: &[OsString]) {
 /// When using an arbitrary solver, the solution will be empty even if satisfiable.
 /// This is because arbitrary solvers (e.g., tinisat) do not generally support extracting solutions.
 pub(crate) fn sat(cnf: &str) -> Option<Vec<VarId>> {
+    static LOGGED: OnceLock<()> = OnceLock::new();
     let tool = &options().tool;
     if let Some(sat_path) = &tool.sat_path {
-        log(&format!(
+        LOGGED.get_or_init(|| log(&format!(
             "[EXEC] SAT solving will use the custom solver configured at {sat_path}"
-        ));
+        )));
         arbitrary_sat(cnf, sat_path)
     } else {
-        log("[EXEC] SAT solving will use the default kissat solver");
+        LOGGED.get_or_init(|| log("[EXEC] SAT solving will use the default kissat solver"));
         kissat(cnf)
     }
 }
@@ -162,13 +164,14 @@ fn arbitrary_sat(cnf: &str, solver_path: &str) -> Option<Vec<VarId>> {
 ///
 /// Uses the user-specified #SAT solver (--sharp-sat-path) if provided, otherwise falls back to d4.
 pub(crate) fn sharp_sat(cnf: &str) -> BigInt {
+    static LOGGED: OnceLock<()> = OnceLock::new();
     if let Some(sharp_sat_path) = &options().tool.sharp_sat_path {
-        log(&format!(
+        LOGGED.get_or_init(|| log(&format!(
             "[EXEC] model counting will use the custom #SAT solver configured at {sharp_sat_path}"
-        ));
+        )));
         arbitrary_sharp_sat(cnf, sharp_sat_path)
     } else {
-        log("[EXEC] model counting will use the default d4 solver");
+        LOGGED.get_or_init(|| log("[EXEC] model counting will use the default d4 solver"));
         d4(cnf)
     }
 }
