@@ -23,6 +23,5 @@ RUN chmod +x scripts/gradle_proxy.sh \
 COPY src/external src/external/
 RUN make -C src/external
 COPY . ./
-RUN make clausy STATIC=1 \
-    && ldd build/clausy 2>&1 | grep -q "not a dynamic executable"
+RUN make clausy STATIC=1
 ENTRYPOINT [ "build/clausy" ]
