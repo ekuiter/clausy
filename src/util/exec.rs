@@ -55,7 +55,8 @@ fn log_invoked_command(program: &str, args: &[OsString]) {
         command.push(' ');
         command.push_str(&shell_escape_if_needed(&arg.to_string_lossy()));
     }
-    log(&format!("[EXEC] invoking command: {command}"));
+    let display = if command.len() > 180 { format!("{}…", &command[..180]) } else { command };
+    log(&format!("[EXEC] invoking command: {display}"));
 }
 
 /// Checks satisfiability of a CNF formula.
