@@ -82,11 +82,18 @@ pub struct ToolOptions {
     #[arg(long, default_value = "d4")]
     pub d4_path: String,
 
-    /// d4 counting mode.
+    /// d4 mode used when performing projected model counting.
+    ///
+    /// Has no effect on plain (non-projected) model counting, which always uses counting mode.
     #[arg(long, default_value = "counting")]
-    pub d4_mode: D4Mode,
+    pub d4_projection_mode: D4ProjectionMode,
 
     /// Path to a model counter that takes a .cnf file and outputs "s 'model count'".
+    ///
+    /// The solver is invoked with the CNF file path as the first argument and "projected" or
+    /// "counting" as the second argument, indicating whether projected model counting is requested.
+    /// The CNF is annotated with "c t pmc" and "c p show" when projected.
+    /// Output must contain a line starting with "s " followed by the model count.
     #[arg(long)]
     pub sharp_sat_path: Option<String>,
 
@@ -103,9 +110,9 @@ pub struct ToolOptions {
     pub force_io: bool,
 }
 
-/// Supported d4 execution modes.
+/// Supported d4 projection modes for projected model counting.
 #[derive(Clone, Copy, Debug, ValueEnum, Default)]
-pub enum D4Mode {
+pub enum D4ProjectionMode {
     /// Model counting (d4).
     /// 
     /// Default implementation for model counting in d4

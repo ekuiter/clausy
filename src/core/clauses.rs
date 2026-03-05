@@ -176,12 +176,12 @@ impl Clauses {
 
     /// Counts the number of solutions of this clause representation.
     pub(crate) fn count(&self) -> BigInt {
-        exec::sharp_sat(&self.to_string())
+        exec::sharp_sat(&self.to_string(), false)
     }
 
     /// Counts the projected number of solutions of this clause representation.
     pub(crate) fn proj_count(&self, proj_vars: &HashSet<VarId>) -> BigInt {
-        exec::sharp_sat(&self.to_projected_string(proj_vars))
+        exec::sharp_sat(&self.to_projected_string(proj_vars), true)
     }
 
     /// Returns a CNF file of this clause representation that is annotated for projected model counting.

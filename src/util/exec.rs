@@ -163,33 +163,37 @@ fn arbitrary_sat(cnf: &str, solver_path: &str) -> Option<Vec<VarId>> {
 /// Counts the number of solutions of a CNF formula.
 ///
 /// Uses the user-specified #SAT solver (--sharp-sat-path) if provided, otherwise falls back to d4.
-pub(crate) fn sharp_sat(cnf: &str) -> BigInt {
+pub(crate) fn sharp_sat(cnf: &str, projected: bool) -> BigInt {
     static LOGGED: OnceLock<()> = OnceLock::new();
     if let Some(sharp_sat_path) = &options().tool.sharp_sat_path {
         LOGGED.get_or_init(|| log(&format!(
             "[EXEC] model counting will use the custom #SAT solver configured at {sharp_sat_path}"
         )));
-        arbitrary_sharp_sat(cnf, sharp_sat_path)
+        arbitrary_sharp_sat(cnf, sharp_sat_path, projected)
     } else {
         LOGGED.get_or_init(|| log("[EXEC] model counting will use the default d4 solver"));
-        d4(cnf)
+        d4(cnf, projected)
     }
 }
 
 /// Counts the number of solutions of some CNF in DIMACS format.
 ///
 /// Runs the external model counter d4, which performs well on most small to medium size inputs.
-fn d4(cnf: &str) -> BigInt {
+fn d4(cnf: &str, projected: bool) -> BigInt {
     let mut tmp = NamedTempFile::new().expect("failed to create temporary file");
     write!(tmp, "{}", cnf).expect("failed to write CNF to temporary file");
     let d4_path = path(&options().tool.d4_path);
-    let d4_mode = options()
-        .tool
-        .d4_mode
-        .to_possible_value()
-        .expect("invalid d4 mode")
-        .get_name()
-        .to_owned();
+    let d4_mode = if projected {
+        options()
+            .tool
+            .d4_projection_mode
+            .to_possible_value()
+            .expect("invalid d4 projection mode")
+            .get_name()
+            .to_owned()
+    } else {
+        "counting".to_owned()
+    };
     let args = vec![
         OsString::from("-i"),
         tmp.path().as_os_str().to_owned(),
@@ -221,15 +225,19 @@ fn d4(cnf: &str) -> BigInt {
 
 /// Counts solutions using an arbitrary #SAT solver.
 ///
-/// The solver is invoked with the CNF file path as the first argument.
+/// The solver is invoked with the CNF file path as the first argument and "projected" or
+/// "counting" as the second argument, indicating whether projected model counting is requested.
+/// When projected, the CNF is annotated with "c t pmc" and "c p show" lines.
 /// Output must contain a line starting with "s " followed by the model count.
-/// It is not strictly necessary that the solver supports projected model counting, in which case
-/// it can simply compute the normal model count (yielding inaccurate results whenever projection is requested).
-fn arbitrary_sharp_sat(cnf: &str, solver_path: &str) -> BigInt {
+/// It is not strictly necessary that the solver supports projected model counting, but it will then yield inaccurate results whenever projection is requested.
+fn arbitrary_sharp_sat(cnf: &str, solver_path: &str, projected: bool) -> BigInt {
     let mut tmp = NamedTempFile::new().expect("failed to create temporary file");
     write!(tmp, "{}", cnf).expect("failed to write CNF to temporary file");
     let resolved_path = path(solver_path);
-    let args = vec![tmp.path().as_os_str().to_owned()];
+    let args = vec![
+        tmp.path().as_os_str().to_owned(),
+        OsString::from(if projected { "projected" } else { "counting" }),
+    ];
     log_invoked_command(&resolved_path, &args);
     log(&format!(
         "[EXEC] starting custom #SAT solver process using executable {}",
