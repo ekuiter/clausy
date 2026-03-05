@@ -13,6 +13,7 @@ use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::process;
+use std::str::FromStr;
 use std::sync::OnceLock;
 
 /// Transforms feature-model formulas into CNF.
@@ -272,21 +273,77 @@ struct CountIncArgs {
 }
 
 /// Diff mode for one side.
-#[derive(Clone, Copy, Debug, ValueEnum)]
+///
+/// Accepted values:
+/// - `slice` — slice both formulas to their common variables
+/// - `true` — fix all foreign variables to true
+/// - `false` — fix all foreign variables to false
+/// - `true,<true-file>,<false-file>` — fix foreign variables to true by default, with per-variable
+///   overrides from newline-separated files (empty path = no overrides for that set)
+/// - `false,<true-file>,<false-file>` — fix foreign variables to false by default, with per-variable
+///   overrides from newline-separated files (empty path = no overrides for that set)
+/// In the literature, `false` is typically used.
+#[derive(Clone, Debug)]
 enum DiffMode {
-    Weak,
-    #[value(name = "top-strong")]
-    TopStrong,
-    #[value(name = "bottom-strong", alias = "strong")]
-    BottomStrong,
+    Slice,
+    Fixed {
+        default: bool,
+        true_file: Option<String>,
+        false_file: Option<String>,
+    },
+}
+
+impl FromStr for DiffMode {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let err = || format!(
+            "invalid diff mode '{}'; expected 'slice', 'true', 'false', \
+             'true,<true-file>,<false-file>', or 'false,<true-file>,<false-file>'",
+            s
+        );
+        match s {
+            "slice" => Ok(DiffMode::Slice),
+            "true" => Ok(DiffMode::Fixed { default: true, true_file: None, false_file: None }),
+            "false" => Ok(DiffMode::Fixed { default: false, true_file: None, false_file: None }),
+            _ => {
+                let parts: Vec<&str> = s.splitn(3, ',').collect();
+                if parts.len() == 3 {
+                    let default = match parts[0] {
+                        "true" => true,
+                        "false" => false,
+                        _ => return Err(err()),
+                    };
+                    Ok(DiffMode::Fixed {
+                        default,
+                        true_file: if parts[1].is_empty() { None } else { Some(parts[1].to_string()) },
+                        false_file: if parts[2].is_empty() { None } else { Some(parts[2].to_string()) },
+                    })
+                } else {
+                    Err(err())
+                }
+            }
+        }
+    }
+}
+
+fn parse_diff_mode(s: &str) -> Result<DiffMode, String> {
+    s.parse()
 }
 
 impl DiffMode {
-    fn into_diff_kind(self) -> DiffKind {
+    fn into_diff_kind(self, arena: &mut Arena) -> DiffKind {
         match self {
-            DiffMode::Weak => DiffKind::Weak,
-            DiffMode::TopStrong => DiffKind::Strong(true),
-            DiffMode::BottomStrong => DiffKind::Strong(false),
+            DiffMode::Slice => DiffKind::Slice,
+            DiffMode::Fixed { default, true_file, false_file } => {
+                let core_vars = true_file
+                    .map(|f| resolve_named_var_ids(arena, &read_variable_name_file(&f)))
+                    .unwrap_or_default();
+                let dead_vars = false_file
+                    .map(|f| resolve_named_var_ids(arena, &read_variable_name_file(&f)))
+                    .unwrap_or_default();
+                DiffKind::Fixed { default, core_vars, dead_vars }
+            }
         }
     }
 }
@@ -295,11 +352,11 @@ impl DiffMode {
 #[derive(Args, Debug)]
 struct DiffArgs {
     /// Left-side diff mode.
-    #[arg(long, default_value = "weak")]
+    #[arg(long, default_value = "slice", value_parser = parse_diff_mode)]
     left: DiffMode,
 
     /// Right-side diff mode.
-    #[arg(long, default_value = "weak")]
+    #[arg(long, default_value = "slice", value_parser = parse_diff_mode)]
     right: DiffMode,
 
     /// Optional output prefix for serialized diff artifacts.
@@ -387,6 +444,7 @@ fn parse_inputs(inputs: &[String], arena: &mut Arena) -> Vec<Formula> {
             formulas.push(arena.parse(file, parser(extension)));
         } else if SatInlineFormulaParser::can_parse(input) {
             log("[SHELL] parsing inline SAT expression from --input item");
+            log("[SHELL] forcing foreign variables across all formulas to false, if any");
             formulas
                 .push(SatInlineFormulaParser::new(&formulas, Some(false)).parse_into(input, arena));
         } else {
@@ -557,8 +615,8 @@ fn execute_action(action: Action, formulas: &mut [Formula], arena: &mut Arena) {
             let (a, b) = formulas_pair(formulas);
             a.diff(
                 b,
-                args.left.into_diff_kind(),
-                args.right.into_diff_kind(),
+                args.left.into_diff_kind(arena),
+                args.right.into_diff_kind(arena),
                 args.output_prefix.as_deref(),
                 arena,
             );

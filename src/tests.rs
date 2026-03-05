@@ -400,11 +400,68 @@ fn force_foreign_vars_respects_exclusions() {
 
     let mut exclude_ids = HashSet::new();
     exclude_ids.insert(c_id);
-    let forced = a_formula.force_foreign_vars(false, &exclude_ids, &mut arena);
+    let forced = a_formula.force_foreign_vars(false, &HashSet::new(), &HashSet::new(), &exclude_ids, &mut arena);
 
     assert_eq!(formula_string(&forced, &arena), "And(a, Not(b))");
     assert!(forced.sub_var_ids.contains(&b_id));
     assert!(!forced.sub_var_ids.contains(&c_id));
+}
+
+#[test]
+// Checks that core_vars and dead_vars override the default value for foreign variables.
+// We expect b (core) to be forced to true and c (dead) to false, overriding a false default.
+fn force_foreign_vars_applies_core_and_dead_overrides() {
+    let mut arena = Arena::new();
+    let a_formula = parse_into(&mut arena, "a.sat", "c 1 a\np sat 1 1", "sat");
+    let _b_expr = arena.var_expr("b".to_string());
+    let _c_expr = arena.var_expr("c".to_string());
+    let b_id = arena.get_var_named("b".to_string()).unwrap();
+    let c_id = arena.get_var_named("c".to_string()).unwrap();
+
+    let core_ids = HashSet::from([b_id]);
+    let dead_ids = HashSet::from([c_id]);
+    let forced = a_formula.force_foreign_vars(true, &core_ids, &dead_ids, &HashSet::new(), &mut arena);
+
+    // b is in core_vars -> true, c is in dead_vars -> false (both override the true default)
+    assert_eq!(formula_string(&forced, &arena), "And(a, b, Not(c))");
+}
+
+#[test]
+#[should_panic(expected = "core_vars contained variables that are not foreign")]
+// Checks that declaring a formula's own variable as core panics.
+fn force_foreign_vars_panics_on_core_var_not_foreign() {
+    let mut arena = Arena::new();
+    let a_formula = parse_into(&mut arena, "a.sat", "c 1 a\np sat 1 1", "sat");
+    let a_id = arena.get_var_named("a".to_string()).unwrap();
+
+    let core_ids = HashSet::from([a_id]);
+    a_formula.force_foreign_vars(false, &core_ids, &HashSet::new(), &HashSet::new(), &mut arena);
+}
+
+#[test]
+#[should_panic(expected = "dead_vars contained variables that are not foreign")]
+// Checks that declaring a formula's own variable as dead panics.
+fn force_foreign_vars_panics_on_dead_var_not_foreign() {
+    let mut arena = Arena::new();
+    let a_formula = parse_into(&mut arena, "a.sat", "c 1 a\np sat 1 1", "sat");
+    let a_id = arena.get_var_named("a".to_string()).unwrap();
+
+    let dead_ids = HashSet::from([a_id]);
+    a_formula.force_foreign_vars(false, &HashSet::new(), &dead_ids, &HashSet::new(), &mut arena);
+}
+
+#[test]
+#[should_panic(expected = "core_vars contained variables that are not foreign")]
+// Checks that declaring an excluded variable as core panics.
+fn force_foreign_vars_panics_on_core_var_excluded() {
+    let mut arena = Arena::new();
+    let a_formula = parse_into(&mut arena, "a.sat", "c 1 a\np sat 1 1", "sat");
+    let _b_expr = arena.var_expr("b".to_string());
+    let b_id = arena.get_var_named("b".to_string()).unwrap();
+
+    let core_ids = HashSet::from([b_id]);
+    let exclude_ids = HashSet::from([b_id]);
+    a_formula.force_foreign_vars(false, &core_ids, &HashSet::new(), &exclude_ids, &mut arena);
 }
 
 #[test]

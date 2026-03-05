@@ -233,7 +233,7 @@ impl Arena {
             .collect()
     }
 
-    /// Given a set of variable identifiers, returns a set of their associated sting representations.
+    /// Given a set of variable identifiers, returns a set of their associated string representations.
     #[allow(unused)]
     pub(crate) fn var_strs(&self, var_ids: &HashSet<VarId>) -> Vec<String> {
         var_ids

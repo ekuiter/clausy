@@ -52,7 +52,7 @@ build/clausy -i a.model -i b.model -i '+(*(-1 2) *(1 -2))' -t cnf-tseitin satisf
 build/clausy -i a.model -i b.model diff
 
 # serialize diff
-build/clausy -i a.model -i b.model diff --left weak --right weak --output-prefix a_to_b
+build/clausy -i a.model -i b.model diff --left slice --right slice --output-prefix a_to_b
  
 # simplify a given CNF
 build/clausy -i model.dimacs
@@ -61,7 +61,7 @@ build/clausy -i model.dimacs
 cat meta/simple.sat | docker run --rm -i clausy -i -.sat -t cnf-tseitin count
 
 # advanced usage via Docker (file I/O with volumes)
-docker run --rm -v ./a.xml:/a.xml -v ./b.xml:/b.xml -v ./diff:/diff clausy -i /a.xml -i /b.xml diff --left weak --right weak --output-prefix /diff/a_to_b
+docker run --rm -v ./a.xml:/a.xml -v ./b.xml:/b.xml -v ./diff:/diff clausy -i /a.xml -i /b.xml diff --left slice --right slice --output-prefix /diff/a_to_b
 
 # run tests
 make test

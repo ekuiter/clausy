@@ -21,13 +21,20 @@ use std::{
 
 /// Commands for computing differences of feature-model formulas.
 pub(crate) enum DiffKind {
-    /// Computes the difference of both formulas, considering a solution as common if it satisfies both formulas
-    /// extended to all variables of both formulas, either by true or by false.
-    Strong(bool),
+    /// Computes the difference of both formulas by fixing foreign variables to a default value,
+    /// with optional per-variable overrides for true and false assignments.
+    ///
+    /// Variables in `core_vars` are forced to true, variables in `dead_vars` are forced to false,
+    /// and all remaining foreign variables are forced to `default`.
+    Fixed {
+        default: bool,
+        core_vars: HashSet<VarId>,
+        dead_vars: HashSet<VarId>,
+    },
 
     /// Computes the difference of both formulas, considering a solution as common if it satisfies the slices
     /// of both formulas down to their common variables.
-    Weak,
+    Slice,
 }
 
 /// A feature-model formula.
@@ -91,13 +98,16 @@ impl Formula {
         *root_id = arena.get_expr(&arena.exprs[*root_id]).unwrap();
     }
 
-    /// Returns a formula that forces all variables only occurring in the given arena to true or false.
+    /// Returns a formula that forces all variables only occurring in the given arena to a fixed value.
     ///
-    /// The parameter `top` specifies whether to force the affected variables to true or false.
+    /// Variables in `core_vars` are forced to true, variables in `dead_vars` are forced to false,
+    /// and all remaining foreign variables not in `exclude_vars` are forced to `default`.
     /// Does not modify this formula.
     pub(crate) fn force_foreign_vars(
         &self,
-        top: bool,
+        default: bool,
+        core_vars: &HashSet<VarId>,
+        dead_vars: &HashSet<VarId>,
         exclude_vars: &HashSet<VarId>,
         arena: &mut Arena,
     ) -> Formula {
@@ -107,6 +117,8 @@ impl Formula {
         } else {
             ids = vec![self.root_id];
         }
+        let mut remaining_core = core_vars.clone();
+        let mut remaining_dead = dead_vars.clone();
         ids.extend(
             arena
                 .vars(|var_id, _| {
@@ -114,6 +126,13 @@ impl Formula {
                 })
                 .into_iter()
                 .map(|(var_id, _)| {
+                    let top = if remaining_core.remove(&var_id) {
+                        true
+                    } else if remaining_dead.remove(&var_id) {
+                        false
+                    } else {
+                        default
+                    };
                     let expr = arena.expr(Var(var_id));
                     if top {
                         expr
@@ -121,6 +140,16 @@ impl Formula {
                         arena.expr(Not(expr))
                     }
                 }),
+        );
+        assert!(
+            remaining_core.is_empty(),
+            "core_vars contained variables that are not foreign to this formula: {}",
+            arena.var_strs(&remaining_core).join(", ")
+        );
+        assert!(
+            remaining_dead.is_empty(),
+            "dead_vars contained variables that are not foreign to this formula: {}",
+            arena.var_strs(&remaining_dead).join(", ")
         );
         let sub_var_ids = arena
             .var_ids()
@@ -488,7 +517,7 @@ impl Formula {
         let mut b2 = b.clone();
         let mut a2_file = a2.file.clone();
         let mut b2_file = b2.file.clone();
-        if let DiffKind::Weak = left_diff_kind {
+        if let DiffKind::Slice = left_diff_kind {
             (a2, a2_file) = measure_time!(a2_file.as_ref().unwrap().slice_with_featureide(
                 &common_var_ids,
                 arena,
@@ -497,7 +526,7 @@ impl Formula {
         } else {
             no_duration!();
         }
-        if let DiffKind::Weak = right_diff_kind {
+        if let DiffKind::Slice = right_diff_kind {
             (b2, b2_file) = measure_time!(b2_file.as_ref().unwrap().slice_with_featureide(
                 &common_var_ids,
                 arena,
@@ -506,16 +535,16 @@ impl Formula {
         } else {
             no_duration!();
         }
-        if let DiffKind::Strong(top) = left_diff_kind {
-            b2 = b2.force_foreign_vars(top, &b_var_ids, arena);
+        if let DiffKind::Fixed { default, ref core_vars, ref dead_vars } = left_diff_kind {
+            b2 = b2.force_foreign_vars(default, core_vars, dead_vars, &b_var_ids, arena);
             if write_files {
                 let mut file = b2_file.as_ref().unwrap().convert_with_featureide("uvl");
                 io::uvl_file_add_vars(&mut file, "Removed Features", &a_var_ids, arena);
                 b2_file = Some(file);
             }
         }
-        if let DiffKind::Strong(top) = right_diff_kind {
-            a2 = a2.force_foreign_vars(top, &a_var_ids, arena);
+        if let DiffKind::Fixed { default, ref core_vars, ref dead_vars } = right_diff_kind {
+            a2 = a2.force_foreign_vars(default, core_vars, dead_vars, &a_var_ids, arena);
             if write_files {
                 let mut file = a2_file.as_ref().unwrap().convert_with_featureide("uvl");
                 io::uvl_file_add_vars(&mut file, "Added Features", &b_var_ids, arena);
@@ -537,7 +566,7 @@ impl Formula {
         let ratio = |a, b, vars: u32| {
             BigRational::new(a, b).to_f64().unwrap().log2() / vars.to_f64().unwrap()
         };
-        if let DiffKind::Weak = left_diff_kind {
+        if let DiffKind::Slice = left_diff_kind {
             cnt_a = measure_time!(a.analyze(arena, true, !write_files, false).0);
             cnt_a2 = measure_time!(a2.analyze(arena, false, !write_files, false).0);
             if a_vars > 0 {
@@ -547,7 +576,7 @@ impl Formula {
             no_duration!();
             no_duration!();
         }
-        if let DiffKind::Weak = right_diff_kind {
+        if let DiffKind::Slice = right_diff_kind {
             cnt_b = measure_time!(b.analyze(arena, true, !write_files, false).0);
             cnt_b2 = measure_time!(b2.analyze(arena, false, !write_files, false).0);
             if b_vars > 0 {

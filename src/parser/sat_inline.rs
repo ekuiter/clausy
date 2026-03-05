@@ -83,6 +83,8 @@ impl<'a> SatInlineFormulaParser<'a> {
                             self.force_foreign_vars
                                 .expect("force_foreign_vars flag unexpectedly missing"),
                             &HashSet::new(),
+                            &HashSet::new(),
+                            &HashSet::new(),
                             arena,
                         )
                         .root_id;
