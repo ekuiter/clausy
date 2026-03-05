@@ -2,6 +2,7 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt install -y \
     build-essential \
+    musl-tools \
     zlib1g-dev \
     default-jre \
     curl \
@@ -22,5 +23,6 @@ RUN chmod +x scripts/gradle_proxy.sh \
 COPY src/external src/external/
 RUN make -C src/external
 COPY . ./
-RUN make
+RUN make clausy STATIC=1 \
+    && ldd build/clausy 2>&1 | grep -q "not a dynamic executable"
 ENTRYPOINT [ "build/clausy" ]

@@ -4,12 +4,12 @@
 .PHONY: clean test unit-test integration-test update-tests doc doc-live
 
 SRC_FILES := $(filter-out $(wildcard src/external/ src/io/),$(wildcard src/* src/*/* .cargo/* Cargo.*))
+# Optional override for static builds, e.g. STATIC_TARGET=x86_64-unknown-linux-musl
+STATIC_TARGET ?=
+STATIC ?=
 CMD_NOT_FOUND = $(error Required command $(1) could not be found, please install it)
 CHECK_CMD = $(if $(shell command -v $(1)),,$(call CMD_NOT_FOUND,$(1)))
-CHECK_CARGO = if ! command -v cargo; then \
-	curl https://sh.rustup.rs -sSf | sh; \
-	source "$HOME/.cargo/env"; \
-fi
+CHECK_CARGO = $(call CHECK_CMD,cargo)
 
 clausy: build/clausy
 
@@ -29,12 +29,26 @@ build/io.jar:
 
 # build clausy
 build/clausy: $(SRC_FILES) build/io.jar
+ifneq ($(strip $(STATIC)),)
+	$(call CHECK_CMD,curl)
+	$(call CHECK_CARGO)
+	$(call CHECK_CMD,rustup)
+	target="$(STATIC_TARGET)"; \
+	if [ -z "$$target" ]; then \
+		target=$$(rustc -vV | sed -n 's/^host: //p' | sed 's/unknown-linux-gnu/unknown-linux-musl/'); \
+	fi; \
+	rustup target add "$$target"; \
+	cargo build --release --target "$$target"; \
+	mkdir -p build; \
+	cp "target/$$target/release/clausy" build/clausy
+else
 	$(call CHECK_CMD,cc)
 	$(call CHECK_CMD,curl)
 	$(call CHECK_CARGO)
 	cargo build --release
 	mkdir -p build
 	cp target/release/clausy build/clausy
+endif
 
 clean:
 	rm -rf build
