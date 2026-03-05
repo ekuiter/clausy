@@ -24,6 +24,8 @@ wget https://nightly.link/ekuiter/clausy/workflows/static/main/build.zip
 unzip build.zip
 ```
 
+You can also [click here](https://nightly.link/ekuiter/clausy/workflows/static/main/build.zip) to download precompiled binaries for 64-bit Linux.
+
 Depending on the invocation, external tools may be needed (e.g., Java for parsing FeatureIDE-compatible files).
 
 ## Advanced Usage, Documentation, and Tests
