@@ -1,2 +1,2 @@
 # satisfy linux 2.5.53[i386] with Tseitin
-$clausy -q -i '../meta/linux/v2.5.53[i386].model' -t cnf-tseitin satisfy >/dev/null
+$clausy -q -i 'input/v2.5.53[i386].model' -t cnf-tseitin satisfy >/dev/null
