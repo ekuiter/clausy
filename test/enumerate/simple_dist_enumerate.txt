@@ -1,0 +1,8 @@
+# enumerate models of a small formula with distributive transform
+$clausy -q -i input/simple.sat -t cnf-dist enumerate
+---
+-a -b +c +d
+-a +b +c +d
++a -b +c +d
++a +b -c +d
++a +b +c +d

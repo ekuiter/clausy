@@ -1,0 +1,2 @@
+# satisfy busybox 1.3.0 with distributive
+$clausy -q -i input/busybox_1_3_0.model -t cnf-dist satisfy >/dev/null

@@ -1,0 +1,8 @@
+# enumerate models of a small Tseitin-transformed formula
+$clausy -q -i input/simple.sat -t cnf-tseitin enumerate
+---
+-a -b +c +d +_aux_1 +_aux_2 +_aux_3
+-a +b +c +d +_aux_1 +_aux_2 +_aux_3
++a -b +c +d +_aux_1 +_aux_2 +_aux_3
++a +b -c +d +_aux_1 +_aux_2 +_aux_3
++a +b +c +d +_aux_1 +_aux_2 +_aux_3
