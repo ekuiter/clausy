@@ -5,6 +5,7 @@ use crate::core::{
     clauses::Clauses,
     expr::ExprId,
     file::File,
+    formula::Formula,
     var::{Var, VarId},
 };
 use std::{collections::HashSet, fmt::Write};
@@ -148,25 +149,31 @@ pub(crate) fn to_xml_string(clauses: &Clauses) -> String {
     xml + "\t</constraints>"
 }
 
-/// Writes a UVL and XML file with a given prefix.
-pub(crate) fn write_uvl_and_xml(
-    prefix: String,
-    uvl_features: &String,
-    uvl_constraints: &String,
-    xml_constraints: &String,
-) {
+/// Writes a UVL file with a given prefix.
+pub(crate) fn write_uvl(prefix: String, uvl_features: &String, uvl_constraints: &String) {
     let uvl = uvl_append(uvl_features, uvl_constraints);
-    let xml = xml_with_constraints(
-        &File::new(
-            "-.uvl".to_string(),
-            uvl_remove_constraints(&uvl).to_string(),
-        )
-        .convert_with_featureide("xml")
-        .contents,
-        &xml_constraints,
-    );
     File::new(format!("{prefix}.uvl"), uvl).write();
+}
+
+/// Writes an XML file with a given prefix.
+pub(crate) fn write_xml(prefix: String, uvl_features: &String, xml_constraints: &String) {
+    let uvl = uvl_remove_constraints(uvl_features);
+    let xml = xml_with_constraints(
+        &File::new("-.uvl".to_string(), uvl.to_string())
+            .convert_with_featureide("xml")
+            .contents,
+        xml_constraints,
+    );
     File::new(format!("{prefix}.xml"), xml).write();
+}
+
+/// Writes a formula to a `.txt` file.
+pub(crate) fn write_formula(path: &str, formula: &Formula, arena: &Arena) {
+    std::fs::write(
+        &path,
+        format!("{}\n{:?}", formula.as_ref(arena), formula.sub_vars(arena)),
+    )
+    .unwrap_or_else(|e| panic!("failed to write formula to '{path}': {e}"));
 }
 
 /// Writes variables to a file.

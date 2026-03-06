@@ -405,11 +405,33 @@ pub struct DiffArgs {
     #[arg(long)]
     output: Option<String>,
 
-    /// Write additional diagnostic files alongside the differencing artifacts.
-    ///
-    /// Saves all the clause representations fed to the model counter for each intermediate counting step.
-    #[arg(long, requires = "output")]
-    verbose: bool,
+    /// Skip model counting.
+    #[arg(long, default_value_t = false)]
+    no_count: bool,
+
+    /// Write variable list files.
+    #[arg(long, requires = "output", default_value_t = false)]
+    variables: bool,
+
+    /// Write constraint list files.
+    #[arg(long, requires = "output", default_value_t = false)]
+    constraints: bool,
+
+    /// Serialize formula differences as UVL.
+    #[arg(long, requires = "output", default_value_t = false)]
+    uvl: bool,
+
+    /// Serialize formula differences as XML.
+    #[arg(long, requires = "output", default_value_t = false)]
+    xml: bool,
+
+    /// Write intermediate formula and clause representation files.
+    #[arg(long, requires = "output", default_value_t = false)]
+    cnf: bool,
+
+    /// Suppress the CSV header line in the output.
+    #[arg(long, default_value_t = false)]
+    no_header: bool,
 }
 
 /// All configuration options.
@@ -667,7 +689,13 @@ fn execute_action(action: Action, formulas: &mut [Formula], arena: &mut Arena) {
                 args.left.into_diff_kind(arena),
                 args.right.into_diff_kind(arena),
                 args.output.as_deref(),
-                args.verbose,
+                args.no_count,
+                args.variables,
+                args.constraints,
+                args.uvl,
+                args.xml,
+                args.cnf,
+                args.no_header,
                 arena,
             );
         }
