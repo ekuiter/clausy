@@ -8,6 +8,7 @@ Rust tool that transforms feature-model formulas into CNF (conjunctive normal fo
 make          # build locally to build/
 make test     # run tests
 make doc      # view documentation
+cargo fmt     # format code (run regularly)
 ```
 
 ## Run
@@ -21,7 +22,9 @@ cat model.uvl | build/clausy -.uvl to_cnf_tseitin count  # stdin
 ## Project Structure
 
 - `src/shell.rs` - CLI (clap), top-level pipeline
-- `src/core/formula.rs` - Formula type, diff/transform algorithms, DiffKind
+- `src/core/formula.rs` - Formula type and core transform algorithms
+- `src/core/diff.rs` - DiffKind enum and `diff()` free function
+- `src/core/count_inc.rs` - `count_inc()` free function and `remove_constraints` Formula method
 - `src/core/arena.rs` - Arena (shared expression/variable storage)
 - `src/tests.rs` - unit tests
 - `test/` - integration test files (`.txt` format, run via `make integration-test`)
@@ -42,3 +45,8 @@ Update golden output with `make update-tests`.
 
 The `diff` command outputs a CSV line ending with 10 nanosecond timing fields that vary per run.
 Strip them before comparison: `| sed 's/\(,[^,]*\)\{10\}$//'`
+
+## Code Style
+
+- Do not edit code unless explicitly asked. If a code change is needed to answer a question, ask first.
+- Format code regularly with `cargo fmt`.

@@ -2,6 +2,8 @@
 
 pub(super) mod arena;
 pub(super) mod clauses;
+pub(super) mod count_inc;
+pub(super) mod diff;
 pub(super) mod expr;
 pub(super) mod file;
 pub(super) mod formula;

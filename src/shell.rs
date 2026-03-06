@@ -1,7 +1,8 @@
 //! Imperative shell for operating on feature-model formulas.
 
+use crate::core::count_inc::count_inc;
+use crate::core::diff::{diff, DiffKind};
 use crate::core::file::File;
-use crate::core::formula::DiffKind;
 use crate::parser::sat_inline::SatInlineFormulaParser;
 use crate::{
     core::{arena::Arena, formula::Formula, var::VarId},
@@ -31,7 +32,7 @@ use std::sync::OnceLock;
 - For each solver class, we support one tool out of the box (e.g., kissat for SAT solving).
   You can override this with an arbitrary tool (e.g., using --sat-path), which has to conform to the specified I/O conventions.
 - The config file clausy.conf next to the clausy executable can be used to set recurring default options."#)]
-struct CliOptions {
+pub struct CliOptions {
     /// Input item (file path, stdin with - or -.extension, or inline .sat expression)
     #[arg(
         short = 'i',
@@ -114,7 +115,7 @@ pub struct ToolOptions {
 #[derive(Clone, Copy, Debug, ValueEnum, Default)]
 pub enum D4ProjectionMode {
     /// Model counting (d4).
-    /// 
+    ///
     /// Default implementation for model counting in d4
     /// implemented [here](https://github.com/SoftVarE-Group/d4v2/blob/main/src/methods/DpllStyleMethod.hpp).
     /// Also supports projected model counting.
@@ -123,7 +124,7 @@ pub enum D4ProjectionMode {
     Counting,
 
     /// Projected d-DNNF compilation (pd4).
-    /// 
+    ///
     /// See "Efficient Slicing of Feature Models via Projected d-DNNF Compilation" by Sundermann et al.
     /// implemented [here](https://github.com/SoftVarE-Group/d4v2/blob/main/src/methods/ProjDpllStyleMethod.hpp).
     /// Performs particularly well for projected model counting.
@@ -131,7 +132,7 @@ pub enum D4ProjectionMode {
     ProjDdnnfCompiler,
 
     /// Projected model counting (projMC).
-    /// 
+    ///
     /// See "A Recursive Algorithm for Projected Model Counting" by J.-M. Lagniez and P. Marquis
     /// implemented [here](https://github.com/SoftVarE-Group/d4v2/blob/main/src/methods/ProjMCMethod.hpp).
     /// Seems to perform overall less well for projected model counting than the other two modes.
@@ -158,7 +159,7 @@ pub struct OutputOptions {
 
 /// Supported transformations.
 #[derive(Clone, Debug, ValueEnum)]
-enum Transform {
+pub enum Transform {
     Canon,
     Nnf,
     #[value(name = "cnf-dist", alias = "dist")]
@@ -169,7 +170,7 @@ enum Transform {
 
 /// Top-level actions.
 #[derive(Subcommand, Debug)]
-enum Action {
+pub enum Action {
     /// Print the transformed formula as CNF clauses (default).
     #[command(alias = "print")]
     PrintClauses(ProjectionArgs),
@@ -234,7 +235,7 @@ enum Action {
 
 /// Options for projection-aware actions (`print-clauses`, `count`).
 #[derive(Args, Debug, Default)]
-struct ProjectionArgs {
+pub struct ProjectionArgs {
     /// Variables to project to (comma-separated).
     #[arg(
         long = "project",
@@ -274,7 +275,7 @@ struct ProjectionArgs {
 
 /// Options for `count-inc`.
 #[derive(Args, Debug)]
-struct CountIncArgs {
+pub struct CountIncArgs {
     /// Optional known model count for the left formula.
     left_model_count: Option<String>,
 }
@@ -291,7 +292,7 @@ struct CountIncArgs {
 ///   overrides from newline-separated files (empty path = no overrides for that set)
 /// In the literature, `false` is typically used.
 #[derive(Clone, Debug)]
-enum DiffMode {
+pub enum DiffMode {
     Slice,
     Fixed {
         default: bool,
@@ -304,15 +305,25 @@ impl FromStr for DiffMode {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let err = || format!(
-            "invalid diff mode '{}'; expected 'slice', 'true', 'false', \
+        let err = || {
+            format!(
+                "invalid diff mode '{}'; expected 'slice', 'true', 'false', \
              'true,<true-file>,<false-file>', or 'false,<true-file>,<false-file>'",
-            s
-        );
+                s
+            )
+        };
         match s {
             "slice" => Ok(DiffMode::Slice),
-            "true" => Ok(DiffMode::Fixed { default: true, true_file: None, false_file: None }),
-            "false" => Ok(DiffMode::Fixed { default: false, true_file: None, false_file: None }),
+            "true" => Ok(DiffMode::Fixed {
+                default: true,
+                true_file: None,
+                false_file: None,
+            }),
+            "false" => Ok(DiffMode::Fixed {
+                default: false,
+                true_file: None,
+                false_file: None,
+            }),
             _ => {
                 let parts: Vec<&str> = s.splitn(3, ',').collect();
                 if parts.len() == 3 {
@@ -323,8 +334,16 @@ impl FromStr for DiffMode {
                     };
                     Ok(DiffMode::Fixed {
                         default,
-                        true_file: if parts[1].is_empty() { None } else { Some(parts[1].to_string()) },
-                        false_file: if parts[2].is_empty() { None } else { Some(parts[2].to_string()) },
+                        true_file: if parts[1].is_empty() {
+                            None
+                        } else {
+                            Some(parts[1].to_string())
+                        },
+                        false_file: if parts[2].is_empty() {
+                            None
+                        } else {
+                            Some(parts[2].to_string())
+                        },
                     })
                 } else {
                     Err(err())
@@ -342,14 +361,22 @@ impl DiffMode {
     fn into_diff_kind(self, arena: &mut Arena) -> DiffKind {
         match self {
             DiffMode::Slice => DiffKind::Slice,
-            DiffMode::Fixed { default, true_file, false_file } => {
+            DiffMode::Fixed {
+                default,
+                true_file,
+                false_file,
+            } => {
                 let core_vars = true_file
                     .map(|f| resolve_named_var_ids(arena, &read_variable_name_file(&f)))
                     .unwrap_or_default();
                 let dead_vars = false_file
                     .map(|f| resolve_named_var_ids(arena, &read_variable_name_file(&f)))
                     .unwrap_or_default();
-                DiffKind::Fixed { default, core_vars, dead_vars }
+                DiffKind::Fixed {
+                    default,
+                    core_vars,
+                    dead_vars,
+                }
             }
         }
     }
@@ -357,18 +384,32 @@ impl DiffMode {
 
 /// Options for `diff`.
 #[derive(Args, Debug)]
-struct DiffArgs {
+pub struct DiffArgs {
     /// Left-side diff mode.
+    ///
+    /// By default, we use `slice` (i.e., project onto common variables).
     #[arg(long, default_value = "slice", value_parser = parse_diff_mode)]
     left: DiffMode,
 
     /// Right-side diff mode.
+    ///
+    /// By default, we use `slice` (i.e., project onto common variables).
     #[arg(long, default_value = "slice", value_parser = parse_diff_mode)]
     right: DiffMode,
 
-    /// Optional output prefix for serialized diff artifacts.
+    /// Output prefix for optional differencing artifacts.
+    ///
+    /// This prefix is prepended to all differencing artifact file names.
+    /// When the prefix contains a `/`, the directory portion is created, if it does not exist.
+    /// If no prefix is given, no differencing artifacts are written.
     #[arg(long)]
-    output_prefix: Option<String>,
+    output: Option<String>,
+
+    /// Write additional diagnostic files alongside the differencing artifacts.
+    ///
+    /// Saves all the clause representations fed to the model counter for each intermediate counting step.
+    #[arg(long, requires = "output")]
+    verbose: bool,
 }
 
 /// All configuration options.
@@ -615,16 +656,18 @@ fn execute_action(action: Action, formulas: &mut [Formula], arena: &mut Arena) {
             let (a, b) = formulas_pair(formulas);
             println!(
                 "{}",
-                a.count_inc(b, args.left_model_count.as_deref(), arena)
+                count_inc(a, b, args.left_model_count.as_deref(), arena)
             );
         }
         Action::Diff(args) => {
             let (a, b) = formulas_pair(formulas);
-            a.diff(
+            diff(
+                a,
                 b,
                 args.left.into_diff_kind(arena),
                 args.right.into_diff_kind(arena),
-                args.output_prefix.as_deref(),
+                args.output.as_deref(),
+                args.verbose,
                 arena,
             );
         }

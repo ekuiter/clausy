@@ -55,7 +55,11 @@ fn log_invoked_command(program: &str, args: &[OsString]) {
         command.push(' ');
         command.push_str(&shell_escape_if_needed(&arg.to_string_lossy()));
     }
-    let display = if command.len() > 180 { format!("{}…", &command[..180]) } else { command };
+    let display = if command.len() > 180 {
+        format!("{}…", &command[..180])
+    } else {
+        command
+    };
     log(&format!("[EXEC] invoking command: {display}"));
 }
 
@@ -68,9 +72,11 @@ pub(crate) fn sat(cnf: &str) -> Option<Vec<VarId>> {
     static LOGGED: OnceLock<()> = OnceLock::new();
     let tool = &options().tool;
     if let Some(sat_path) = &tool.sat_path {
-        LOGGED.get_or_init(|| log(&format!(
-            "[EXEC] SAT solving will use the custom solver configured at {sat_path}"
-        )));
+        LOGGED.get_or_init(|| {
+            log(&format!(
+                "[EXEC] SAT solving will use the custom solver configured at {sat_path}"
+            ))
+        });
         arbitrary_sat(cnf, sat_path)
     } else {
         LOGGED.get_or_init(|| log("[EXEC] SAT solving will use the default kissat solver"));
@@ -167,9 +173,11 @@ fn arbitrary_sat(cnf: &str, solver_path: &str) -> Option<Vec<VarId>> {
 pub(crate) fn sharp_sat(cnf: &str, projected: bool) -> BigInt {
     static LOGGED: OnceLock<()> = OnceLock::new();
     if let Some(sharp_sat_path) = &options().tool.sharp_sat_path {
-        LOGGED.get_or_init(|| log(&format!(
+        LOGGED.get_or_init(|| {
+            log(&format!(
             "[EXEC] model counting will use the custom #SAT solver configured at {sharp_sat_path}"
-        )));
+        ))
+        });
         arbitrary_sharp_sat(cnf, sharp_sat_path, projected)
     } else {
         LOGGED.get_or_init(|| log("[EXEC] model counting will use the default d4 solver"));

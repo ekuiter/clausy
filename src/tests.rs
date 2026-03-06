@@ -184,7 +184,7 @@ fn remove_constraints_drops_constraints_with_removed_variables() {
 
     let mut remove_ids = HashSet::new();
     remove_ids.insert(b_id);
-    let reduced = formula.remove_constraints(&remove_ids, &mut arena);
+    let reduced = formula.pseudo_slice(&remove_ids, &mut arena);
 
     assert_eq!(formula_string(&reduced, &arena), "a");
 }
@@ -400,7 +400,13 @@ fn force_foreign_vars_respects_exclusions() {
 
     let mut exclude_ids = HashSet::new();
     exclude_ids.insert(c_id);
-    let forced = a_formula.force_foreign_vars(false, &HashSet::new(), &HashSet::new(), &exclude_ids, &mut arena);
+    let forced = a_formula.force_foreign_vars(
+        false,
+        &HashSet::new(),
+        &HashSet::new(),
+        &exclude_ids,
+        &mut arena,
+    );
 
     assert_eq!(formula_string(&forced, &arena), "And(a, Not(b))");
     assert!(forced.sub_var_ids.contains(&b_id));
@@ -420,7 +426,8 @@ fn force_foreign_vars_applies_core_and_dead_overrides() {
 
     let core_ids = HashSet::from([b_id]);
     let dead_ids = HashSet::from([c_id]);
-    let forced = a_formula.force_foreign_vars(true, &core_ids, &dead_ids, &HashSet::new(), &mut arena);
+    let forced =
+        a_formula.force_foreign_vars(true, &core_ids, &dead_ids, &HashSet::new(), &mut arena);
 
     // b is in core_vars -> true, c is in dead_vars -> false (both override the true default)
     assert_eq!(formula_string(&forced, &arena), "And(a, b, Not(c))");
@@ -435,7 +442,13 @@ fn force_foreign_vars_panics_on_core_var_not_foreign() {
     let a_id = arena.get_var_named("a".to_string()).unwrap();
 
     let core_ids = HashSet::from([a_id]);
-    a_formula.force_foreign_vars(false, &core_ids, &HashSet::new(), &HashSet::new(), &mut arena);
+    a_formula.force_foreign_vars(
+        false,
+        &core_ids,
+        &HashSet::new(),
+        &HashSet::new(),
+        &mut arena,
+    );
 }
 
 #[test]
@@ -447,7 +460,13 @@ fn force_foreign_vars_panics_on_dead_var_not_foreign() {
     let a_id = arena.get_var_named("a".to_string()).unwrap();
 
     let dead_ids = HashSet::from([a_id]);
-    a_formula.force_foreign_vars(false, &HashSet::new(), &dead_ids, &HashSet::new(), &mut arena);
+    a_formula.force_foreign_vars(
+        false,
+        &HashSet::new(),
+        &dead_ids,
+        &HashSet::new(),
+        &mut arena,
+    );
 }
 
 #[test]
@@ -482,7 +501,7 @@ fn vars_set_ops_and_formula_composition_behave_as_expected() {
     assert_eq!(right_only.len(), 1);
 
     let conjunction = left.and(&right, &mut arena);
-    let implication = left.implies(&right, &mut arena);
+    let implication = left.and_not(&right, &mut arena);
     assert_eq!(formula_string(&conjunction, &arena), "And(a, b)");
     assert_eq!(formula_string(&implication, &arena), "And(a, Not(b))");
 }

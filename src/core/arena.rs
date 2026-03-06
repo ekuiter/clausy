@@ -99,7 +99,7 @@ pub(crate) struct Arena {
     ///
     /// By not ever removing any expressions, we keep all non-sub-expressions indefinitely.
     /// This potentially requires a lot of memory, but avoids explicit reference counting or garbage collection.
-    /// We also experimented with Thunderdome, an off-the-shelf generational arena library (using ThunderdomeArena<Expr> here).
+    /// We also experimented with Thunderdome, an off-the-shelf generational arena library (using `ThunderdomeArena<Expr>` here).
     /// In theory, this would have the advantage that we could periodically garbage collect non-sub-expressions, thus saving memory.
     /// However, we ultimately decided against this approach for two major reasons:
     /// First, it slowed down rather than speed up our distributive and Tseitin transformation on reasonably large formulas.

@@ -22,7 +22,7 @@ pub(crate) struct Clauses {
     ///
     /// A clause is a [Vec] of literals, each given as an absolute-value index into [Clauses::vars].
     /// Negative values indicate negated variable occurrences.
-    /// These variable IDs are unrelated to the variables from the original [Arena], but they index into [Clauses::vars].
+    /// These variable IDs are unrelated to the variables from the original [super::arena::Arena], but they index into [Clauses::vars].
     pub(crate) clauses: Vec<Vec<VarId>>,
 
     /// The variables of this clause representation.
@@ -30,10 +30,10 @@ pub(crate) struct Clauses {
     /// This list is indexed into by the absolute values stored in [Clauses::clauses].
     pub(crate) vars: Vec<Var>,
 
-    /// Maps the original [Arena]'s variable IDs to [Clauses::vars]'s variable IDs.
+    /// Maps the original [super::arena::Arena]'s variable IDs to [Clauses::vars]'s variable IDs.
     ///
     /// Must be stored explicitly for [Clauses::proj_count], in which users provide variable IDs from the
-    /// original [Arena], while external model counters operate on [Clauses::vars]'s variable IDs.
+    /// original [super::arena::Arena], while external model counters operate on [Clauses::vars]'s variable IDs.
     pub(crate) var_remap: HashMap<VarId, VarId>,
 }
 
@@ -186,7 +186,7 @@ impl Clauses {
 
     /// Returns a CNF file of this clause representation that is annotated for projected model counting.
     ///
-    /// The projection variables must be provided in the context of the original [Arena]
+    /// The projection variables must be provided in the context of the original [super::arena::Arena]
     /// from when this clause representation was created.
     /// We use the standard format for projected model counting here, as specified in `meta/mccomp_format_24.pdf`:
     /// `c t pmc\np cnf <num_vars> <num_clauses> ...\nc p show <proj_var_1> <proj_var_2> ... 0\n`
