@@ -37,7 +37,7 @@ Documentation for clausy is available [online](https://elias-kuiter.de/clausy/).
 build/clausy -i meta/simple.sat -t cnf-dist print
 
 # read from standard input and count solutions with Tseitin transformation
-cat model.uvl | build/clausy -i -.uvl -t cnf-tseitin count
+cat model.uvl | build/clausy -i -.uvl -t canon -t cnf-tseitin count
 
 # read from command line and find some solution
 echo '(!def(a)|def(b))' | build/clausy -i -.model -t cnf-dist satisfy

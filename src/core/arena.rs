@@ -84,7 +84,7 @@ pub(crate) struct Arena {
     /// Maps variables to their identifiers.
     ///
     /// Conceptually, this is analogous to [Arena::exprs_inv].
-    /// However, we simplify the inverse lookup of variables by cloning variables.
+    /// However, we simplify the inverse lookup of variables by storing cloned copies of the variables in [Arena::vars].
     /// This needs more memory, but (a) we do not expect many variables and (b) this avoids the hash collisions discussed for [Arena::exprs_inv].
     /// Also, variables and their identifiers are never mutated after creation, so we need no additional [Vec] for updates.
     /// FxHashMap is functionally equivalent to Rust's built-in HashMap, but performs a bit faster in our experiments.
@@ -96,7 +96,6 @@ pub(crate) struct Arena {
     /// Expressions are stored in the order of their creation, so new expressions are appended with [Vec::push].
     /// Also, while algorithms may update expressions in-place, no expression is ever removed.
     /// We refer to all expressions that appear below the root expression of a [Formula] as its sub-expressions (including the root expression).
-    ///
     /// By not ever removing any expressions, we keep all non-sub-expressions indefinitely.
     /// This potentially requires a lot of memory, but avoids explicit reference counting or garbage collection.
     /// We also experimented with Thunderdome, an off-the-shelf generational arena library (using `ThunderdomeArena<Expr>` here).
@@ -123,6 +122,7 @@ pub(crate) struct Arena {
     /// By this design, [Arena::exprs_inv] indeed maps any sub-expression (precisely: its hash) to its unique identifier
     /// (precisely: the first identifier whose expression is equal to the given sub-expression).
     /// This information can be used to enforce structural sharing by calling [Arena::canon_visitor].
+    /// FxHashMap is functionally equivalent to Rust's built-in HashMap, but performs a bit faster in our experiments.
     exprs_inv: FxHashMap<u64, Vec<ExprId>>,
 
     /// Specifies the identifier of the most recently added auxiliary variable.
@@ -247,7 +247,7 @@ impl Arena {
     /// Appends the given expression to [Arena::exprs] and enables its lookup via [Arena::exprs_inv].
     /// Requires that no expression equal to the given expression is already in this arena.
     /// Thus, the created identifier will become the expression's canonical identifier (see [Arena::exprs_inv]).
-    fn add_expr(&mut self, expr: Expr) -> ExprId {
+    pub(super) fn add_expr(&mut self, expr: Expr) -> ExprId {
         let id = self.exprs.len();
         let hash = expr.calc_hash();
         self.exprs.push(expr);
@@ -340,8 +340,8 @@ impl Arena {
     /// To do so, the function performs three steps:
     /// First, every new child expression is checked for potential duplicates with existing expressions,
     /// which we resolve using the canonical identifier obtained with [Arena::get_expr].
-    /// Second, we replace the old expression with the new expression.
-    /// Third, as we might have changed the hash of the expression, we must invalidate it with [Arena::inval_expr].
+    /// Second, we replace the old expression with the new (flattened and simplified) expression.
+    /// Third, as we have probably changed the hash of the expression, we must invalidate it with [Arena::inval_expr] so it can be looked up later.
     /// Because this function cleans up violations of children, it must be called after, not before children have been mutated.
     /// Thus, it does not preserve structural sharing when used in [Arena::preorder_rev], only in [Arena::postorder_rev].
     /// Besides guaranteeing structural sharing, we perform flattening and simplification on the expression, which usually produces smaller formulas.
@@ -623,6 +623,60 @@ impl Arena {
                 }
             }
         }
+    }
+
+    /// Renames a variable throughout the syntax tree rooted at `root_id`.
+    ///
+    /// Replaces every reference to `Var(old_var_id)` in compound expressions with `Var(new_var_id)`.
+    /// Has no effect if `old_var_id` does not appear in this formula.
+    /// Does not update [Formula::sub_var_ids]; the caller is responsible for that.
+    /// The resulting formula is in canonical form (unifying old and new expressions).
+    pub(super) fn rename_var(
+        &mut self,
+        root_id: &mut ExprId,
+        old_var_id: VarId,
+        new_var_id: VarId,
+    ) {
+        let Some(old_expr_id) = self.get_expr(&Var(old_var_id)) else {
+            // The variable has never been used in the arena, so there is nothing to be renamed in the given syntax tree.
+            return;
+        };
+        let new_expr_id = self.expr(Var(new_var_id));
+        if old_var_id == new_var_id || old_expr_id == new_expr_id {
+            // The variable is being renamed to itself, so there is nothing to be done.
+            return;
+        }
+        // Traverse the syntax tree and replace the old expression with the new one.
+        // This is a postorder traversal with an unconditional `set_expr` to ensure canonicity.
+        self.postorder_rev(root_id, |arena, id| {
+            let expr = arena.exprs[id].clone();
+            let new_expr = match expr {
+                Var(_) => return,
+                Not(mut c) => {
+                    if c == old_expr_id {
+                        c = new_expr_id;
+                    }
+                    Not(c)
+                }
+                And(mut cs) => {
+                    cs.iter_mut().for_each(|c| {
+                        if *c == old_expr_id {
+                            *c = new_expr_id;
+                        }
+                    });
+                    And(cs)
+                }
+                Or(mut cs) => {
+                    cs.iter_mut().for_each(|c| {
+                        if *c == old_expr_id {
+                            *c = new_expr_id;
+                        }
+                    });
+                    Or(cs)
+                }
+            };
+            arena.set_expr(id, new_expr);
+        });
     }
 
     /// Returns whether the given expression contains any given expression.

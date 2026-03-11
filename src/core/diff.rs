@@ -10,6 +10,87 @@ use std::{
 
 use super::{arena::Arena, expr::Expr::And, formula::Formula, var::VarId};
 
+/// A mapping between variable names in formula A and formula B.
+///
+/// Encodes a correspondence where variables on the left side belong to formula A
+/// and variables on the right side belong to formula B.
+/// Exactly one side must have a single variable:
+/// - Both sides single (`a=b`): rename (`a` in A is the same feature as `b` in B).
+/// - Left single, right multiple (`a=b,c`): split (`a` in A was split into `b` and `c` in B).
+/// - Left multiple, right single (`a,b=c`): merge (`a` and `b` in A were merged into `c` in B).
+pub(crate) struct VarMap {
+    pub(crate) left: Vec<String>,
+    pub(crate) right: Vec<String>,
+}
+
+/// Looks up a variable by name and panics with a clear message if not found.
+fn resolve_mapped_var(name: &str, arena: &mut Arena) -> VarId {
+    arena
+        .get_var_named(name.to_string())
+        .unwrap_or_else(|| panic!("unknown variable '{}' in --variable-mapping", name))
+}
+
+/// Applies variable mappings to the two formulas before differencing.
+///
+/// In practice, the variable sets of two formula versions are often not identical.
+/// Beyond simple addition and removal (which [DiffKind] already handles), three structural
+/// changes can occur between versions of a feature model:
+/// - **Rename**: a variable was renamed without semantic change.
+///   Here, we rename the variable in A so that both formulas agree on the name.
+///   Any constraint differences then reflect genuine semantic changes.
+/// - **Split**: one variable in A was split into two or more variables in B
+///   (a bit related to the KConfig `transitional` keyword).
+///   We pretend the variable was always two variables that were kept equal via an
+///   atomic-set constraint (`v1 iff v2`), so both formulas operate on the same variable set.
+///   Here, we rename the split variable in A to the first split part, and add equivalence
+///   clauses for each additional part.
+/// - **Merge**: two or more variables in A were merged into one variable in B.
+///   Symmetric to split: We expand the single variable in B into the original set by renaming
+///   and adding equivalence clauses, so both formulas again share the same variable set.
+/// In all cases the goal is to maximize the common variable set seen by [diff],
+/// so that semantic differences are not obscured by apparent syntactic differences.
+fn apply_var_maps(a: &mut Formula, b: &mut Formula, var_maps: &[VarMap], arena: &mut Arena) {
+    for var_map in var_maps {
+        assert!(
+            var_map.left.len() == 1 || var_map.right.len() == 1,
+            "variable mapping '{}={}' must have exactly one variable on at least one side",
+            var_map.left.join(","),
+            var_map.right.join(",")
+        );
+        // Assert exclusivity: left-side variables must belong to A only, right-side to B only.
+        // Otherwise applying this mapping doesn't make much sense.
+        let left_ids: Vec<VarId> = var_map.left.iter().map(|n| resolve_mapped_var(n, arena)).collect();
+        let right_ids: Vec<VarId> = var_map.right.iter().map(|n| resolve_mapped_var(n, arena)).collect();
+        for (name, id) in var_map.left.iter().zip(left_ids.iter()) {
+            assert!(a.sub_var_ids.contains(id) && !b.sub_var_ids.contains(id),
+                "variable '{}' (left side) must occur exclusively in formula A", name);
+        }
+        for (name, id) in var_map.right.iter().zip(right_ids.iter()) {
+            assert!(!a.sub_var_ids.contains(id) && b.sub_var_ids.contains(id),
+                "variable '{}' (right side) must occur exclusively in formula B", name);
+        }
+        if var_map.left.len() == 1 {
+            // Rename or split: transform A.
+            // Rename left[0] to right[0] in A, then add equivalences for right[1..].
+            a.rename_var(left_ids[0], right_ids[0], arena);
+            for &extra_id in &right_ids[1..] {
+                a.and_equivalent(right_ids[0], extra_id, arena);
+            }
+        } else {
+            // Merge: transform B.
+            // Rename right[0] to left[0] in B, then add equivalences for left[1..].
+            b.rename_var(right_ids[0], left_ids[0], arena);
+            for &extra_id in &left_ids[1..] {
+                b.and_equivalent(left_ids[0], extra_id, arena);
+            }
+        }
+    }
+    // Applying these mappings may simplify the formula and violate proto-CNF.
+    // We must restore proto-CNF for [diff] by wrapping the root in an `And`, if needed.
+    a.ensure_proto_cnf(arena);
+    b.ensure_proto_cnf(arena);
+}
+
 /// How foreign variables are handled when differencing two formulas.
 pub(crate) enum DiffKind {
     /// Fixes all foreign variables to a default boolean value, with optional per-variable overrides.
@@ -46,6 +127,7 @@ fn ensure_prefix_dir(prefix: &str) {
 /// Optionally uses a Tseitin transformation into CNF on a cloned [Formula] and [Arena].
 /// Does not modify the given [Formula] or [Arena].
 /// If `clauses_path` is given, the clauses representation fed to the model counter is written to that file.
+/// This is an ugly helper function that muddles responsibilities, but it is necessary to keep the code below DRY.
 pub(crate) fn diff_helper(
     formula: &Formula,
     arena: &Arena,
@@ -97,8 +179,9 @@ pub(crate) fn diff_helper(
 /// `uvl` and `xml` control whether UVL/XML output files are written (require `output`).
 /// `cnf` controls whether intermediate clause files are written for each counting step (requires `output`).
 pub(crate) fn diff(
-    a: &Formula,
-    b: &Formula,
+    a: &mut Formula,
+    b: &mut Formula,
+    var_maps: &[VarMap],
     a_diff_kind: DiffKind,
     b_diff_kind: DiffKind,
     output: Option<&str>,
@@ -138,6 +221,9 @@ pub(crate) fn diff(
         }};
     }
     let count = !no_count;
+
+    // Apply variable mappings before any other processing.
+    apply_var_maps(a, b, var_maps, arena);
 
     // Compute syntactic differences between variables and constraints.
     let (common_var_ids, a_var_ids, b_var_ids) = a.diff_vars(b);

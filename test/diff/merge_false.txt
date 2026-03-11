@@ -1,0 +1,5 @@
+# merge: 'f1' and 'f2' in left were merged into 'f' in right;
+# symmetric to split: common: {f1, f2, b} vars, {f1, f1->b} constraints
+$clausy -q -i input/split_b.sat -i input/split_a.sat diff --no-header --left false --right false --variable-map input/merge.map | sed 's/\(,[^,]*\)\{10\}$//'
+---
+3,0,0,2,2,2,-1,0,1,0,-1,-1,-1,-1,-1,1,0,0

@@ -1,7 +1,7 @@
 //! Imperative shell for operating on feature-model formulas.
 
 use crate::core::count_inc::count_inc;
-use crate::core::diff::{diff, DiffKind};
+use crate::core::diff::{diff, DiffKind, VarMap};
 use crate::core::file::File;
 use crate::parser::sat_inline::SatInlineFormulaParser;
 use crate::{
@@ -432,6 +432,18 @@ pub struct DiffArgs {
     /// Suppress the CSV header line in the output.
     #[arg(long, default_value_t = false)]
     no_header: bool,
+
+    /// Path to a variable mapping file for handling renamed, split, or merged variables.
+    ///
+    /// Each non-empty, non-comment line must have the form `left=right`,
+    /// where `left` and `right` are comma-separated variable name lists.
+    /// Exactly one side must be a single variable name:
+    /// - `a=b`: rename (`a` in the left formula corresponds to `b` in the right formula).
+    /// - `a=b,c`: split (`a` in the left formula was split into `b` and `c` in the right formula).
+    /// - `a,b=c`: merge (`a` and `b` in the left formula were merged into `c` in the right formula).
+    /// Lines beginning with `#` are treated as comments and ignored.
+    #[arg(long)]
+    variable_map: Option<String>,
 }
 
 /// All configuration options.
@@ -488,14 +500,6 @@ fn current_formula(formulas: &mut [Formula]) -> &mut Formula {
     formulas
         .last_mut()
         .expect("no formula loaded; provide at least one --input item")
-}
-
-/// Returns both formulas required by pair-based actions.
-fn formulas_pair(formulas: &[Formula]) -> (&Formula, &Formula) {
-    let [a, b] = formulas else {
-        panic!("this command requires exactly two loaded formulas");
-    };
-    (a, b)
 }
 
 /// Parses all `--input` items into formulas within a shared arena.
@@ -559,6 +563,49 @@ fn read_variable_name_file(path: &str) -> Vec<String> {
         .map(|line| line.trim())
         .filter(|line| !line.is_empty())
         .map(|line| line.to_string())
+        .collect()
+}
+
+/// Parses a variable mapping file into a list of [VarMap] entries.
+///
+/// Each non-empty, non-comment line must be of the form `left=right`,
+/// where `left` and `right` are comma-separated variable name lists.
+/// Exactly one side must contain a single variable name; see [VarMap] for details.
+fn parse_variable_map_file(path: &str) -> Vec<VarMap> {
+    fs::read_to_string(path)
+        .unwrap_or_else(|e| panic!("failed to read variable-mapping file '{}': {}", path, e))
+        .lines()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .map(|line| {
+            let (left_str, right_str) = line.split_once('=').unwrap_or_else(|| {
+                panic!(
+                    "invalid variable-mapping line '{}': expected 'left=right' format",
+                    line
+                )
+            });
+            let left: Vec<String> = left_str
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            let right: Vec<String> = right_str
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            assert!(
+                !left.is_empty() && !right.is_empty(),
+                "variable-mapping line '{}' must have at least one variable on each side",
+                line
+            );
+            assert!(
+                left.len() == 1 || right.len() == 1,
+                "variable-mapping line '{}' must have exactly one variable on at least one side",
+                line
+            );
+            VarMap { left, right }
+        })
         .collect()
 }
 
@@ -675,17 +722,27 @@ fn execute_action(action: Action, formulas: &mut [Formula], arena: &mut Arena) {
         }
         Action::Enumerate => current_formula(formulas).to_clauses(arena).enumerate(),
         Action::CountInc(args) => {
-            let (a, b) = formulas_pair(formulas);
+            let [a, b] = formulas else {
+                panic!("this command requires exactly two loaded formulas");
+            };
             println!(
                 "{}",
                 count_inc(a, b, args.left_model_count.as_deref(), arena)
             );
         }
         Action::Diff(args) => {
-            let (a, b) = formulas_pair(formulas);
+            let var_maps = args
+                .variable_map
+                .as_deref()
+                .map(parse_variable_map_file)
+                .unwrap_or_default();
+            let [a, b] = formulas else {
+                panic!("this command requires exactly two loaded formulas");
+            };
             diff(
                 a,
                 b,
+                &var_maps,
                 args.left.into_diff_kind(arena),
                 args.right.into_diff_kind(arena),
                 args.output.as_deref(),

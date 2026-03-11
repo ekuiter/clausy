@@ -191,7 +191,7 @@ impl Formula {
     /// Second, equality of sub-expressions is up to commutativity, idempotency, and unary expressions, and those expressions are simplified.
     /// Third, no `And` expression is below an `And` expression (and analogously for `Or`).
     /// Fourth, no `Not` expression is below a `Not` expression.
-    /// To ensure these guarantees, this visitor must be called in a postorder traversal, preorder does not work.
+    /// To ensure these guarantees, [Arena::canon_visitor] must be called in a postorder traversal, preorder does not work.
     pub(crate) fn to_canon(&mut self, arena: &mut Arena) {
         arena.postorder_rev(&mut self.root_id, Arena::canon_visitor);
     }
@@ -253,6 +253,17 @@ impl Formula {
         }
     }
 
+    /// Forces this formula to be in proto-CNF.
+    ///
+    /// [Arena::simp_expr] may reduce `And([x])` to `x`.
+    /// This function forcibly wraps the root back into an `And`.
+    /// This violates canonicity, as canonical form forbids the expression `And([x])`.
+    pub(crate) fn ensure_proto_cnf(&mut self, arena: &mut Arena) {
+        if !matches!(arena.exprs[self.root_id], And(_)) {
+            self.root_id = arena.add_expr(And(vec![self.root_id]));
+        }
+    }
+
     /// Returns the identifiers of all variables common and unique to this and a given formula.
     pub(crate) fn diff_vars(
         &self,
@@ -268,6 +279,7 @@ impl Formula {
     /// Returns the identifiers of all constraints common and unique to this and a given formula.
     ///
     /// Assumes that this formula is in proto-CNF; that is, it is a conjunction of constraints.
+    /// Results are most accurate if both formulas are in canonical form.
     pub(crate) fn diff_constraints(
         &self,
         other: &Formula,
@@ -300,6 +312,38 @@ impl Formula {
         } else {
             unreachable!()
         }
+    }
+
+    /// Renames a variable in this formula's syntax tree and variable set.
+    ///
+    /// Replaces all occurrences of `old_var_id` with `new_var_id` in the syntax tree,
+    /// and updates `sub_var_ids` accordingly.
+    pub(crate) fn rename_var(&mut self, old_var_id: VarId, new_var_id: VarId, arena: &mut Arena) {
+        arena.rename_var(&mut self.root_id, old_var_id, new_var_id);
+        self.sub_var_ids.remove(&old_var_id);
+        self.sub_var_ids.insert(new_var_id);
+    }
+
+    /// Adds an equivalence constraint between two variables to this formula.
+    ///
+    /// Appends `And(Or(Not(v1), v2), Or(Not(v2), v1))` as two new clauses to the root conjunction.
+    /// Both variables are added to [Formula::sub_var_ids] if not already present.
+    pub(crate) fn and_equivalent(&mut self, var1_id: VarId, var2_id: VarId, arena: &mut Arena) {
+        let v1 = arena.expr(Var(var1_id));
+        let v2 = arena.expr(Var(var2_id));
+        let not_v1 = arena.expr(Not(v1));
+        let not_v2 = arena.expr(Not(v2));
+        let clause1 = arena.expr(Or(vec![not_v1, v2]));
+        let clause2 = arena.expr(Or(vec![not_v2, v1]));
+        let mut root_children = match &arena.exprs[self.root_id] {
+            And(children) => children.clone(),
+            _ => vec![self.root_id],
+        };
+        root_children.push(clause1);
+        root_children.push(clause2);
+        self.root_id = arena.expr(And(root_children));
+        self.sub_var_ids.insert(var1_id);
+        self.sub_var_ids.insert(var2_id);
     }
 
     /// Returns a formula that assumes an additional constraint.
