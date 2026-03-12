@@ -2,4 +2,4 @@
 # gained_ratio = log2(cnt_b/cnt_b_sliced) / b_vars = log2(2/1)/1 = 1
 $clausy -q -i input/simple_b.model -i input/simple_a.model diff --no-header --left slice --right slice | sed 's/\(,[^,]*\)\{10\}$//'
 ---
-2,0,3,1,2,5,-1,0,1,0,1,1,1,2,1,1,0,0
+1,0,1,1,0,1,-1,0,1,0,1,1,1,2,1,1,0,0

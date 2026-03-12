@@ -195,8 +195,8 @@ pub(crate) fn diff(
     arena: &mut Arena,
 ) {
     // Ensure both formulas are in proto-CNF form.
-    a.assert_proto_cnf(arena);
-    b.assert_proto_cnf(arena);
+    a.ensure_proto_cnf(arena);
+    b.ensure_proto_cnf(arena);
 
     // Ensure output directory exists and prepare filename helpers.
     output.map(ensure_prefix_dir);

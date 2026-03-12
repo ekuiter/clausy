@@ -246,10 +246,10 @@ impl Formula {
     pub(crate) fn assert_proto_cnf(&self, arena: &Arena) {
         if let And(child_ids) = &arena.exprs[self.root_id] {
             if child_ids.is_empty() {
-                panic!()
+                panic!("formula is empty, thus not in proto-CNF");
             }
         } else {
-            panic!()
+            panic!("formula is not a conjunction, thus not in proto-CNF");
         }
     }
 
