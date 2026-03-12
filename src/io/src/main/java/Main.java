@@ -71,7 +71,7 @@ public class Main {
                     System.out.print(output);
                     return;
                 } else {
-                    final LongRunningMethod<IFeatureModel> method = new SliceFeatureModel(featureModel, features, true, false);
+                    final LongRunningMethod<IFeatureModel> method = new SliceFeatureModel(featureModel, features, true);
                     featureModel = LongRunningWrapper.runMethod(method);
                     if (featureModel.getStructure().getRoot().getChildren().size() == 1) {
                         featureModel.getStructure().replaceRoot(featureModel.getStructure().getRoot().removeLastChild());
