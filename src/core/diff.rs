@@ -2,7 +2,7 @@
 
 use crate::util::io;
 use crate::util::log::log;
-use num::{bigint::ToBigInt, BigInt, BigRational, ToPrimitive};
+use num::{BigInt, BigRational, Signed, ToPrimitive, bigint::ToBigInt};
 use std::{
     collections::HashSet,
     io::Write,
@@ -169,13 +169,19 @@ pub(crate) fn diff_helper(
                     .unwrap_or_else(|e| panic!("failed to write clauses to '{path}': {e}"));
             }
         }
-        (
-            any_count
+        let count = any_count
                 .then(|| match proj_vars {
                     Some(proj_vars) => clauses.proj_count(proj_vars),
                     None => clauses.count(),
                 })
-                .unwrap_or(minus_one),
+                .inspect(|count| {
+                    if *count == minus_one {
+                        log(&format!("[DIFF] timeout while counting number of solutions for partial result"));
+                    }
+                })
+                .unwrap_or(minus_one);
+        (
+            count,
             uvl.then(|| io::to_uvl_string(&clauses)),
             xml.then(|| io::to_xml_string(&clauses)),
         )
@@ -283,7 +289,7 @@ pub(crate) fn diff(
     // Later we will print details about the semantic differences as well, but this way we can
     // still write out the syntactic differences in case of a timeout.
     if !no_header {
-        println!("common_vars,removed_vars,added_vars,common_constraints,removed_constraints,added_constraints,lost_products,removed_products,common_products,added_products,gained_products,left_count,left_sliced_count,right_count,right_sliced_count,common_products_count,removed_products_count,added_products_count,left_sliced_duration,right_sliced_duration,left_count_duration,left_sliced_count_duration,right_count_duration,right_sliced_count_duration,tseitin_duration,common_products_count_duration,removed_products_count_duration,added_products_count_duration,total_duration");
+        println!("common_vars,removed_vars,added_vars,common_constraints,removed_constraints,added_constraints,lost_solutions,removed_solutions,common_solutions,added_solutions,gained_solutions,left_count,left_sliced_count,right_count,right_sliced_count,common_solutions_count,removed_solutions_count,added_solutions_count,left_sliced_duration,right_sliced_duration,left_count_duration,left_sliced_count_duration,right_count_duration,right_sliced_count_duration,tseitin_duration,common_solutions_count_duration,removed_solutions_count_duration,added_solutions_count_duration,total_duration");
     }
     print!("{common_vars},{a_vars},{b_vars},{common_constraints},{a_constraints},{b_constraints}");
     std::io::stdout().flush().unwrap();
@@ -455,10 +461,13 @@ pub(crate) fn diff(
             );
             log(&format!("[DIFF] #a_sliced = {}", cnt_a_sliced));
             // Because we cannot divide by zero, we do not report a ratio if nothing was sliced.
-            if a_vars > 0 {
+            if a_vars > 0 && cnt_a.is_positive() && cnt_a_sliced.is_positive() {
                 lost_ratio = ratio(cnt_a.clone(), cnt_a_sliced.clone(), a_vars);
+            } else {
+                log(&format!("[DIFF] cannot compute lost solutions, omitting lost solutions from output"));
             }
         } else {
+            log(&format!("[DIFF] no slicing requested on the left, omitting lost solutions from output"));
             no_duration!();
             no_duration!();
         }
@@ -483,14 +492,18 @@ pub(crate) fn diff(
                 .0
             );
             log(&format!("[DIFF] #b_sliced = {}", cnt_b_sliced));
-            if b_vars > 0 {
+            if b_vars > 0 && cnt_b.is_positive() && cnt_b_sliced.is_positive() {
                 gained_ratio = ratio(cnt_b.clone(), cnt_b_sliced.clone(), b_vars);
+            } else {
+                log(&format!("[DIFF] cannot compute gained solutions, omitting gained solutions from output"));
             }
         } else {
+            log(&format!("[DIFF] no slicing requested on the right, omitting gained solutions from output"));
             no_duration!();
             no_duration!();
         }
     } else {
+        log(&format!("[DIFF] no counting requested, omitting all model counts from output"));
         no_duration!();
         no_duration!();
         no_duration!();
@@ -589,7 +602,7 @@ pub(crate) fn diff(
     log(&format!("[DIFF] #added = {}", cnt_added));
 
     // Finally, we derive what fraction of the union of solutions is common, removed, or added.
-    let (common_ratio, removed_ratio, added_ratio) = if count || projected_count {
+    let (common_ratio, removed_ratio, added_ratio) = if !cnt_common.is_negative() && !cnt_removed.is_negative() && !cnt_added.is_negative() {
         let cnt_union = &cnt_common + &cnt_removed + &cnt_added;
         (
             BigRational::new(cnt_common.clone(), cnt_union.clone())
@@ -603,6 +616,7 @@ pub(crate) fn diff(
                 .unwrap(),
         )
     } else {
+        log(&format!("[DIFF] cannot compute ratios due to missing data, omitting ratios from output"));
         (-1f64, -1f64, -1f64)
     };
 
@@ -659,8 +673,13 @@ pub(crate) fn diff(
         );
     }
 
-    // Print the remaining details about the semantic differences.
+    // Print the remaining details about the semantic differences, omitting results that are -1.
     let durations: Vec<String> = durations.iter().map(|d| d.as_nanos().to_string()).collect();
     let durations = durations.join(",");
-    println!(",{lost_ratio},{removed_ratio},{common_ratio},{added_ratio},{gained_ratio},{cnt_a},{cnt_a_sliced},{cnt_b},{cnt_b_sliced},{cnt_common},{cnt_removed},{cnt_added},{durations}");
+    let ff = |v: f64| if v < 0.0 { String::new() } else { v.to_string() };
+    let fb = |v: &BigInt| if v.is_negative() { String::new() } else { v.to_string() };
+    println!(",{},{},{},{},{},{},{},{},{},{},{},{},{durations}",
+        ff(lost_ratio), ff(removed_ratio), ff(common_ratio), ff(added_ratio), ff(gained_ratio),
+        fb(&cnt_a), fb(&cnt_a_sliced), fb(&cnt_b), fb(&cnt_b_sliced),
+        fb(&cnt_common), fb(&cnt_removed), fb(&cnt_added));
 }

@@ -13,6 +13,8 @@ use std::{
     process::{Command, Stdio},
     str::FromStr,
     sync::OnceLock,
+    thread,
+    time::Duration,
 };
 use tempfile::NamedTempFile;
 
@@ -185,9 +187,52 @@ pub(crate) fn sharp_sat(cnf: &str, projected: bool) -> BigInt {
     }
 }
 
+/// Waits for a spawned child process, collecting its stdout.
+///
+/// Reads stdout on a background thread to avoid pipe-buffer deadlock.
+/// If `--sharp-sat-timeout` is non-zero and the process exceeds it, the process is killed
+/// and `None` is returned. Otherwise returns the captured stdout.
+fn wait_with_timeout(mut child: std::process::Child, name: String) -> Option<String> {
+    let mut stdout_handle = child
+        .stdout
+        .take()
+        .expect(&format!("{name} stdout unavailable"));
+    let name_for_thread = name.clone();
+    let stdout_thread = thread::spawn(move || {
+        let mut s = String::new();
+        stdout_handle
+            .read_to_string(&mut s)
+            .expect(&format!("failed to read {name_for_thread} output"));
+        s
+    });
+    let timeout = options().tool.sharp_sat_timeout;
+    let timed_out = if timeout > 0 {
+        use wait_timeout::ChildExt;
+        child
+            .wait_timeout(Duration::from_secs(timeout))
+            .expect(&format!("failed to wait for {name}"))
+            .is_none()
+    } else {
+        child.wait().expect(&format!("failed to wait for {name}"));
+        false
+    };
+    if timed_out {
+        child.kill().ok();
+        child.wait().ok();
+        drop(stdout_thread); // detach — orphaned child processes may still hold the pipe open
+        log(&format!(
+            "[EXEC] {name} timed out after {timeout}s, returning -1"
+        ));
+        None
+    } else {
+        Some(stdout_thread.join().expect(&format!("{name} stdout thread panicked")))
+    }
+}
+
 /// Counts the number of solutions of some CNF in DIMACS format.
 ///
 /// Runs the external model counter d4, which performs well on most small to medium size inputs.
+/// Returns -1 if the configured timeout (--sharp-sat-timeout) is exceeded.
 fn d4(cnf: &str, projected: bool) -> BigInt {
     let mut tmp = NamedTempFile::new().expect("failed to create temporary file");
     write!(tmp, "{}", cnf).expect("failed to write CNF to temporary file");
@@ -215,11 +260,18 @@ fn d4(cnf: &str, projected: bool) -> BigInt {
         d4_path
     ));
     let _timing = scope("EXEC", "#SAT solve via d4");
-    let output = Command::new(&d4_path).args(&args).output().expect(&format!(
-        "failed to run model counter '{d4_path}'. \
+    let child = Command::new(&d4_path)
+        .args(&args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect(&format!(
+            "failed to run model counter '{d4_path}'. \
              Make sure d4 is installed, or specify a custom solver with --sharp-sat-path"
-    ));
-    let stdout = String::from_utf8_lossy(&output.stdout);
+        ));
+    let Some(stdout) = wait_with_timeout(child, "d4".to_owned()) else {
+        return BigInt::from(-1i32);
+    };
     let count_line = stdout
         .lines()
         .find(|line| line.starts_with("s "))
@@ -239,6 +291,7 @@ fn d4(cnf: &str, projected: bool) -> BigInt {
 /// When projected, the CNF is annotated with "c t pmc" and "c p show" lines.
 /// Output must contain a line starting with "s " followed by the model count.
 /// It is not strictly necessary that the solver supports projected model counting, but it will then yield inaccurate results whenever projection is requested.
+/// Returns -1 if the configured timeout (--sharp-sat-timeout) is exceeded.
 fn arbitrary_sharp_sat(cnf: &str, solver_path: &str, projected: bool) -> BigInt {
     let mut tmp = NamedTempFile::new().expect("failed to create temporary file");
     write!(tmp, "{}", cnf).expect("failed to write CNF to temporary file");
@@ -253,14 +306,18 @@ fn arbitrary_sharp_sat(cnf: &str, solver_path: &str, projected: bool) -> BigInt 
         resolved_path
     ));
     let _timing = scope("EXEC", "#SAT solve via custom solver");
-    let output = Command::new(&resolved_path)
+    let child = Command::new(&resolved_path)
         .args(&args)
-        .output()
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
         .expect(&format!(
             "failed to run #SAT solver '{resolved_path}'. \
              Check that --sharp-sat-path is correct and the solver is executable"
         ));
-    let stdout = String::from_utf8_lossy(&output.stdout);
+    let Some(stdout) = wait_with_timeout(child, "#SAT solver".to_owned()) else {
+        return BigInt::from(-1i32);
+    };
     let count_line = stdout
         .lines()
         .find(|line| line.starts_with("s "))

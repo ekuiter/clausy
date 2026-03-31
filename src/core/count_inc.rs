@@ -1,7 +1,9 @@
 //! Incremental model counting for feature-model formulas.
 
-use num::{bigint::ToBigInt, BigInt};
+use num::{BigInt, Signed, bigint::ToBigInt};
 use std::{collections::HashSet, str::FromStr};
+
+use crate::util::log::log;
 
 use super::{arena::Arena, expr::Expr::And, formula::Formula, var::VarId};
 
@@ -45,7 +47,11 @@ pub(crate) fn count_helper(formula: &Formula, arena: &Arena, tseitin_transform: 
     } else {
         clauses = formula.to_clauses(arena);
     }
-    clauses.count()
+    let count = clauses.count();
+    if count.is_negative() {
+        log(&format!("[COUNT_INC] timeout while counting number of solutions for partial result"));
+    }
+    count
 }
 
 /// Returns a mathematical term that, given the number of solutions of this formula, calculates the number of solutions of another formula.

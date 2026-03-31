@@ -99,6 +99,12 @@ pub struct ToolOptions {
     #[arg(long)]
     pub sharp_sat_path: Option<String>,
 
+    /// Timeout in seconds for model counting (0 = no timeout).
+    ///
+    /// If the model counter (either d4 or one set with `--sharp_sat_path`) exceeds this time, it is killed and -1 is returned as the count.
+    #[arg(long, default_value_t = 0)]
+    pub sharp_sat_timeout: u64,
+
     /// Path to the AllSAT solver bc_minisat_all.
     #[arg(long, default_value = "bc_minisat_all")]
     pub bc_minisat_all_path: String,

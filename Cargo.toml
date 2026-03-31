@@ -12,3 +12,4 @@ tempfile = "3.24.0"
 num = "0.4.3"
 clap = { version = "4.5.56", features = ["derive"] }
 rustc-hash = "2.1.1"
+wait-timeout = "0.2"
