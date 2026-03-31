@@ -2,4 +2,4 @@
 # going from A to B gains one config (a=T,b=F), loses nothing
 $clausy -q -i input/spec_b.sat -i input/spec_a.sat diff --count --no-header --left false --right false | sed 's/\(,[^,]*\)\{10\}$//'
 ---
-2,0,0,1,1,1,-1,0,0.5,0.5,-1,-1,-1,-1,-1,1,0,1
+2,0,0,1,1,1,,0,0.5,0.5,,,,,,1,0,1
