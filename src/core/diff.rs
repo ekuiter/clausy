@@ -2,7 +2,7 @@
 
 use crate::util::io;
 use crate::util::log::log;
-use num::{BigInt, BigRational, Signed, ToPrimitive, bigint::ToBigInt};
+use num::{bigint::ToBigInt, BigInt, BigRational, Signed, ToPrimitive};
 use std::{
     collections::HashSet,
     io::Write,
@@ -50,7 +50,12 @@ fn resolve_mapped_var(name: &str, arena: &mut Arena) -> VarId {
 ///   and adding equivalence clauses, so both formulas again share the same variable set.
 /// In all cases the goal is to maximize the common variable set seen by [diff],
 /// so that semantic differences are not obscured by apparent syntactic differences.
-pub(crate) fn apply_var_maps(a: &mut Formula, b: &mut Formula, var_maps: &[VarMap], arena: &mut Arena) {
+pub(crate) fn apply_var_maps(
+    a: &mut Formula,
+    b: &mut Formula,
+    var_maps: &[VarMap],
+    arena: &mut Arena,
+) {
     for var_map in var_maps {
         assert!(
             var_map.left.len() == 1 || var_map.right.len() == 1,
@@ -60,15 +65,29 @@ pub(crate) fn apply_var_maps(a: &mut Formula, b: &mut Formula, var_maps: &[VarMa
         );
         // Assert exclusivity: left-side variables must belong to A only, right-side to B only.
         // Otherwise applying this mapping doesn't make much sense.
-        let left_ids: Vec<VarId> = var_map.left.iter().map(|n| resolve_mapped_var(n, arena)).collect();
-        let right_ids: Vec<VarId> = var_map.right.iter().map(|n| resolve_mapped_var(n, arena)).collect();
+        let left_ids: Vec<VarId> = var_map
+            .left
+            .iter()
+            .map(|n| resolve_mapped_var(n, arena))
+            .collect();
+        let right_ids: Vec<VarId> = var_map
+            .right
+            .iter()
+            .map(|n| resolve_mapped_var(n, arena))
+            .collect();
         for (name, id) in var_map.left.iter().zip(left_ids.iter()) {
-            assert!(a.sub_var_ids.contains(id) && !b.sub_var_ids.contains(id),
-                "variable '{}' (left side) must occur exclusively in formula A", name);
+            assert!(
+                a.sub_var_ids.contains(id) && !b.sub_var_ids.contains(id),
+                "variable '{}' (left side) must occur exclusively in formula A",
+                name
+            );
         }
         for (name, id) in var_map.right.iter().zip(right_ids.iter()) {
-            assert!(!a.sub_var_ids.contains(id) && b.sub_var_ids.contains(id),
-                "variable '{}' (right side) must occur exclusively in formula B", name);
+            assert!(
+                !a.sub_var_ids.contains(id) && b.sub_var_ids.contains(id),
+                "variable '{}' (right side) must occur exclusively in formula B",
+                name
+            );
         }
         if var_map.left.len() == 1 {
             // Rename or split: transform A.
@@ -148,7 +167,7 @@ pub(crate) fn diff_helper(
                 &format!("{}.txt", path.strip_suffix(".cnf").unwrap()),
                 formula,
                 proj_vars,
-                arena
+                arena,
             );
         }
         let clauses;
@@ -162,24 +181,27 @@ pub(crate) fn diff_helper(
         }
         if let Some(path) = cnf {
             if let Some(proj_vars) = proj_vars {
-                std::fs::write(path, clauses.to_projected_string(proj_vars))
-                    .unwrap_or_else(|e| panic!("failed to write projected clauses to '{path}': {e}"));
+                std::fs::write(path, clauses.to_projected_string(proj_vars)).unwrap_or_else(|e| {
+                    panic!("failed to write projected clauses to '{path}': {e}")
+                });
             } else {
                 std::fs::write(path, clauses.to_string())
                     .unwrap_or_else(|e| panic!("failed to write clauses to '{path}': {e}"));
             }
         }
         let count = any_count
-                .then(|| match proj_vars {
-                    Some(proj_vars) => clauses.proj_count(proj_vars),
-                    None => clauses.count(),
-                })
-                .inspect(|count| {
-                    if *count == minus_one {
-                        log(&format!("[DIFF] timeout while counting number of solutions for partial result"));
-                    }
-                })
-                .unwrap_or(minus_one);
+            .then(|| match proj_vars {
+                Some(proj_vars) => clauses.proj_count(proj_vars),
+                None => clauses.count(),
+            })
+            .inspect(|count| {
+                if *count == minus_one {
+                    log(&format!(
+                        "[DIFF] timeout while counting number of solutions for partial result"
+                    ));
+                }
+            })
+            .unwrap_or(minus_one);
         (
             count,
             uvl.then(|| io::to_uvl_string(&clauses)),
@@ -335,7 +357,13 @@ pub(crate) fn diff(
     } = a_diff_kind
     {
         // `b_sliced` currently has as `sub_vars` the common variables (if sliced) or possibly also those exclusive to `b` (if not sliced).
-        b_sliced = b_sliced.force_foreign_vars(default, core_vars, dead_vars, if projected_count { &empty } else { &b_var_ids }, arena);
+        b_sliced = b_sliced.force_foreign_vars(
+            default,
+            core_vars,
+            dead_vars,
+            if projected_count { &empty } else { &b_var_ids },
+            arena,
+        );
         // Let's assume for now we are not doing projected model counting.
         // Now, `b_sliced` has as `sub_vars` the common variables, as well as those exclusive to `a`
         // (which are fully determinate and don't affect the model count).
@@ -369,7 +397,13 @@ pub(crate) fn diff(
     } = b_diff_kind
     {
         // This logic is symmetric to the logic above.
-        a_sliced = a_sliced.force_foreign_vars(default, core_vars, dead_vars, if projected_count { &empty } else { &a_var_ids }, arena);
+        a_sliced = a_sliced.force_foreign_vars(
+            default,
+            core_vars,
+            dead_vars,
+            if projected_count { &empty } else { &a_var_ids },
+            arena,
+        );
         if serialize {
             let mut file = a_sliced_file
                 .as_ref()
@@ -428,7 +462,17 @@ pub(crate) fn diff(
             // Here we count the original and sliced formulas for `a`.
             // First, we can easily count `a`, which has as `sub_vars` the common variables and those exclusive to `a`.
             cnt_a = measure_time!(
-                diff_helper(a, arena, true, true, false, false, cnf_path("a").as_deref(), None).0
+                diff_helper(
+                    a,
+                    arena,
+                    true,
+                    true,
+                    false,
+                    false,
+                    cnf_path("a").as_deref(),
+                    None
+                )
+                .0
             );
             log(&format!("[DIFF] #a = {}", cnt_a));
             // Let's assume for now we don't do projected model counting, so any slicing is performed above with FeatureIDE.
@@ -445,7 +489,11 @@ pub(crate) fn diff(
             // and possibly determinate variables exclusive to `b`, and we simply slice away the `a`-exclusive variables now.
             // Slicing those variables away is equivalent to projecting down to any variables referred to by `b`.
             // In addition, we need to apply a Tseitin transformation to establish CNF.
-            let proj_vars = a_sliced.sub_var_ids.difference(&a_var_ids).cloned().collect();
+            let proj_vars = a_sliced
+                .sub_var_ids
+                .difference(&a_var_ids)
+                .cloned()
+                .collect();
             cnt_a_sliced = measure_time!(
                 diff_helper(
                     &a_sliced,
@@ -455,7 +503,11 @@ pub(crate) fn diff(
                     false,
                     false,
                     cnf_path("a_sliced").as_deref(),
-                    if projected_count { Some(&proj_vars) } else { None }
+                    if projected_count {
+                        Some(&proj_vars)
+                    } else {
+                        None
+                    }
                 )
                 .0
             );
@@ -464,20 +516,38 @@ pub(crate) fn diff(
             if a_vars > 0 && cnt_a.is_positive() && cnt_a_sliced.is_positive() {
                 lost_ratio = ratio(cnt_a.clone(), cnt_a_sliced.clone(), a_vars);
             } else {
-                log(&format!("[DIFF] cannot compute lost solutions, omitting lost solutions from output"));
+                log(&format!(
+                    "[DIFF] cannot compute lost solutions, omitting lost solutions from output"
+                ));
             }
         } else {
-            log(&format!("[DIFF] no slicing requested on the left, omitting lost solutions from output"));
+            log(&format!(
+                "[DIFF] no slicing requested on the left, omitting lost solutions from output"
+            ));
             no_duration!();
             no_duration!();
         }
         if let DiffKind::Slice = b_diff_kind {
             // This logic is symmetric to the logic above.
             cnt_b = measure_time!(
-                diff_helper(b, arena, true, true, false, false, cnf_path("b").as_deref(), None).0
+                diff_helper(
+                    b,
+                    arena,
+                    true,
+                    true,
+                    false,
+                    false,
+                    cnf_path("b").as_deref(),
+                    None
+                )
+                .0
             );
             log(&format!("[DIFF] #b = {}", cnt_b));
-            let proj_vars = b_sliced.sub_var_ids.difference(&b_var_ids).cloned().collect();
+            let proj_vars = b_sliced
+                .sub_var_ids
+                .difference(&b_var_ids)
+                .cloned()
+                .collect();
             cnt_b_sliced = measure_time!(
                 diff_helper(
                     &b_sliced,
@@ -487,7 +557,11 @@ pub(crate) fn diff(
                     false,
                     false,
                     cnf.then(|| cnf_path("b_sliced")).flatten().as_deref(),
-                    if projected_count { Some(&proj_vars) } else { None }
+                    if projected_count {
+                        Some(&proj_vars)
+                    } else {
+                        None
+                    }
                 )
                 .0
             );
@@ -495,15 +569,21 @@ pub(crate) fn diff(
             if b_vars > 0 && cnt_b.is_positive() && cnt_b_sliced.is_positive() {
                 gained_ratio = ratio(cnt_b.clone(), cnt_b_sliced.clone(), b_vars);
             } else {
-                log(&format!("[DIFF] cannot compute gained solutions, omitting gained solutions from output"));
+                log(&format!(
+                    "[DIFF] cannot compute gained solutions, omitting gained solutions from output"
+                ));
             }
         } else {
-            log(&format!("[DIFF] no slicing requested on the right, omitting gained solutions from output"));
+            log(&format!(
+                "[DIFF] no slicing requested on the right, omitting gained solutions from output"
+            ));
             no_duration!();
             no_duration!();
         }
     } else {
-        log(&format!("[DIFF] no counting requested, omitting all model counts from output"));
+        log(&format!(
+            "[DIFF] no counting requested, omitting all model counts from output"
+        ));
         no_duration!();
         no_duration!();
         no_duration!();
@@ -536,15 +616,16 @@ pub(crate) fn diff(
     // todo: currently we slice all auxiliary variables, but it is unclear whether this is correct and whether it impacts performance
     let proj_vars: Option<&HashSet<i32>>;
     if projected_count {
-        proj_vars = if matches!(a_diff_kind, DiffKind::Slice) && matches!(b_diff_kind, DiffKind::Slice) {
-            Some(&common_var_ids)
-        } else if matches!(a_diff_kind, DiffKind::Slice) {
-            Some(&b_sliced.sub_var_ids)
-        } else if matches!(b_diff_kind, DiffKind::Slice) {
-            Some(&a_sliced.sub_var_ids)
-        } else {
-            None
-        };
+        proj_vars =
+            if matches!(a_diff_kind, DiffKind::Slice) && matches!(b_diff_kind, DiffKind::Slice) {
+                Some(&common_var_ids)
+            } else if matches!(a_diff_kind, DiffKind::Slice) {
+                Some(&b_sliced.sub_var_ids)
+            } else if matches!(b_diff_kind, DiffKind::Slice) {
+                Some(&a_sliced.sub_var_ids)
+            } else {
+                None
+            };
         if cnf {
             io::write_formula(&file_path("a_sliced.txt"), &a_sliced, proj_vars, arena);
             io::write_formula(&file_path("b_sliced.txt"), &b_sliced, proj_vars, arena);
@@ -602,23 +683,26 @@ pub(crate) fn diff(
     log(&format!("[DIFF] #added = {}", cnt_added));
 
     // Finally, we derive what fraction of the union of solutions is common, removed, or added.
-    let (common_ratio, removed_ratio, added_ratio) = if !cnt_common.is_negative() && !cnt_removed.is_negative() && !cnt_added.is_negative() {
-        let cnt_union = &cnt_common + &cnt_removed + &cnt_added;
-        (
-            BigRational::new(cnt_common.clone(), cnt_union.clone())
-                .to_f64()
-                .unwrap(),
-            BigRational::new(cnt_removed.clone(), cnt_union.clone())
-                .to_f64()
-                .unwrap(),
-            BigRational::new(cnt_added.clone(), cnt_union.clone())
-                .to_f64()
-                .unwrap(),
-        )
-    } else {
-        log(&format!("[DIFF] cannot compute ratios due to missing data, omitting ratios from output"));
-        (-1f64, -1f64, -1f64)
-    };
+    let (common_ratio, removed_ratio, added_ratio) =
+        if !cnt_common.is_negative() && !cnt_removed.is_negative() && !cnt_added.is_negative() {
+            let cnt_union = &cnt_common + &cnt_removed + &cnt_added;
+            (
+                BigRational::new(cnt_common.clone(), cnt_union.clone())
+                    .to_f64()
+                    .unwrap(),
+                BigRational::new(cnt_removed.clone(), cnt_union.clone())
+                    .to_f64()
+                    .unwrap(),
+                BigRational::new(cnt_added.clone(), cnt_union.clone())
+                    .to_f64()
+                    .unwrap(),
+            )
+        } else {
+            log(&format!(
+                "[DIFF] cannot compute ratios due to missing data, omitting ratios from output"
+            ));
+            (-1f64, -1f64, -1f64)
+        };
 
     // Write UVL files for the semantic differences, if requested.
     // For the commonalities, we serialize two versions, one using the feature hierarchy of the left and right formula, respectively.
@@ -676,10 +760,33 @@ pub(crate) fn diff(
     // Print the remaining details about the semantic differences, omitting results that are -1.
     let durations: Vec<String> = durations.iter().map(|d| d.as_nanos().to_string()).collect();
     let durations = durations.join(",");
-    let ff = |v: f64| if v < 0.0 { String::new() } else { v.to_string() };
-    let fb = |v: &BigInt| if v.is_negative() { String::new() } else { v.to_string() };
-    println!(",{},{},{},{},{},{},{},{},{},{},{},{},{durations}",
-        ff(lost_ratio), ff(removed_ratio), ff(common_ratio), ff(added_ratio), ff(gained_ratio),
-        fb(&cnt_a), fb(&cnt_a_sliced), fb(&cnt_b), fb(&cnt_b_sliced),
-        fb(&cnt_common), fb(&cnt_removed), fb(&cnt_added));
+    let ff = |v: f64| {
+        if v < 0.0 {
+            String::new()
+        } else {
+            v.to_string()
+        }
+    };
+    let fb = |v: &BigInt| {
+        if v.is_negative() {
+            String::new()
+        } else {
+            v.to_string()
+        }
+    };
+    println!(
+        ",{},{},{},{},{},{},{},{},{},{},{},{},{durations}",
+        ff(lost_ratio),
+        ff(removed_ratio),
+        ff(common_ratio),
+        ff(added_ratio),
+        ff(gained_ratio),
+        fb(&cnt_a),
+        fb(&cnt_a_sliced),
+        fb(&cnt_b),
+        fb(&cnt_b_sliced),
+        fb(&cnt_common),
+        fb(&cnt_removed),
+        fb(&cnt_added)
+    );
 }

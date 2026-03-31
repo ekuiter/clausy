@@ -225,7 +225,11 @@ fn wait_with_timeout(mut child: std::process::Child, name: String) -> Option<Str
         ));
         None
     } else {
-        Some(stdout_thread.join().expect(&format!("{name} stdout thread panicked")))
+        Some(
+            stdout_thread
+                .join()
+                .expect(&format!("{name} stdout thread panicked")),
+        )
     }
 }
 

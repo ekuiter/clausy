@@ -168,10 +168,20 @@ pub(crate) fn write_xml(prefix: String, uvl_features: &String, xml_constraints: 
 }
 
 /// Writes a formula to a `.txt` file.
-pub(crate) fn write_formula(path: &str, formula: &Formula, proj_vars: Option<&HashSet<VarId>>, arena: &Arena) {
+pub(crate) fn write_formula(
+    path: &str,
+    formula: &Formula,
+    proj_vars: Option<&HashSet<VarId>>,
+    arena: &Arena,
+) {
     std::fs::write(
         &path,
-        format!("{}\n{:?}\n{:?}", formula.as_ref(arena), formula.sub_vars(arena), proj_vars),
+        format!(
+            "{}\n{:?}\n{:?}",
+            formula.as_ref(arena),
+            formula.sub_vars(arena),
+            proj_vars
+        ),
     )
     .unwrap_or_else(|e| panic!("failed to write formula to '{path}': {e}"));
 }

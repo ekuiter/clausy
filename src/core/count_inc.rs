@@ -1,6 +1,6 @@
 //! Incremental model counting for feature-model formulas.
 
-use num::{BigInt, Signed, bigint::ToBigInt};
+use num::{bigint::ToBigInt, BigInt, Signed};
 use std::{collections::HashSet, str::FromStr};
 
 use crate::util::log::log;
@@ -49,7 +49,9 @@ pub(crate) fn count_helper(formula: &Formula, arena: &Arena, tseitin_transform: 
     }
     let count = clauses.count();
     if count.is_negative() {
-        log(&format!("[COUNT_INC] timeout while counting number of solutions for partial result"));
+        log(&format!(
+            "[COUNT_INC] timeout while counting number of solutions for partial result"
+        ));
     }
     count
 }
