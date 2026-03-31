@@ -395,13 +395,13 @@ pub struct DiffArgs {
     /// Left-side diff mode.
     ///
     /// By default, we use `slice` (i.e., project onto common variables).
-    #[arg(long, default_value = "slice", value_parser = parse_diff_mode)]
+    #[arg(long, default_value = "false", value_parser = parse_diff_mode)]
     left: DiffMode,
 
     /// Right-side diff mode.
     ///
     /// By default, we use `slice` (i.e., project onto common variables).
-    #[arg(long, default_value = "slice", value_parser = parse_diff_mode)]
+    #[arg(long, default_value = "false", value_parser = parse_diff_mode)]
     right: DiffMode,
 
     /// Use model counting.
