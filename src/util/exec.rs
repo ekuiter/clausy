@@ -331,6 +331,12 @@ pub(crate) fn io(file: &File, output_format: &str, variables: &[&str]) -> File {
         "[EXEC] starting FeatureIDE conversion from {} to {} using {}",
         file.name, output_format, io_path
     ));
+    if variables.len() > 0 {
+        log(&format!(
+            "[EXEC] projecting onto {} variables",
+            variables.len()
+        ));
+    }
     let _timing = scope("EXEC", "FeatureIDE conversion");
     let process = Command::new("java")
         .args(&args)

@@ -86,6 +86,7 @@ pub struct ToolOptions {
     /// d4 mode used when performing projected model counting.
     ///
     /// Has no effect on plain (non-projected) model counting, which always uses counting mode.
+    /// Has no effect if another model counter than d4 is being used.
     #[arg(long, default_value = "counting")]
     pub d4_projection_mode: D4ProjectionMode,
 
@@ -405,9 +406,24 @@ pub struct DiffArgs {
     #[arg(long)]
     output: Option<String>,
 
-    /// Skip model counting.
+    /// Use model counting.
+    ///
+    /// With this flag, we quantify the differences between both formulas with a regular (non-projected) model counter.
+    /// If the left or right [DiffMode] requests slicing, we perform it in a preliminary and separate step with FeatureIDE.
+    /// FeatureIDE uses resolution-based slicing, which internally uses a distributive transformation to establish CNF,
+    /// so it does not generally scale to complex formulas.
+    /// Useful if only serialization of differences is requested.
     #[arg(long, default_value_t = false)]
-    no_count: bool,
+    count: bool,
+
+    /// Use projected model counting.
+    ///
+    /// With this flag, we quantify the differences between both formulas with a projected model counter.
+    /// That means we perform slicing and counting in one combined step, skipping FeatureIDE.
+    /// Incompatible with the `--uvl` and `--xml` serialization options,
+    /// as our current architecture relies on counting and serialization being performed in separate steps.
+    #[arg(long, default_value_t = false, conflicts_with_all = ["count", "uvl", "xml"])]
+    projected_count: bool,
 
     /// Write variable list files.
     #[arg(long, requires = "output", default_value_t = false)]
@@ -442,6 +458,7 @@ pub struct DiffArgs {
     /// - `a=b,c`: split (`a` in the left formula was split into `b` and `c` in the right formula).
     /// - `a,b=c`: merge (`a` and `b` in the left formula were merged into `c` in the right formula).
     /// Lines beginning with `#` are treated as comments and ignored.
+    /// For the semantics of this mapping, see [crate::core::diff::apply_var_maps].
     #[arg(long)]
     variable_map: Option<String>,
 }
@@ -671,9 +688,6 @@ fn execute_action(action: Action, formulas: &mut [Formula], arena: &mut Arena) {
             let clauses = formula.to_clauses(arena);
             let projection = count_projection_vars(&args, formula, arena);
             if let Some(proj_vars) = projection {
-                log(&format!(
-                    "[SHELL] printing clauses for projected model counting",
-                ));
                 print!("{}", clauses.to_projected_string(&proj_vars));
             } else {
                 print!("{}", clauses);
@@ -701,10 +715,6 @@ fn execute_action(action: Action, formulas: &mut [Formula], arena: &mut Arena) {
             let clauses = formula.to_clauses(arena);
             let projection = count_projection_vars(&args, formula, arena);
             if let Some(proj_vars) = projection {
-                log(&format!(
-                    "[SHELL] performing projected model counting onto {} variables",
-                    proj_vars.len()
-                ));
                 println!("{}", clauses.proj_count(&proj_vars));
             } else {
                 println!("{}", clauses.count());
@@ -746,7 +756,8 @@ fn execute_action(action: Action, formulas: &mut [Formula], arena: &mut Arena) {
                 args.left.into_diff_kind(arena),
                 args.right.into_diff_kind(arena),
                 args.output.as_deref(),
-                args.no_count,
+                args.count,
+                args.projected_count,
                 args.variables,
                 args.constraints,
                 args.uvl,

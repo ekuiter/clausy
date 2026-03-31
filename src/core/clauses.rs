@@ -196,6 +196,11 @@ impl Clauses {
     /// Note that `p show` may occur anywhere according to `meta/mccomp_format_24.pdf`,
     /// but Ganak requires it to be at the end.
     pub(crate) fn to_projected_string(&self, proj_vars: &HashSet<VarId>) -> String {
+        log(&format!(
+            "[SHELL] projecting onto {} variables, slicing {} variables",
+            proj_vars.len(),
+            self.vars.len() - 1 - proj_vars.len()
+        ));
         let mut proj_vars: Vec<VarId> = proj_vars
             .iter()
             .map(|var_id| {

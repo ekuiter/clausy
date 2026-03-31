@@ -75,6 +75,7 @@ impl Formula {
     ///
     /// Variables in `core_vars` are forced to true, variables in `dead_vars` are forced to false,
     /// and all remaining foreign variables not in `sub_var_ids` or `exclude_vars` are forced to `default`.
+    /// The returned formula has all variables of the arena except those in `exclude_vars`.
     /// Does not modify this formula.
     pub(crate) fn force_foreign_vars(
         &self,

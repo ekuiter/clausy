@@ -1,6 +1,7 @@
 //! Differencing of feature-model formulas.
 
 use crate::util::io;
+use crate::util::log::log;
 use num::{bigint::ToBigInt, BigInt, BigRational, ToPrimitive};
 use std::{
     collections::HashSet,
@@ -49,7 +50,7 @@ fn resolve_mapped_var(name: &str, arena: &mut Arena) -> VarId {
 ///   and adding equivalence clauses, so both formulas again share the same variable set.
 /// In all cases the goal is to maximize the common variable set seen by [diff],
 /// so that semantic differences are not obscured by apparent syntactic differences.
-fn apply_var_maps(a: &mut Formula, b: &mut Formula, var_maps: &[VarMap], arena: &mut Arena) {
+pub(crate) fn apply_var_maps(a: &mut Formula, b: &mut Formula, var_maps: &[VarMap], arena: &mut Arena) {
     for var_map in var_maps {
         assert!(
             var_map.left.len() == 1 || var_map.right.len() == 1,
@@ -132,20 +133,22 @@ pub(crate) fn diff_helper(
     formula: &Formula,
     arena: &Arena,
     tseitin_transform: bool,
-    count: bool,
+    any_count: bool,
     uvl: bool,
     xml: bool,
     cnf: Option<&str>,
+    proj_vars: Option<&HashSet<VarId>>,
 ) -> (BigInt, Option<String>, Option<String>) {
     let minus_one = -1.to_bigint().unwrap();
-    if !count && !uvl && !xml && cnf.is_none() {
+    if !any_count && !uvl && !xml && cnf.is_none() {
         (minus_one, None, None)
     } else {
         if let Some(path) = cnf {
             io::write_formula(
                 &format!("{}.txt", path.strip_suffix(".cnf").unwrap()),
                 formula,
-                arena,
+                proj_vars,
+                arena
             );
         }
         let clauses;
@@ -158,11 +161,21 @@ pub(crate) fn diff_helper(
             clauses = formula.to_clauses(arena);
         }
         if let Some(path) = cnf {
-            std::fs::write(path, clauses.to_string())
-                .unwrap_or_else(|e| panic!("failed to write clauses to '{path}': {e}"));
+            if let Some(proj_vars) = proj_vars {
+                std::fs::write(path, clauses.to_projected_string(proj_vars))
+                    .unwrap_or_else(|e| panic!("failed to write projected clauses to '{path}': {e}"));
+            } else {
+                std::fs::write(path, clauses.to_string())
+                    .unwrap_or_else(|e| panic!("failed to write clauses to '{path}': {e}"));
+            }
         }
         (
-            count.then(|| clauses.count()).unwrap_or(minus_one),
+            any_count
+                .then(|| match proj_vars {
+                    Some(proj_vars) => clauses.proj_count(proj_vars),
+                    None => clauses.count(),
+                })
+                .unwrap_or(minus_one),
             uvl.then(|| io::to_uvl_string(&clauses)),
             xml.then(|| io::to_xml_string(&clauses)),
         )
@@ -172,10 +185,12 @@ pub(crate) fn diff_helper(
 /// Prints or serializes a description of the difference between two feature-model formulas.
 ///
 /// Assumes that common variables are considered equal (e.g., equal features have equal names),
-/// that both input formulas contain no auxiliary variables, and that both are in proto-CNF.
+/// and that both input formulas contain no auxiliary variables.
+/// Clean renames, splits, and merges of variables can be handled by passing a [VarMap].
 /// When `output` is given, diff artifacts are written to files using `output` as the path prefix
-/// (creating intermediate directories as needed). Without a prefix, only a CSV line is printed.
+/// (creating intermediate directories as needed). Without `output`, only a CSV line is printed.
 /// `count` controls whether model counting is performed (expensive; results appear in CSV).
+/// `projected_count` uses a projected model counter instead of a regular one.
 /// `uvl` and `xml` control whether UVL/XML output files are written (require `output`).
 /// `cnf` controls whether intermediate clause files are written for each counting step (requires `output`).
 pub(crate) fn diff(
@@ -185,7 +200,8 @@ pub(crate) fn diff(
     a_diff_kind: DiffKind,
     b_diff_kind: DiffKind,
     output: Option<&str>,
-    no_count: bool,
+    count: bool,
+    projected_count: bool,
     vars: bool,
     constraints: bool,
     uvl: bool,
@@ -220,9 +236,15 @@ pub(crate) fn diff(
             durations.push(Duration::ZERO)
         }};
     }
-    let count = !no_count;
+    if count && projected_count {
+        panic!("--no-count and --projected-count are mutually exclusive");
+    }
+    if projected_count && (uvl || xml) {
+        panic!("--projected-count does not support --uvl or --xml serialization");
+    }
 
     // Apply variable mappings before any other processing.
+    // This is the first step towards unifying both variable sets.
     apply_var_maps(a, b, var_maps, arena);
 
     // Compute syntactic differences between variables and constraints.
@@ -267,15 +289,19 @@ pub(crate) fn diff(
     std::io::stdout().flush().unwrap();
 
     // We now start with the actual semantic differencing.
-    // Not that `a_sliced` can both refer to the original formula `a` or a sliced version of it, depending on whether slicing is requested.
+    // Note that `a_sliced` can both refer to the original formula `a` or a sliced version of it, depending on whether slicing is requested.
     let mut a_sliced = a.clone();
     let mut b_sliced = b.clone();
     let mut a_sliced_file = a_sliced.file.clone();
     let mut b_sliced_file = b_sliced.file.clone();
 
-    // Slice one or both formulas down to their common variables if requested.
+    // Slice one or both formulas down to their common variables if requested (does not apply if we are doing projected model counting at the end).
     // This works directly on the input file and consequently requires it to be parsable by FeatureIDE.
-    if let DiffKind::Slice = a_diff_kind {
+    // This is the first step critical for scalability:
+    // In FeatureIDE, this uses a resolution-based slicing algorithm that first transforms the formula into CNF with a distributive transformation.
+    // Thus, this will fail for complex formulas where distribution explodes exponentially.
+    // Even if the formula can be brought into CNF, the slicing itself it can be computationally demanding, especially if many variables are removed.
+    if matches!(a_diff_kind, DiffKind::Slice) && !projected_count {
         (a_sliced, a_sliced_file) = measure_time!(a_sliced_file
             .as_ref()
             .unwrap()
@@ -283,7 +309,7 @@ pub(crate) fn diff(
     } else {
         no_duration!();
     }
-    if let DiffKind::Slice = b_diff_kind {
+    if matches!(b_diff_kind, DiffKind::Slice) && !projected_count {
         (b_sliced, b_sliced_file) = measure_time!(b_sliced_file
             .as_ref()
             .unwrap()
@@ -295,23 +321,31 @@ pub(crate) fn diff(
     // Now force all remaining foreign variables to a default value, if requested.
     // This is a bit intricate because we need to handle a variety of cases correctly.
     // In particular, `a|b_sliced` may at this point have been sliced to the common variables, or not.
+    let empty = HashSet::new();
     if let DiffKind::Fixed {
         default,
         ref core_vars,
         ref dead_vars,
     } = a_diff_kind
     {
-        // `b_sliced` now has as `sub_vars` the common variables (if sliced) or possibly also those exclusive to `b` (if not sliced).
-        b_sliced = b_sliced.force_foreign_vars(default, core_vars, dead_vars, &b_var_ids, arena);
-        // `b_sliced` now has as `sub_vars` the common variables, as well as those exclusive to `a`
+        // `b_sliced` currently has as `sub_vars` the common variables (if sliced) or possibly also those exclusive to `b` (if not sliced).
+        b_sliced = b_sliced.force_foreign_vars(default, core_vars, dead_vars, if projected_count { &empty } else { &b_var_ids }, arena);
+        // Let's assume for now we are not doing projected model counting.
+        // Now, `b_sliced` has as `sub_vars` the common variables, as well as those exclusive to `a`
         // (which are fully determinate and don't affect the model count).
-        // There is a very subtle invariant violation triggered only when slicing _none_ of the formulas:
+        // There is a very subtle invariant violation triggered only when slicing _none_ of the formulas above with FeatureIDE:
         // In that case, `b_sliced` is temporarily in an "inconsistent" state, because it still mentions variables exclusive to `b`.
         // We would never want to actually work with such a formula, because it mentions variables in its syntax tree that are not recorded in its `sub_vars`.
         // However, the twist here is that whenever we work with `b_sliced` below, it _will_ be in a consistent state (as we discuss below).
         // So while this code can temporarily violate the invariant that every mentioned variable must be in `sub_vars`, it isn't an issue.
         // Why do we violate the invariant though, in the first place?
-        // Because it will be convenient to exclude `b_var_ids` when we measure the impact of slicing further below.
+        // Because if we do not exclude `b_var_ids`, we will get wrong results when we measure the impact of slicing further below.
+        // Now let's assume that we do projected model counting, as the situation is different in this case:
+        // We haven't done anything on `b_sliced` yet, and we need not remove its variables because this will be done by the projected model counter.
+        // Hence, `b_sliced` now has as `sub_vars` the common variables,
+        // and those exclusive to `b` (which will be sliced by the projected model counter),
+        // and those exclusive to `a` (which are fully determinate and don't affect the model count).
+        // Consequently, there is no invariant violation when we do projected model counting.
         if serialize {
             // The whole invariant discussion does not apply here because we work on the file representation, which is not affected by `force_foreign_vars`.
             let mut file = b_sliced_file
@@ -329,7 +363,7 @@ pub(crate) fn diff(
     } = b_diff_kind
     {
         // This logic is symmetric to the logic above.
-        a_sliced = a_sliced.force_foreign_vars(default, core_vars, dead_vars, &a_var_ids, arena);
+        a_sliced = a_sliced.force_foreign_vars(default, core_vars, dead_vars, if projected_count { &empty } else { &a_var_ids }, arena);
         if serialize {
             let mut file = a_sliced_file
                 .as_ref()
@@ -343,13 +377,16 @@ pub(crate) fn diff(
     // At this point, `b_sliced` has as `sub_vars` the common variables and possibly determinate variables exclusive to `a`,
     // and `a_sliced` has as `sub_vars` the common variables and possibly determinate variables exclusive to `b`.
     // Write out both formulas for debugging purposes if requested.
-    if cnf {
-        io::write_formula(&file_path("a_sliced.txt"), &a_sliced, arena);
-        io::write_formula(&file_path("b_sliced.txt"), &b_sliced, arena);
+    // Even though both of these formulas might inviolate the invariant that they only mention variables in their `sub_vars`,
+    // this is not an issue here because we do not write a clause representation, but just the formula syntax trees themselves.
+    if cnf && !projected_count {
+        io::write_formula(&file_path("a_sliced.txt"), &a_sliced, None, arena);
+        io::write_formula(&file_path("b_sliced.txt"), &b_sliced, None, arena);
     }
 
     // Convert both sliced formulas to UVL so we can serialize hierarchies later, if not already done above.
     // This also requires the input file to be parsable by FeatureIDE.
+    // The invariant discussion does not apply here because we work on the file representation, similar to above.
     if serialize {
         a_sliced_file = Some(
             a_sliced_file
@@ -379,33 +416,44 @@ pub(crate) fn diff(
     let ratio =
         |a, b, vars: u32| BigRational::new(a, b).to_f64().unwrap().log2() / vars.to_f64().unwrap();
 
-    // If we performed slicing above, we count the original and sliced formulas here to measure the impact of slicing.
-    if count {
+    // If we perform slicing, we count the original and sliced formulas here to measure the impact of slicing.
+    if count || projected_count {
         if let DiffKind::Slice = a_diff_kind {
             // Here we count the original and sliced formulas for `a`.
-            // Here the subtlety mentioned above comes into play:
-            // `a` has as `sub_vars` the common variables and those exclusive to `a`.
+            // First, we can easily count `a`, which has as `sub_vars` the common variables and those exclusive to `a`.
+            cnt_a = measure_time!(
+                diff_helper(a, arena, true, true, false, false, cnf_path("a").as_deref(), None).0
+            );
+            log(&format!("[DIFF] #a = {}", cnt_a));
+            // Let's assume for now we don't do projected model counting, so any slicing is performed above with FeatureIDE.
+            // In that case, to count the sliced formula, the subtlety mentioned above comes into play:
             // `a_sliced` has as `sub_vars` the common variables and possibly determinate variables exclusive to `b`.
-            // In particular, we know here that `a_sliced` has actually been sliced (due to DiffKind::Slice),
+            // In particular, we know here that `a_sliced` has actually been sliced (due to the enclosing `if` statements),
             // and it does not refer anymore to variables exclusive to `a`, hence the invariant is not violated here and we can count `a_sliced`.
             // Also, we need not worry about the variables exclusive to `b`, as they are determinate and they don't affect the model count.
             // Thus, we get a fair comparison between `a` and `a_sliced`, whose model counts only differ in the variables exclusive to `a`.
             // We can map that easily onto a number between 0 and 1 with the `ratio` function from above.
-            cnt_a = measure_time!(
-                diff_helper(a, arena, true, count, uvl, xml, cnf_path("a").as_deref()).0
-            );
+            // Also, because `a_sliced` has been sliced by FeatureIDE, it is already in CNF and we need no further transformation.
+            // Now let's assume that we do projected model counting, in which case `a_sliced` has not been sliced yet.
+            // `a_sliced` then has as `sub_vars` the common variables, the variables exclusive to `a`,
+            // and possibly determinate variables exclusive to `b`, and we simply slice away the `a`-exclusive variables now.
+            // Slicing those variables away is equivalent to projecting down to any variables referred to by `b`.
+            // In addition, we need to apply a Tseitin transformation to establish CNF.
+            let proj_vars = a_sliced.sub_var_ids.difference(&a_var_ids).cloned().collect();
             cnt_a_sliced = measure_time!(
                 diff_helper(
                     &a_sliced,
                     arena,
+                    projected_count,
+                    true,
                     false,
-                    count,
-                    uvl,
-                    xml,
-                    cnf_path("a_sliced").as_deref()
+                    false,
+                    cnf_path("a_sliced").as_deref(),
+                    if projected_count { Some(&proj_vars) } else { None }
                 )
                 .0
             );
+            log(&format!("[DIFF] #a_sliced = {}", cnt_a_sliced));
             // Because we cannot divide by zero, we do not report a ratio if nothing was sliced.
             if a_vars > 0 {
                 lost_ratio = ratio(cnt_a.clone(), cnt_a_sliced.clone(), a_vars);
@@ -417,20 +465,24 @@ pub(crate) fn diff(
         if let DiffKind::Slice = b_diff_kind {
             // This logic is symmetric to the logic above.
             cnt_b = measure_time!(
-                diff_helper(b, arena, true, count, uvl, xml, cnf_path("b").as_deref()).0
+                diff_helper(b, arena, true, true, false, false, cnf_path("b").as_deref(), None).0
             );
+            log(&format!("[DIFF] #b = {}", cnt_b));
+            let proj_vars = b_sliced.sub_var_ids.difference(&b_var_ids).cloned().collect();
             cnt_b_sliced = measure_time!(
                 diff_helper(
                     &b_sliced,
                     arena,
+                    projected_count,
+                    true,
                     false,
-                    count,
-                    uvl,
-                    xml,
-                    cnf_path("b_sliced").as_deref()
+                    false,
+                    cnf.then(|| cnf_path("b_sliced")).flatten().as_deref(),
+                    if projected_count { Some(&proj_vars) } else { None }
                 )
                 .0
             );
+            log(&format!("[DIFF] #b_sliced = {}", cnt_b_sliced));
             if b_vars > 0 {
                 gained_ratio = ratio(cnt_b.clone(), cnt_b_sliced.clone(), b_vars);
             }
@@ -450,16 +502,46 @@ pub(crate) fn diff(
     // We start off by determining the commonalities between both formulas (i.e., satisfying assignments shared by both).
     // To do that, we form the conjunction of both formulas. What is subtle here is the variable sets:
     // `and` sets the `sub_vars` to the union of both formulas' `sub_vars`.
+    // Let's assume for now we don't do projected model counting, so any slicing is performed above with FeatureIDE.
     // If both formulas have been sliced, they both only refer to the common variables, and the union does nothing.
     // If exactly one formula has been sliced, we have constructed it above to refer to the common
-    // variables and to determinate variables exclusive to the other formula, and the other formula
+    // variables and to the determinate variables exclusive to the other formula, and the other formula
     // refers to the common variables and its own exclusive variables, and the union does nothing.
     // The interesting case is if no formulas have been sliced, which corresponds to our invariant violation above.
     // In this case, the union will include all variables from both formulas, which restores the invariant.
     // So starting from here we are good to go in terms of finally having a unified variable set.
+    // Now let's assume that we do projected model counting, in which case the situation is slightly different:
+    // Because we do not exclude any variables during [Formula::force_foreign_vars], one side of the union already includes all variables.
+    // This is only not the case when both sides are to be sliced, in which case the union will return all variables anyway.
+    // Thus, the conjunction of both formulas will have as `sub_vars` all variables of the arena,
+    // which is fine, because we will slice those variables we do not want with the projected model counter.
     let mut diff = a_sliced.and(&b_sliced, arena);
-    // This formula is not in CNF yet (when we counted above we made a clone of the arena and a separate CNF transformation).
-    // We will transform it once using the total Tseitin transformation.
+
+    // If we do projected model counting, we still need to figure out which variables to slice,
+    // as we haven't done this already above with FeatureIDE.
+    // Fortunately, this is straightforward and consistent with FeatureIDE's slicing applied above.
+    // todo: currently we slice all auxiliary variables, but it is unclear whether this is correct and whether it impacts performance
+    let proj_vars: Option<&HashSet<i32>>;
+    if projected_count {
+        proj_vars = if matches!(a_diff_kind, DiffKind::Slice) && matches!(b_diff_kind, DiffKind::Slice) {
+            Some(&common_var_ids)
+        } else if matches!(a_diff_kind, DiffKind::Slice) {
+            Some(&b_sliced.sub_var_ids)
+        } else if matches!(b_diff_kind, DiffKind::Slice) {
+            Some(&a_sliced.sub_var_ids)
+        } else {
+            None
+        };
+        if cnf {
+            io::write_formula(&file_path("a_sliced.txt"), &a_sliced, proj_vars, arena);
+            io::write_formula(&file_path("b_sliced.txt"), &b_sliced, proj_vars, arena);
+        }
+    } else {
+        proj_vars = None;
+    }
+
+    // This commonality formula is not in CNF yet (when we counted above, we cloned the arena for a separate CNF transformation).
+    // We transform it here once using the total Tseitin transformation.
     // However, we do not assume a root literal yet, so we can reuse this formula for determining both commonalities and differences.
     measure_time!(diff.to_cnf_tseitin(false, arena));
 
@@ -472,36 +554,42 @@ pub(crate) fn diff(
         ),
         arena,
         false,
-        count,
+        count || projected_count,
         uvl,
         xml,
-        cnf_path("common").as_deref()
+        cnf_path("common").as_deref(),
+        proj_vars
     ));
+    log(&format!("[DIFF] #common = {}", cnt_common));
 
     // By reusing the formula and switching at the assumption, we can count or serialize removed satisfying assignments.
     let (cnt_removed, uvl_removed, xml_removed) = measure_time!(diff_helper(
         &diff.assume(a_sliced.and_not_expr(&b_sliced, arena), arena),
         arena,
         false,
-        count,
+        count || projected_count,
         uvl,
         xml,
-        cnf_path("removed").as_deref()
+        cnf_path("removed").as_deref(),
+        proj_vars
     ));
+    log(&format!("[DIFF] #removed = {}", cnt_removed));
 
     // Analogously, we can count or serialize added satisfying assignments.
     let (cnt_added, uvl_added, xml_added) = measure_time!(diff_helper(
         &diff.assume(b_sliced.and_not_expr(&a_sliced, arena), arena),
         arena,
         false,
-        count,
+        count || projected_count,
         uvl,
         xml,
-        cnf_path("added").as_deref()
+        cnf_path("added").as_deref(),
+        proj_vars
     ));
+    log(&format!("[DIFF] #added = {}", cnt_added));
 
     // Finally, we derive what fraction of the union of solutions is common, removed, or added.
-    let (common_ratio, removed_ratio, added_ratio) = if count {
+    let (common_ratio, removed_ratio, added_ratio) = if count || projected_count {
         let cnt_union = &cnt_common + &cnt_removed + &cnt_added;
         (
             BigRational::new(cnt_common.clone(), cnt_union.clone())
