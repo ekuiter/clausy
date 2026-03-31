@@ -180,8 +180,8 @@ impl Clauses {
     }
 
     /// Counts the projected number of solutions of this clause representation.
-    pub(crate) fn proj_count(&self, proj_vars: &HashSet<VarId>, proj_aux: bool) -> BigInt {
-        exec::sharp_sat(&self.to_projected_string(proj_vars, proj_aux), true)
+    pub(crate) fn proj_count(&self, proj_vars: &HashSet<VarId>) -> BigInt {
+        exec::sharp_sat(&self.to_projected_string(proj_vars), true)
     }
 
     /// Returns a CNF file of this clause representation that is annotated for projected model counting.
@@ -195,7 +195,12 @@ impl Clauses {
     /// We do not use this format here because it is specific to d4.
     /// Note that `p show` may occur anywhere according to `meta/mccomp_format_24.pdf`,
     /// but Ganak requires it to be at the end.
-    pub(crate) fn to_projected_string(&self, proj_vars: &HashSet<VarId>, proj_aux: bool) -> String {
+    pub(crate) fn to_projected_string(&self, proj_vars: &HashSet<VarId>) -> String {
+        log(&format!(
+            "[SHELL] projecting onto {} variables, slicing {} variables",
+            proj_vars.len(),
+            self.vars.len() - 1 - proj_vars.len()
+        ));
         let mut proj_vars: Vec<VarId> = proj_vars
             .iter()
             .map(|var_id| {
@@ -206,22 +211,7 @@ impl Clauses {
                     )
                 })
             })
-            .chain(if proj_aux {
-                self.vars
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, var)| matches!(var, Var::Aux(_)))
-                    .map(|(id, _)| id as VarId)
-                    .collect()
-            } else {
-                HashSet::new()
-            })
             .collect();
-        log(&format!(
-            "[SHELL] projecting onto {} variables, slicing {} variables",
-            proj_vars.len(),
-            self.vars.len() - 1 - proj_vars.len()
-        ));
         proj_vars.sort_unstable();
         let mut cnf = String::new();
         cnf.push_str("c t pmc\n");

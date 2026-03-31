@@ -156,9 +156,6 @@ fn ensure_prefix_dir(prefix: &str) {
 /// Optionally applies a CNF transformation on a cloned [Formula] and [Arena].
 /// Does not modify the given [Formula] or [Arena].
 /// If `cnf` is given, the clause representation fed to the model counter is written to that file.
-/// If `proj_aux` is true and `proj_vars` is given, all auxiliary (unnamed) variables in the
-/// clause representation are added to the projection set before counting; this is safe because
-/// Tseitin auxiliary variables are functionally determined by the named variables.
 /// This is an ugly helper function that muddles responsibilities, but it is necessary to keep the code below DRY.
 pub(crate) fn diff_helper(
     formula: &Formula,
@@ -169,7 +166,6 @@ pub(crate) fn diff_helper(
     xml: bool,
     cnf: Option<&str>,
     proj_vars: Option<&HashSet<VarId>>,
-    proj_aux: bool,
 ) -> (BigInt, Option<String>, Option<String>) {
     let minus_one = -1.to_bigint().unwrap();
     if !any_count && !uvl && !xml && cnf.is_none() {
@@ -200,7 +196,7 @@ pub(crate) fn diff_helper(
         };
         if let Some(path) = cnf {
             if let Some(proj_vars) = proj_vars {
-                std::fs::write(path, clauses.to_projected_string(proj_vars, proj_aux)).unwrap_or_else(|e| {
+                std::fs::write(path, clauses.to_projected_string(proj_vars)).unwrap_or_else(|e| {
                     panic!("failed to write projected clauses to '{path}': {e}")
                 });
             } else {
@@ -210,7 +206,7 @@ pub(crate) fn diff_helper(
         }
         let count = any_count
             .then(|| match proj_vars {
-                Some(proj_vars) => clauses.proj_count(proj_vars, proj_aux),
+                Some(proj_vars) => clauses.proj_count(proj_vars),
                 None => clauses.count(),
             })
             .inspect(|count| {
@@ -256,7 +252,6 @@ pub(crate) fn diff(
     cnf: bool,
     no_header: bool,
     cnf_dist: bool,
-    proj_aux: bool,
     is_unsafe: bool,
     arena: &mut Arena,
 ) {
@@ -498,7 +493,6 @@ pub(crate) fn diff(
                     false,
                     cnf_path("a").as_deref(),
                     None,
-                    proj_aux,
                 )
                 .0
             );
@@ -536,7 +530,6 @@ pub(crate) fn diff(
                     } else {
                         None
                     },
-                    proj_aux,
                 )
                 .0
             );
@@ -568,7 +561,6 @@ pub(crate) fn diff(
                     false,
                     cnf_path("b").as_deref(),
                     None,
-                    proj_aux,
                 )
                 .0
             );
@@ -592,7 +584,6 @@ pub(crate) fn diff(
                     } else {
                         None
                     },
-                    proj_aux,
                 )
                 .0
             );
@@ -658,6 +649,10 @@ pub(crate) fn diff(
         // If we do projected model counting, we still need to figure out which variables to slice,
         // as we haven't done this already above with FeatureIDE.
         // Fortunately, this is straightforward and consistent with FeatureIDE's slicing applied above.
+        // Note that we do not project auxiliary variables, instead we slice them completely.
+        // We must do this because we don't know which auxiliary variable is determined by which named variable.
+        // Thus, if we slice `a` and have some auxiliary variable `x` with `x<->!a`, `x` must be sliced as well,
+        // to avoid it becoming indeterminate and affecting the model count.
         proj_vars =
             if matches!(a_diff_kind, DiffKind::Slice) && matches!(b_diff_kind, DiffKind::Slice) {
                 Some(&common_var_ids)
@@ -718,7 +713,6 @@ pub(crate) fn diff(
         xml,
         cnf_path("common").as_deref(),
         proj_vars,
-        proj_aux,
     ));
     log(&format!("[DIFF] #common = {}", cnt_common));
 
@@ -738,7 +732,6 @@ pub(crate) fn diff(
             xml,
             cnf_path("removed").as_deref(),
             proj_vars,
-            proj_aux,
         ))
     } else {
         no_duration!();
@@ -762,7 +755,6 @@ pub(crate) fn diff(
             xml,
             cnf_path("added").as_deref(),
             proj_vars,
-            proj_aux,
         ))
     } else {
         no_duration!();
