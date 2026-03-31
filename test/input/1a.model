@@ -1,0 +1,10 @@
+# this (together with 1b.model) is a counterexample to the correctness of projected model counting combined with negation
+# slicing on both sides + regular model counting reports 4 common, 2 removed, and 2 added solutions (the correct result)
+# projected model counting reports 4 common, 3 removed, and 3 added solutions (the wrong result)
+# slicing only on the right side reports 7 removed, PMC wrongly reports 8 removed (common and added are correct)
+# slicing only on the right side reports 7 added, PMC wrongly reports 8 added (common and added are correct)
+# this is because negation and existential quantification do not commute
+# the common solutions do not require negation, so they are always correct
+# the solution is to either not use projected mode counting, or not use negation
+(def(a)|def(c)|!def(d))
+(!def(b)|def(c))

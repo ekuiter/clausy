@@ -1,0 +1,13 @@
+namespace Server
+
+features
+	Root {abstract true}
+		optional
+			a
+				or
+					c
+					e
+			b
+
+constraints
+	c => b

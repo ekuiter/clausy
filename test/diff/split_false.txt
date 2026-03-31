@@ -1,5 +1,5 @@
 # split: 'f' in left was split into 'f1' and 'f2' in right;
 # common: {f1, f2, b} vars, {f1, f->b} constraints; A adds equivalence f1=f2, B adds f2 unit and f2->b
-$clausy -q -i input/split_a.sat -i input/split_b.sat diff --no-header --left false --right false --variable-map input/split.map | sed 's/\(,[^,]*\)\{10\}$//'
+$clausy -q -i input/split_a.sat -i input/split_b.sat diff --count --no-header --left false --right false --variable-map input/split.map | sed 's/\(,[^,]*\)\{10\}$//'
 ---
 3,0,0,2,2,2,-1,0,1,0,-1,-1,-1,-1,-1,1,0,0

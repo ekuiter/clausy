@@ -1,0 +1,13 @@
+namespace Simple
+
+features
+	Root {abstract true}
+		optional
+			a
+			b
+				optional
+					c
+			e
+
+constraints
+	a => (c | e)

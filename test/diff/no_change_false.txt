@@ -1,4 +1,4 @@
 # no-change: same formula on both sides; all configurations in common, none lost or gained
-$clausy -q -i input/rename_a.sat -i input/rename_a.sat diff --no-header --left false --right false | sed 's/\(,[^,]*\)\{10\}$//'
+$clausy -q -i input/rename_a.sat -i input/rename_a.sat diff --count --no-header --left false --right false | sed 's/\(,[^,]*\)\{10\}$//'
 ---
 2,0,0,2,0,0,-1,0,1,0,-1,-1,-1,-1,-1,1,0,0
