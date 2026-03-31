@@ -18,12 +18,12 @@ fi
 
 make >/dev/null 2>&1
 f=($(cd "$1" && find . ! -empty -type f -name '*.model' | sort -V | tr '\n' ' '))
-echo old_revision,new_revision,left_diff_kind,right_diff_kind,engine,common_features,removed_features,added_features,common_constraints,removed_constraints,added_constraints,lost_products,removed_products,common_products,added_products,gained_products,old_revision_count,old_revision_slice_count,new_revision_count,new_revision_slice_count,common_products_count,removed_products_count,added_products_count,old_revision_slice_duration,new_revision_slice_duration,old_revision_count_duration,old_revision_slice_count_duration,new_revision_count_duration,new_revision_slice_count_duration,tseitin_duration,common_products_count_duration,removed_products_count_duration,added_products_count_duration,total_duration
+echo old_revision,new_revision,left_diff_kind,right_diff_kind,engine,common_features,removed_features,added_features,common_constraints,removed_constraints,added_constraints,lost_solutions,removed_solutions,common_solutions,added_solutions,gained_solutions,old_revision_count,old_revision_slice_count,new_revision_count,new_revision_slice_count,common_solutions_count,removed_solutions_count,added_solutions_count,old_revision_slice_duration,new_revision_slice_duration,old_revision_count_duration,old_revision_slice_count_duration,new_revision_count_duration,new_revision_slice_count_duration,tseitin_duration,common_solutions_count_duration,removed_solutions_count_duration,added_solutions_count_duration,total_duration
 for left in false true slice; do
     for right in false true slice; do
 # for left in false slice; do
 #     for right in false slice; do
-#         if [[ $left == false && $right == false ]]; then continue; fi
+        # if [[ $left == false && $right == false ]]; then continue; fi
         for ((i = 0; i < ${#f[@]}-1; i++)); do
             for engine in count projected-count; do
                 cmd=(timeout -s KILL "$TIMEOUT" "${CLAUSY[@]}" -i "$DIR/${f[i]}" -i "$DIR/${f[i+1]}" diff --no-header --left "$left" --right "$right" "--$engine")
