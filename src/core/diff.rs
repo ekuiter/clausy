@@ -253,6 +253,7 @@ pub(crate) fn diff(
     no_header: bool,
     cnf_dist: bool,
     is_unsafe: bool,
+    negate: bool,
     arena: &mut Arena,
 ) {
     // Ensure both formulas are in proto-CNF form.
@@ -480,7 +481,7 @@ pub(crate) fn diff(
 
     // If we perform slicing, we count the original and sliced formulas here to measure the impact of slicing.
     if count || projected_count {
-        if let DiffKind::Slice = a_diff_kind {
+        if matches!(a_diff_kind, DiffKind::Slice) || !negate {
             // Here we count the original and sliced formulas for `a`.
             // First, we can easily count `a`, which has as `sub_vars` the common variables and those exclusive to `a`.
             cnt_a = measure_time!(
@@ -497,59 +498,70 @@ pub(crate) fn diff(
                 .0
             );
             log(&format!("[DIFF] #a = {}", cnt_a));
-            // Let's assume for now we don't do projected model counting, so any slicing is performed above with FeatureIDE.
-            // In that case, to count the sliced formula, the subtlety mentioned above comes into play:
-            // `a_sliced` has as `sub_vars` the common variables and possibly determinate variables exclusive to `b`.
-            // In particular, we know here that `a_sliced` has actually been sliced (due to the enclosing `if` statements),
-            // and it does not refer anymore to variables exclusive to `a`, hence the invariant is not violated here and we can count `a_sliced`.
-            // Also, we need not worry about the variables exclusive to `b`, as they are determinate and they don't affect the model count.
-            // Thus, we get a fair comparison between `a` and `a_sliced`, whose model counts only differ in the variables exclusive to `a`.
-            // We can map that easily onto a number between 0 and 1 with the `ratio` function from above.
-            // Also, because `a_sliced` has been sliced by FeatureIDE, it is already in CNF and we need no further transformation.
-            // Now let's assume that we do projected model counting, in which case `a_sliced` has not been sliced yet.
-            // `a_sliced` then has as `sub_vars` the common variables, the variables exclusive to `a`,
-            // and possibly determinate variables exclusive to `b`, and we simply slice away the `a`-exclusive variables now.
-            // Slicing those variables away is equivalent to projecting down to any variables referred to by `b`.
-            // In addition, we need to apply a Tseitin transformation to establish CNF.
-            let proj_vars = a_sliced
-                .sub_var_ids
-                .difference(&a_var_ids)
-                .cloned()
-                .collect();
-            cnt_a_sliced = measure_time!(
-                diff_helper(
-                    &a_sliced,
-                    arena,
-                    projected_count.then_some(cnf_transform),
-                    true,
-                    false,
-                    false,
-                    cnf_path("a_sliced").as_deref(),
-                    if projected_count {
-                        Some(&proj_vars)
-                    } else {
-                        None
-                    },
-                )
-                .0
-            );
-            log(&format!("[DIFF] #a_sliced = {}", cnt_a_sliced));
-            // Because we cannot divide by zero, we do not report a ratio if nothing was sliced.
-            if a_vars > 0 && cnt_a.is_positive() && cnt_a_sliced.is_positive() {
-                lost_ratio = ratio(cnt_a.clone(), cnt_a_sliced.clone(), a_vars);
+            if matches!(a_diff_kind, DiffKind::Slice) {
+                // Let's assume for now we don't do projected model counting, so any slicing was performed above with FeatureIDE.
+                // In that case, to count the sliced formula, the subtlety mentioned above comes into play:
+                // `a_sliced` has as `sub_vars` the common variables and possibly determinate variables exclusive to `b`.
+                // In particular, we know here that `a_sliced` has actually been sliced (due to the enclosing `if` statements),
+                // and it does not refer anymore to variables exclusive to `a`, hence the invariant is not violated here and we can count `a_sliced`.
+                // Also, we need not worry about the variables exclusive to `b`, as they are determinate and they don't affect the model count.
+                // Thus, we get a fair comparison between `a` and `a_sliced`, whose model counts only differ in the variables exclusive to `a`.
+                // We can map that easily onto a number between 0 and 1 with the `ratio` function from above.
+                // Also, because `a_sliced` has been sliced by FeatureIDE, it is already in CNF and we need no further transformation.
+                // Now let's assume that we do projected model counting, in which case `a_sliced` has not been sliced yet.
+                // `a_sliced` then has as `sub_vars` the common variables, the variables exclusive to `a`,
+                // and possibly determinate variables exclusive to `b`, and we simply slice away the `a`-exclusive variables now.
+                // Slicing those variables away is equivalent to projecting down to any variables referred to by `b`.
+                // In addition, we need to apply a Tseitin transformation to establish CNF.
+                let proj_vars = a_sliced
+                    .sub_var_ids
+                    .difference(&a_var_ids)
+                    .cloned()
+                    .collect();
+                cnt_a_sliced = measure_time!(
+                    diff_helper(
+                        &a_sliced,
+                        arena,
+                        projected_count.then_some(cnf_transform),
+                        true,
+                        false,
+                        false,
+                        cnf_path("a_sliced").as_deref(),
+                        if projected_count {
+                            Some(&proj_vars)
+                        } else {
+                            None
+                        },
+                    )
+                    .0
+                );
+                log(&format!("[DIFF] #a_sliced = {}", cnt_a_sliced));
+                // Because we cannot divide by zero, we do not report a ratio if nothing was sliced.
+                if a_vars > 0 && cnt_a.is_positive() && cnt_a_sliced.is_positive() {
+                    lost_ratio = ratio(cnt_a.clone(), cnt_a_sliced.clone(), a_vars);
+                } else {
+                    log(&format!(
+                        "[DIFF] cannot compute lost solutions, omitting lost solutions from output"
+                    ));
+                }
             } else {
-                log(&format!(
-                    "[DIFF] cannot compute lost solutions, omitting lost solutions from output"
-                ));
+                // Entering this case means that we want to avoid negation below.
+                // To do so, we have to count `a` here, even though we are not interested in the lost ratio.
+                // Because we did not slice, both counts are identical (`a` = `a_sliced`).
+                cnt_a_sliced = cnt_a.clone();
+                no_duration!();
             }
-        } else {
+        }
+        if !matches!(a_diff_kind, DiffKind::Slice) {
             log(&format!(
                 "[DIFF] no slicing requested on the left, omitting lost solutions from output"
             ));
-            no_duration!();
-            no_duration!();
+            if negate {
+                no_duration!();
+                no_duration!();
+            }
         }
-        if let DiffKind::Slice = b_diff_kind {
+        if matches!(b_diff_kind, DiffKind::Slice) || !negate {
             // This logic is symmetric to the logic above.
             cnt_b = measure_time!(
                 diff_helper(
@@ -565,42 +577,50 @@ pub(crate) fn diff(
                 .0
             );
             log(&format!("[DIFF] #b = {}", cnt_b));
-            let proj_vars = b_sliced
-                .sub_var_ids
-                .difference(&b_var_ids)
-                .cloned()
-                .collect();
-            cnt_b_sliced = measure_time!(
-                diff_helper(
-                    &b_sliced,
-                    arena,
-                    projected_count.then_some(cnf_transform),
-                    true,
-                    false,
-                    false,
-                    cnf.then(|| cnf_path("b_sliced")).flatten().as_deref(),
-                    if projected_count {
-                        Some(&proj_vars)
-                    } else {
-                        None
-                    },
-                )
-                .0
-            );
-            log(&format!("[DIFF] #b_sliced = {}", cnt_b_sliced));
-            if b_vars > 0 && cnt_b.is_positive() && cnt_b_sliced.is_positive() {
-                gained_ratio = ratio(cnt_b.clone(), cnt_b_sliced.clone(), b_vars);
+            if matches!(b_diff_kind, DiffKind::Slice) {
+                let proj_vars = b_sliced
+                    .sub_var_ids
+                    .difference(&b_var_ids)
+                    .cloned()
+                    .collect();
+                cnt_b_sliced = measure_time!(
+                    diff_helper(
+                        &b_sliced,
+                        arena,
+                        projected_count.then_some(cnf_transform),
+                        true,
+                        false,
+                        false,
+                        cnf.then(|| cnf_path("b_sliced")).flatten().as_deref(),
+                        if projected_count {
+                            Some(&proj_vars)
+                        } else {
+                            None
+                        },
+                    )
+                    .0
+                );
+                log(&format!("[DIFF] #b_sliced = {}", cnt_b_sliced));
+                if b_vars > 0 && cnt_b.is_positive() && cnt_b_sliced.is_positive() {
+                    gained_ratio = ratio(cnt_b.clone(), cnt_b_sliced.clone(), b_vars);
+                } else {
+                    log(&format!(
+                        "[DIFF] cannot compute gained solutions, omitting gained solutions from output"
+                    ));
+                }
             } else {
-                log(&format!(
-                    "[DIFF] cannot compute gained solutions, omitting gained solutions from output"
-                ));
+                cnt_b_sliced = cnt_b.clone();
+                no_duration!();
             }
-        } else {
+        }
+        if !matches!(b_diff_kind, DiffKind::Slice) {
             log(&format!(
                 "[DIFF] no slicing requested on the right, omitting gained solutions from output"
             ));
-            no_duration!();
-            no_duration!();
+            if negate {
+                no_duration!();
+                no_duration!();
+            }
         }
     } else {
         log(&format!(
@@ -692,8 +712,8 @@ pub(crate) fn diff(
         proj_vars = None;
     }
 
-    // In case of distributive transformation, we need to re-transform the formula.
-    // In case of Tseitin transformation, we can reuse `diff_base` as described above.
+    // In case of distributive transformation, we need to re-transform the formula three times.
+    // In case of Tseitin transformation, we can reuse `diff_base` for all three formulas as described above.
     diff = if cnf_dist {
         a_sliced.and(&b_sliced, arena)
     } else {
@@ -716,51 +736,76 @@ pub(crate) fn diff(
     ));
     log(&format!("[DIFF] #common = {}", cnt_common));
 
-    // By reusing the formula and switching the assumption (if possible), we can count or serialize removed satisfying assignments.
-    diff = if cnf_dist {
-        a_sliced.and_not(&b_sliced, arena)
-    } else {
-        diff_base.assume(a_sliced.and_not_expr(&b_sliced, arena), arena)
-    };
-    let (cnt_removed, uvl_removed, xml_removed) = if compute_removed {
-        measure_time!(diff_helper(
-            &diff,
-            arena,
-            cnf_dist.then_some(DiffTransform::Dist),
-            count || projected_count,
-            uvl,
-            xml,
-            cnf_path("removed").as_deref(),
-            proj_vars,
-        ))
-    } else {
-        no_duration!();
-        (minus_one.clone(), None, None)
-    };
-    log(&format!("[DIFF] #removed = {}", cnt_removed));
+    // Here we have to decide whether to use the big guns (negation-based reasoning) or avoid it.
+    // The general idea is as follows:
+    // We can obviously count the number of removed solutions by counting the solutions of the formula `a&!b`.
+    // However, this requires negating `b`, which is very expensive with a distributive transformation.
+    // With a (total) Tseitin transformation, it is very cheap (we can just flip the root literal).
+    // However, even then we still have to count another formula.
+    // We can fully circumvent negation by applying the simple counting identity `|a&!b| = |a| - |a&b|`.
+    // The ratio of removed solutions is then `|a&!b| / |a| = 1 - |a&b| / |a|`.
+    // This is a very elegant solution that avoids repeated, expensive distributive transformation and two calls to a model counter.
+    // However, there are still applications for negation:
+    // First, if we want to serialize the removed and added solutions, we need to use negation to actually reify the differences.
+    // If we are only interested in serialization, we can thus fully avoid model counting and slicing as the only bottleneck.
+    // Second, if we merely want to classify the difference with a SAT solver (no quantification), we need negation as well.
+    // This is particularly interesting if model counting does not scale to a formula, but a SAT solver does.
+    // Third, it could be the case that `a&!b` happens to scale better with a model counter than `a`,
+    // in which case negation is preferred (this was the original idea of [count_inc]).
+    let (mut cnt_removed, mut uvl_removed, mut xml_removed) = (minus_one.clone(), None, None);
+    let (mut cnt_added, mut uvl_added, mut xml_added) = (minus_one.clone(), None, None);
+    if negate {
+        // By reusing the formula and switching the assumption (if possible), we can count or serialize removed satisfying assignments.
+        diff = if cnf_dist {
+            a_sliced.and_not(&b_sliced, arena)
+        } else {
+            diff_base.assume(a_sliced.and_not_expr(&b_sliced, arena), arena)
+        };
+        if compute_removed {
+            (cnt_removed, uvl_removed, xml_removed) = measure_time!(diff_helper(
+                &diff,
+                arena,
+                cnf_dist.then_some(DiffTransform::Dist),
+                count || projected_count,
+                uvl,
+                xml,
+                cnf_path("removed").as_deref(),
+                proj_vars,
+            ))
+        } else {
+            no_duration!();
+        };
+        log(&format!("[DIFF] #removed = {}", cnt_removed));
 
-    // Analogously, we can count or serialize added satisfying assignments.
-    diff = if cnf_dist {
-        b_sliced.and_not(&a_sliced, arena)
-    } else {
-        diff_base.assume(b_sliced.and_not_expr(&a_sliced, arena), arena)
-    };
-    let (cnt_added, uvl_added, xml_added) = if compute_added {
-        measure_time!(diff_helper(
-            &diff,
-            arena,
-            cnf_dist.then_some(DiffTransform::Dist),
-            count || projected_count,
-            uvl,
-            xml,
-            cnf_path("added").as_deref(),
-            proj_vars,
-        ))
-    } else {
+        // Analogously, we can count or serialize added satisfying assignments.
+        diff = if cnf_dist {
+            b_sliced.and_not(&a_sliced, arena)
+        } else {
+            diff_base.assume(b_sliced.and_not_expr(&a_sliced, arena), arena)
+        };
+        if compute_added {
+            (cnt_added, uvl_added, xml_added) = measure_time!(diff_helper(
+                &diff,
+                arena,
+                cnf_dist.then_some(DiffTransform::Dist),
+                count || projected_count,
+                uvl,
+                xml,
+                cnf_path("added").as_deref(),
+                proj_vars,
+            ))
+        } else {
+            no_duration!();
+        };
+        log(&format!("[DIFF] #added = {}", cnt_added));
+    } else if count || projected_count {
+        cnt_removed = cnt_a_sliced.clone() - cnt_common.clone();
+        log(&format!("[DIFF] #removed = {}", cnt_removed));
+        cnt_added = cnt_b_sliced.clone() - cnt_common.clone();
+        log(&format!("[DIFF] #added = {}", cnt_added));
         no_duration!();
-        (minus_one.clone(), None, None)
-    };
-    log(&format!("[DIFF] #added = {}", cnt_added));
+        no_duration!();
+    }
 
     // Finally, we derive what fraction of the union of solutions is common, removed, or added.
     let (common_ratio, removed_ratio, added_ratio) =

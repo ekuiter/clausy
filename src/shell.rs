@@ -404,21 +404,13 @@ pub struct DiffArgs {
     #[arg(long, default_value = "slice", value_parser = parse_diff_mode)]
     right: DiffMode,
 
-    /// Output prefix for optional differencing artifacts.
-    ///
-    /// This prefix is prepended to all differencing artifact file names.
-    /// When the prefix contains a `/`, the directory portion is created, if it does not exist.
-    /// If no prefix is given, no differencing artifacts are written.
-    #[arg(long)]
-    output: Option<String>,
-
     /// Use model counting.
     ///
     /// With this flag, we quantify the differences between both formulas with a regular (non-projected) model counter.
     /// If the left or right [DiffMode] requests slicing, we perform it in a preliminary and separate step with FeatureIDE.
     /// FeatureIDE uses resolution-based slicing, which internally uses a distributive transformation to establish CNF,
     /// so it does not generally scale to complex formulas.
-    /// Useful if only serialization of differences is requested.
+    /// Can be omitted, e.g., if only serialization of differences is requested.
     #[arg(long)]
     count: bool,
 
@@ -431,33 +423,43 @@ pub struct DiffArgs {
     #[arg(long, conflicts_with_all = ["count", "uvl", "xml"])]
     projected_count: bool,
 
-    /// Do not slice auxiliary variables when using projected model counting.
-    ///
-    /// With this flag, we do not slice auxiliary variables when calling a projected model counter in the last step.
-    /// By default, we remove all auxiliary variables in that step.
-    /// This does not affect the correctness of the results, only the scalability.
-    /// This flag does not make sense when using distributive CNF transformation.
-    #[arg(long, requires = "projected_count", conflicts_with = "cnf_dist")]
-    proj_aux: bool,
-
     /// Use distributive CNF transformation instead of Tseitin transformation.
     ///
     /// With this flag, all intermediate formulas are transformed using the distributive CNF transformation.
     /// Use with caution because these formulas will blow up exponentially if using negation-based reasoning.
+    /// Even without negation-based reasoning, this can easily blow up on larger formulas.
     /// By default, we use the Tseitin transformation to avoid such blowup.
     /// This does not affect the correctness of the results, only the scalability.
     #[arg(long, alias = "dist")]
     cnf_dist: bool,
-    
+
+    /// Use negation-based reasoning.
+    ///
+    /// With this flag, negations will be used to construct intermediate difference-encoding formulas.
+    /// That is, this will encode removed solutions by negating the right formula, and vice versa.
+    /// By default, negations are avoided by computing the number of removed and added solutions from other counted formulas.
+    /// This default only works with for pure quantification tasks that scale in terms of model counting.
+    /// In contrast, to serialize difference models or apply SAT-based classification, negation-based reasoning is needed.
+    #[arg(long)]
+    negate: bool,
+
     /// Report results even if they may be incorrect.
     ///
     /// With this flag, results will be reported even when they are not guaranteed to be mathematically incorrect.
     /// This is known to happen in the following case:
-    /// Projected model counting returns incorrect results for some computations when combined with negation-based reasoning.
+    /// Projected model counting returns incorrect results for several computations when combined with negation-based reasoning.
     /// By default, such possibly incorrect results are omitted from the output.
     /// This flag is intended for evaluations that assess the deviation from the correct result.
-    #[arg(long = "unsafe", requires = "projected_count")]
+    #[arg(long = "unsafe", requires = "projected_count", requires = "negate")]
     is_unsafe: bool,
+
+    /// Output prefix for optional differencing artifacts.
+    ///
+    /// This prefix is prepended to all differencing artifact file names.
+    /// When the prefix contains a `/`, the directory portion is created, if it does not exist.
+    /// If no prefix is given, no differencing artifacts are written.
+    #[arg(long)]
+    output: Option<String>,
 
     /// Write variable list files.
     #[arg(long, requires = "output")]
@@ -468,11 +470,11 @@ pub struct DiffArgs {
     constraints: bool,
 
     /// Serialize formula differences as UVL.
-    #[arg(long, requires = "output")]
+    #[arg(long, requires = "output", requires = "negate")]
     uvl: bool,
 
     /// Serialize formula differences as XML.
-    #[arg(long, requires = "output")]
+    #[arg(long, requires = "output", requires = "negate")]
     xml: bool,
 
     /// Write intermediate formula and clause representation files.
@@ -749,7 +751,7 @@ fn execute_action(action: Action, formulas: &mut [Formula], arena: &mut Arena) {
             let clauses = formula.to_clauses(arena);
             let projection = count_projection_vars(&args, formula, arena);
             if let Some(proj_vars) = projection {
-                println!("{}", clauses.proj_count(&proj_vars, false));
+                println!("{}", clauses.proj_count(&proj_vars));
             } else {
                 println!("{}", clauses.count());
             }
@@ -799,8 +801,8 @@ fn execute_action(action: Action, formulas: &mut [Formula], arena: &mut Arena) {
                 args.cnf,
                 args.no_header,
                 args.cnf_dist,
-                args.proj_aux,
                 args.is_unsafe,
+                args.negate,
                 arena,
             );
         }
