@@ -198,15 +198,9 @@ pub(crate) fn diff_helper(
             }
             None => formula.to_clauses(arena),
         };
-        let proj_vars_with_aux = if proj_aux {
-            proj_vars.map(|proj_vars| clauses.with_aux(proj_vars))
-        } else {
-            None
-        };
-        let proj_vars = proj_vars_with_aux.as_ref().or(proj_vars);
         if let Some(path) = cnf {
             if let Some(proj_vars) = proj_vars {
-                std::fs::write(path, clauses.to_projected_string(proj_vars)).unwrap_or_else(|e| {
+                std::fs::write(path, clauses.to_projected_string(proj_vars, proj_aux)).unwrap_or_else(|e| {
                     panic!("failed to write projected clauses to '{path}': {e}")
                 });
             } else {
@@ -216,7 +210,7 @@ pub(crate) fn diff_helper(
         }
         let count = any_count
             .then(|| match proj_vars {
-                Some(proj_vars) => clauses.proj_count(proj_vars),
+                Some(proj_vars) => clauses.proj_count(proj_vars, proj_aux),
                 None => clauses.count(),
             })
             .inspect(|count| {

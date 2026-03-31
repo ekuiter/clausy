@@ -749,7 +749,7 @@ fn execute_action(action: Action, formulas: &mut [Formula], arena: &mut Arena) {
             let clauses = formula.to_clauses(arena);
             let projection = count_projection_vars(&args, formula, arena);
             if let Some(proj_vars) = projection {
-                println!("{}", clauses.proj_count(&proj_vars));
+                println!("{}", clauses.proj_count(&proj_vars, false));
             } else {
                 println!("{}", clauses.count());
             }
