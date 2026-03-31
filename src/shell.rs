@@ -114,7 +114,7 @@ pub struct ToolOptions {
     pub io_path: String,
 
     /// Force parsing all input files through the FeatureIDE I/O interface.
-    #[arg(long, default_value_t = false)]
+    #[arg(long)]
     pub force_io: bool,
 }
 
@@ -152,7 +152,7 @@ pub enum D4ProjectionMode {
 #[command(next_help_heading = "Output Options")]
 pub struct OutputOptions {
     /// Print expression identifiers, useful when debugging
-    #[arg(long, default_value_t = false)]
+    #[arg(long)]
     pub print_ids: bool,
 
     /// Prefix for auxiliary variables introduced by Tseitin transformation
@@ -160,7 +160,7 @@ pub struct OutputOptions {
     pub aux_prefix: String,
 
     /// Disable optional SAT-style informational logs (`c ...`)
-    #[arg(short = 'q', long, default_value_t = false)]
+    #[arg(short = 'q', long)]
     pub quiet: bool,
 }
 
@@ -419,7 +419,7 @@ pub struct DiffArgs {
     /// FeatureIDE uses resolution-based slicing, which internally uses a distributive transformation to establish CNF,
     /// so it does not generally scale to complex formulas.
     /// Useful if only serialization of differences is requested.
-    #[arg(long, default_value_t = false)]
+    #[arg(long)]
     count: bool,
 
     /// Use projected model counting.
@@ -428,7 +428,7 @@ pub struct DiffArgs {
     /// That means we perform slicing and counting in one combined step, skipping FeatureIDE.
     /// Incompatible with the `--uvl` and `--xml` serialization options,
     /// as our current architecture relies on counting and serialization being performed in separate steps.
-    #[arg(long, default_value_t = false, conflicts_with_all = ["count", "uvl", "xml"])]
+    #[arg(long, conflicts_with_all = ["count", "uvl", "xml"])]
     projected_count: bool,
 
     /// Do not slice auxiliary variables when using projected model counting.
@@ -437,12 +437,7 @@ pub struct DiffArgs {
     /// By default, we remove all auxiliary variables in that step.
     /// This does not affect the correctness of the results, only the scalability.
     /// This flag does not make sense when using distributive CNF transformation.
-    #[arg(
-        long,
-        default_value_t = false,
-        requires = "projected_count",
-        conflicts_with = "cnf_dist"
-    )]
+    #[arg(long, requires = "projected_count", conflicts_with = "cnf_dist")]
     proj_aux: bool,
 
     /// Use distributive CNF transformation instead of Tseitin transformation.
@@ -451,7 +446,7 @@ pub struct DiffArgs {
     /// Use with caution because these formulas will blow up exponentially if using negation-based reasoning.
     /// By default, we use the Tseitin transformation to avoid such blowup.
     /// This does not affect the correctness of the results, only the scalability.
-    #[arg(long, default_value_t = false, alias = "dist")]
+    #[arg(long, alias = "dist")]
     cnf_dist: bool,
     
     /// Report results even if they may be incorrect.
@@ -461,31 +456,31 @@ pub struct DiffArgs {
     /// Projected model counting returns incorrect results for some computations when combined with negation-based reasoning.
     /// By default, such possibly incorrect results are omitted from the output.
     /// This flag is intended for evaluations that assess the deviation from the correct result.
-    #[arg(long = "unsafe", requires = "projected_count", default_value_t = false)]
+    #[arg(long = "unsafe", requires = "projected_count")]
     is_unsafe: bool,
 
     /// Write variable list files.
-    #[arg(long, requires = "output", default_value_t = false)]
+    #[arg(long, requires = "output")]
     variables: bool,
 
     /// Write constraint list files.
-    #[arg(long, requires = "output", default_value_t = false)]
+    #[arg(long, requires = "output")]
     constraints: bool,
 
     /// Serialize formula differences as UVL.
-    #[arg(long, requires = "output", default_value_t = false)]
+    #[arg(long, requires = "output")]
     uvl: bool,
 
     /// Serialize formula differences as XML.
-    #[arg(long, requires = "output", default_value_t = false)]
+    #[arg(long, requires = "output")]
     xml: bool,
 
     /// Write intermediate formula and clause representation files.
-    #[arg(long, requires = "output", default_value_t = false)]
+    #[arg(long, requires = "output")]
     cnf: bool,
 
     /// Suppress the CSV header line in the output.
-    #[arg(long, default_value_t = false)]
+    #[arg(long)]
     no_header: bool,
 
     /// Path to a variable mapping file for handling renamed, split, or merged variables.
