@@ -1,4 +1,4 @@
 # rename: 'a' in left renamed to 'x' in right; after renaming, formulas are identical
-$clausy -q -i input/rename_a.sat -i input/rename_b.sat diff --count --no-header --left false --right false --variable-map input/rename.map | sed 's/\(,[^,]*\)\{10\}$//'
+$clausy -q -i input/rename_a.sat -i input/rename_b.sat diff --count --no-header --left false --right false --negate --variable-map input/rename.map | sed 's/\(,[^,]*\)\{10\}$//'
 ---
 2,0,0,2,0,0,,0,1,0,,,,,,1,0,0

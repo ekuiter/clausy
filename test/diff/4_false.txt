@@ -1,5 +1,5 @@
 # pair 4 (.sat): .sat files cannot be sliced by FeatureIDE; fixed(false) is used as baseline
 # forced-false gives 0 common, 5 removed, 11 added
-$clausy -q -i input/4a.sat -i input/4b.sat diff --no-header --left false --right false --count | sed 's/\(,[^,]*\)\{10\}$//'
+$clausy -q -i input/4a.sat -i input/4b.sat diff --no-header --left false --right false --count --negate | sed 's/\(,[^,]*\)\{10\}$//'
 ---
 3,1,1,1,2,1,,0.3125,0,0.6875,,,,,,0,5,11

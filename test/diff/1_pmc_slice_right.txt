@@ -1,4 +1,4 @@
 # pair 1 (.model): PMC with slicing only the right side wrongly reports 8 removed instead of 7
-$clausy -q -i input/1a.model -i input/1b.model diff --no-header --left false --right slice --projected-count --unsafe | sed 's/\(,[^,]*\)\{10\}$//'
+$clausy -q -i input/1a.model -i input/1b.model diff --no-header --left false --right slice --projected-count --negate --unsafe | sed 's/\(,[^,]*\)\{10\}$//'
 ---
 3,1,1,0,2,2,,0.5714285714285714,0.2857142857142857,0.14285714285714285,0.7369655941662062,,,10,6,4,8,2

@@ -1,5 +1,5 @@
 # pair 2 (.uvl): projected model counting gives the wrong result
 # PMC reports 4 common, 3 removed, 3 added instead of the correct 4/2/2
-$clausy -q -i input/2a.uvl -i input/2b.uvl diff --no-header --left slice --right slice --projected-count --unsafe | sed 's/\(,[^,]*\)\{10\}$//'
+$clausy -q -i input/2a.uvl -i input/2b.uvl diff --no-header --left slice --right slice --projected-count --negate --unsafe | sed 's/\(,[^,]*\)\{10\}$//'
 ---
 4,1,1,1,3,3,0.874469117916141,0.3,0.4,0.3,0.7369655941662062,11,6,10,6,4,3,3

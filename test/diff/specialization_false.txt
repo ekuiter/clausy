@@ -1,5 +1,5 @@
 # specialization: A has 2 configs (a is required, b is free), B has 1 config (a and b required)
 # going from A to B loses one config (a=T,b=F), gains nothing
-$clausy -q -i input/spec_a.sat -i input/spec_b.sat diff --count --no-header --left false --right false | sed 's/\(,[^,]*\)\{10\}$//'
+$clausy -q -i input/spec_a.sat -i input/spec_b.sat diff --count --no-header --left false --right false --negate | sed 's/\(,[^,]*\)\{10\}$//'
 ---
 2,0,0,1,1,1,,0.5,0.5,0,,,,,,1,1,0
