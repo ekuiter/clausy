@@ -223,6 +223,22 @@ impl Clauses {
         cnf.push_str("0\n");
         cnf
     }
+
+    /// Extends a projection set to also include all auxiliary variables in this clause representation.
+    ///
+    /// Auxiliary variables are functionally determined by named variables, so adding them to the
+    /// projection set does not change the projected model count
+    /// (provided that an equi-countable Tseitin transformation is performed).
+    pub(crate) fn with_aux(&self, proj_vars: &HashSet<VarId>) -> HashSet<VarId> {
+        self.var_remap
+            .iter()
+            .filter(|(&arena_id, &clause_id)| {
+                proj_vars.contains(&arena_id)
+                    || matches!(self.vars[clause_id as usize], Var::Named(_))
+            })
+            .map(|(&arena_id, _)| arena_id)
+            .collect()
+    }
 }
 
 impl<'a> From<FormulaRef<'a>> for Clauses {

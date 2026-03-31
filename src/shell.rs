@@ -431,6 +431,39 @@ pub struct DiffArgs {
     #[arg(long, default_value_t = false, conflicts_with_all = ["count", "uvl", "xml"])]
     projected_count: bool,
 
+    /// Do not slice auxiliary variables when using projected model counting.
+    ///
+    /// With this flag, we do not slice auxiliary variables when calling a projected model counter in the last step.
+    /// By default, we remove all auxiliary variables in that step.
+    /// This does not affect the correctness of the results, only the scalability.
+    /// This flag does not make sense when using distributive CNF transformation.
+    #[arg(
+        long,
+        default_value_t = false,
+        requires = "projected_count",
+        conflicts_with = "cnf_dist"
+    )]
+    proj_aux: bool,
+
+    /// Use distributive CNF transformation instead of Tseitin transformation.
+    ///
+    /// With this flag, all intermediate formulas are transformed using the distributive CNF transformation.
+    /// Use with caution because these formulas will blow up exponentially if using negation-based reasoning.
+    /// By default, we use the Tseitin transformation to avoid such blowup.
+    /// This does not affect the correctness of the results, only the scalability.
+    #[arg(long, default_value_t = false, alias = "dist")]
+    cnf_dist: bool,
+    
+    /// Report results even if they may be incorrect.
+    ///
+    /// With this flag, results will be reported even when they are not guaranteed to be mathematically incorrect.
+    /// This is known to happen in the following case:
+    /// Projected model counting returns incorrect results for some computations when combined with negation-based reasoning.
+    /// By default, such possibly incorrect results are omitted from the output.
+    /// This flag is intended for evaluations that assess the deviation from the correct result.
+    #[arg(long = "unsafe", requires = "projected_count", default_value_t = false)]
+    is_unsafe: bool,
+
     /// Write variable list files.
     #[arg(long, requires = "output", default_value_t = false)]
     variables: bool,
@@ -770,6 +803,9 @@ fn execute_action(action: Action, formulas: &mut [Formula], arena: &mut Arena) {
                 args.xml,
                 args.cnf,
                 args.no_header,
+                args.cnf_dist,
+                args.proj_aux,
+                args.is_unsafe,
                 arena,
             );
         }

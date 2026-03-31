@@ -111,6 +111,15 @@ pub(crate) fn apply_var_maps(
     b.ensure_proto_cnf(arena);
 }
 
+/// Which CNF transformation to apply to a formula in [diff_helper].
+#[derive(Clone, Copy)]
+pub(crate) enum DiffTransform {
+    /// Apply Tseitin transformation (introduces auxiliary variables, scales well).
+    Tseitin,
+    /// Apply distributive transformation (no auxiliary variables, may blow up exponentially).
+    Dist,
+}
+
 /// How foreign variables are handled when differencing two formulas.
 pub(crate) enum DiffKind {
     /// Fixes all foreign variables to a default boolean value, with optional per-variable overrides.
@@ -144,19 +153,23 @@ fn ensure_prefix_dir(prefix: &str) {
 
 /// Returns the number of solutions of a given formula or serializes it.
 ///
-/// Optionally uses a Tseitin transformation into CNF on a cloned [Formula] and [Arena].
+/// Optionally applies a CNF transformation on a cloned [Formula] and [Arena].
 /// Does not modify the given [Formula] or [Arena].
-/// If `clauses_path` is given, the clauses representation fed to the model counter is written to that file.
+/// If `cnf` is given, the clause representation fed to the model counter is written to that file.
+/// If `proj_aux` is true and `proj_vars` is given, all auxiliary (unnamed) variables in the
+/// clause representation are added to the projection set before counting; this is safe because
+/// Tseitin auxiliary variables are functionally determined by the named variables.
 /// This is an ugly helper function that muddles responsibilities, but it is necessary to keep the code below DRY.
 pub(crate) fn diff_helper(
     formula: &Formula,
     arena: &Arena,
-    tseitin_transform: bool,
+    cnf_transform: Option<DiffTransform>,
     any_count: bool,
     uvl: bool,
     xml: bool,
     cnf: Option<&str>,
     proj_vars: Option<&HashSet<VarId>>,
+    proj_aux: bool,
 ) -> (BigInt, Option<String>, Option<String>) {
     let minus_one = -1.to_bigint().unwrap();
     if !any_count && !uvl && !xml && cnf.is_none() {
@@ -170,15 +183,27 @@ pub(crate) fn diff_helper(
                 arena,
             );
         }
-        let clauses;
-        if tseitin_transform {
-            let mut clone = formula.clone();
-            let mut arena = arena.clone();
-            clone.to_cnf_tseitin(true, &mut arena);
-            clauses = clone.to_clauses(&arena);
+        let clauses = match cnf_transform {
+            Some(DiffTransform::Tseitin) => {
+                let mut clone = formula.clone();
+                let mut arena = arena.clone();
+                clone.to_cnf_tseitin(true, &mut arena);
+                clone.to_clauses(&arena)
+            }
+            Some(DiffTransform::Dist) => {
+                let mut clone = formula.clone();
+                let mut arena = arena.clone();
+                clone.to_cnf_dist(&mut arena);
+                clone.to_clauses(&arena)
+            }
+            None => formula.to_clauses(arena),
+        };
+        let proj_vars_with_aux = if proj_aux {
+            proj_vars.map(|proj_vars| clauses.with_aux(proj_vars))
         } else {
-            clauses = formula.to_clauses(arena);
-        }
+            None
+        };
+        let proj_vars = proj_vars_with_aux.as_ref().or(proj_vars);
         if let Some(path) = cnf {
             if let Some(proj_vars) = proj_vars {
                 std::fs::write(path, clauses.to_projected_string(proj_vars)).unwrap_or_else(|e| {
@@ -236,6 +261,9 @@ pub(crate) fn diff(
     xml: bool,
     cnf: bool,
     no_header: bool,
+    cnf_dist: bool,
+    proj_aux: bool,
+    is_unsafe: bool,
     arena: &mut Arena,
 ) {
     // Ensure both formulas are in proto-CNF form.
@@ -249,7 +277,7 @@ pub(crate) fn diff(
         |suffix: &str| -> Option<String> { cnf.then(|| file_path(&format!("{suffix}.cnf"))) };
     let serialize = uvl || xml;
 
-    // Prepare helpers for measuring time durations.
+    // Prepare helpers and check options.
     let mut durations: Vec<Duration> = vec![];
     macro_rules! measure_time {
         ($expr:expr) => {{
@@ -270,6 +298,11 @@ pub(crate) fn diff(
     if projected_count && (uvl || xml) {
         panic!("--projected-count does not support --uvl or --xml serialization");
     }
+    let cnf_transform = if cnf_dist {
+        DiffTransform::Dist
+    } else {
+        DiffTransform::Tseitin
+    };
 
     // Apply variable mappings before any other processing.
     // This is the first step towards unifying both variable sets.
@@ -465,12 +498,13 @@ pub(crate) fn diff(
                 diff_helper(
                     a,
                     arena,
-                    true,
+                    Some(cnf_transform),
                     true,
                     false,
                     false,
                     cnf_path("a").as_deref(),
-                    None
+                    None,
+                    proj_aux,
                 )
                 .0
             );
@@ -498,7 +532,7 @@ pub(crate) fn diff(
                 diff_helper(
                     &a_sliced,
                     arena,
-                    projected_count,
+                    projected_count.then_some(cnf_transform),
                     true,
                     false,
                     false,
@@ -507,7 +541,8 @@ pub(crate) fn diff(
                         Some(&proj_vars)
                     } else {
                         None
-                    }
+                    },
+                    proj_aux,
                 )
                 .0
             );
@@ -533,12 +568,13 @@ pub(crate) fn diff(
                 diff_helper(
                     b,
                     arena,
-                    true,
+                    Some(cnf_transform),
                     true,
                     false,
                     false,
                     cnf_path("b").as_deref(),
-                    None
+                    None,
+                    proj_aux,
                 )
                 .0
             );
@@ -552,7 +588,7 @@ pub(crate) fn diff(
                 diff_helper(
                     &b_sliced,
                     arena,
-                    projected_count,
+                    projected_count.then_some(cnf_transform),
                     true,
                     false,
                     false,
@@ -561,7 +597,8 @@ pub(crate) fn diff(
                         Some(&proj_vars)
                     } else {
                         None
-                    }
+                    },
+                    proj_aux,
                 )
                 .0
             );
@@ -608,14 +645,25 @@ pub(crate) fn diff(
     // This is only not the case when both sides are to be sliced, in which case the union will return all variables anyway.
     // Thus, the conjunction of both formulas will have as `sub_vars` all variables of the arena,
     // which is fine, because we will slice those variables we do not want with the projected model counter.
-    let mut diff = a_sliced.and(&b_sliced, arena);
+    let mut diff_base = a_sliced.and(&b_sliced, arena);
+    let mut diff;
 
-    // If we do projected model counting, we still need to figure out which variables to slice,
-    // as we haven't done this already above with FeatureIDE.
-    // Fortunately, this is straightforward and consistent with FeatureIDE's slicing applied above.
-    // todo: currently we slice all auxiliary variables, but it is unclear whether this is correct and whether it impacts performance
+    // This commonality formula is not in CNF yet (when we counted above, we cloned the arena for a separate CNF transformation).
+    // We transform it here once using the total Tseitin transformation.
+    // However, we do not assume a root literal yet, so we can reuse this formula for determining both commonalities and differences.
+    // If the distributive transformation is requested, we have to transform every formula individually.
+    // This is because there is no equivalent to the root literals introduced by the Tseitin transformation.
+    if !cnf_dist {
+        measure_time!(diff_base.to_cnf_tseitin(false, arena));
+    }
+
     let proj_vars: Option<&HashSet<i32>>;
+    let mut compute_removed = true;
+    let mut compute_added = true;
     if projected_count {
+        // If we do projected model counting, we still need to figure out which variables to slice,
+        // as we haven't done this already above with FeatureIDE.
+        // Fortunately, this is straightforward and consistent with FeatureIDE's slicing applied above.
         proj_vars =
             if matches!(a_diff_kind, DiffKind::Slice) && matches!(b_diff_kind, DiffKind::Slice) {
                 Some(&common_var_ids)
@@ -626,6 +674,27 @@ pub(crate) fn diff(
             } else {
                 None
             };
+
+        // Detect unsafe combinations: with projected model counting, negation-based reasoning is
+        // unsound when one side has been sliced, because projection does not distribute over negation.
+        // The common count is always safe (no negation involved).
+        // The removed count is unsafe when the right side is sliced.
+        // The added count is unsafe when the left side is sliced.
+        if matches!(b_diff_kind, DiffKind::Slice) {
+            log(&format!(
+                "[DIFF] WARNING: removed count is unsound with projected model counting and right-side slicing{}",
+                if is_unsafe { "; reporting anyway (--unsafe)" } else { "; omitting count" }
+            ));
+            compute_removed = is_unsafe;
+        }
+        if matches!(a_diff_kind, DiffKind::Slice) {
+            log(&format!(
+                "[DIFF] WARNING: added count is unsound with projected model counting and left-side slicing (negation over projected formula){}",
+                if is_unsafe { "; reporting anyway (--unsafe)" } else { "; omitting count" }
+            ));
+            compute_added = is_unsafe;
+        }
+
         if cnf {
             io::write_formula(&file_path("a_sliced.txt"), &a_sliced, proj_vars, arena);
             io::write_formula(&file_path("b_sliced.txt"), &b_sliced, proj_vars, arena);
@@ -634,52 +703,77 @@ pub(crate) fn diff(
         proj_vars = None;
     }
 
-    // This commonality formula is not in CNF yet (when we counted above, we cloned the arena for a separate CNF transformation).
-    // We transform it here once using the total Tseitin transformation.
-    // However, we do not assume a root literal yet, so we can reuse this formula for determining both commonalities and differences.
-    measure_time!(diff.to_cnf_tseitin(false, arena));
-
+    // In case of distributive transformation, we need to re-transform the formula.
+    // In case of Tseitin transformation, we can reuse `diff_base` as described above.
+    diff = if cnf_dist {
+        a_sliced.and(&b_sliced, arena)
+    } else {
+        diff_base.assume(
+            arena.expr(And(vec![a_sliced.root_id, b_sliced.root_id])),
+            arena,
+        )
+    };
     // We are now ready to count or serialize the common satisfying assignments of both formulas.
     // This is done by assuming the conjunction of both formulas' root literals.
     let (cnt_common, uvl_common, xml_common) = measure_time!(diff_helper(
-        &diff.assume(
-            arena.expr(And(vec![a_sliced.root_id, b_sliced.root_id])),
-            arena
-        ),
+        &diff,
         arena,
-        false,
+        cnf_dist.then_some(DiffTransform::Dist),
         count || projected_count,
         uvl,
         xml,
         cnf_path("common").as_deref(),
-        proj_vars
+        proj_vars,
+        proj_aux,
     ));
     log(&format!("[DIFF] #common = {}", cnt_common));
 
-    // By reusing the formula and switching at the assumption, we can count or serialize removed satisfying assignments.
-    let (cnt_removed, uvl_removed, xml_removed) = measure_time!(diff_helper(
-        &diff.assume(a_sliced.and_not_expr(&b_sliced, arena), arena),
-        arena,
-        false,
-        count || projected_count,
-        uvl,
-        xml,
-        cnf_path("removed").as_deref(),
-        proj_vars
-    ));
+    // By reusing the formula and switching the assumption (if possible), we can count or serialize removed satisfying assignments.
+    diff = if cnf_dist {
+        a_sliced.and_not(&b_sliced, arena)
+    } else {
+        diff_base.assume(a_sliced.and_not_expr(&b_sliced, arena), arena)
+    };
+    let (cnt_removed, uvl_removed, xml_removed) = if compute_removed {
+        measure_time!(diff_helper(
+            &diff,
+            arena,
+            cnf_dist.then_some(DiffTransform::Dist),
+            count || projected_count,
+            uvl,
+            xml,
+            cnf_path("removed").as_deref(),
+            proj_vars,
+            proj_aux,
+        ))
+    } else {
+        no_duration!();
+        (minus_one.clone(), None, None)
+    };
     log(&format!("[DIFF] #removed = {}", cnt_removed));
 
     // Analogously, we can count or serialize added satisfying assignments.
-    let (cnt_added, uvl_added, xml_added) = measure_time!(diff_helper(
-        &diff.assume(b_sliced.and_not_expr(&a_sliced, arena), arena),
-        arena,
-        false,
-        count || projected_count,
-        uvl,
-        xml,
-        cnf_path("added").as_deref(),
-        proj_vars
-    ));
+    diff = if cnf_dist {
+        b_sliced.and_not(&a_sliced, arena)
+    } else {
+        diff_base.assume(b_sliced.and_not_expr(&a_sliced, arena), arena)
+    };
+    let (cnt_added, uvl_added, xml_added) = if compute_added {
+        measure_time!(diff_helper(
+            &diff,
+            arena,
+            cnf_dist.then_some(DiffTransform::Dist),
+            count || projected_count,
+            uvl,
+            xml,
+            cnf_path("added").as_deref(),
+            proj_vars,
+            proj_aux,
+        ))
+    } else {
+        no_duration!();
+        (minus_one.clone(), None, None)
+    };
     log(&format!("[DIFF] #added = {}", cnt_added));
 
     // Finally, we derive what fraction of the union of solutions is common, removed, or added.
