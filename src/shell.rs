@@ -450,7 +450,7 @@ pub struct DiffArgs {
     /// Projected model counting returns incorrect results for several computations when combined with negation-based reasoning.
     /// By default, such possibly incorrect results are omitted from the output.
     /// This flag is intended for evaluations that assess the deviation from the correct result.
-    /// Not called `unsafe` here because of it clashes with a Rust keyword.
+    /// Not called `unsafe` here because it clashes with a Rust keyword.
     #[arg(long = "unsafe", requires = "projected_count", requires = "negate")]
     is_unsafe: bool,
 
