@@ -475,9 +475,20 @@ pub(crate) fn diff(
     let mut gained_ratio = -1f64;
 
     // Measures the impact of the slicing step from 0 (all sliced variables were determinate) to 1 (all sliced variables were unconstrained).
-    // This currently only supports deleting/adding up to 1000 features due to f64 precision.
-    let ratio =
-        |a, b, vars: u32| BigRational::new(a, b).to_f64().unwrap().log2() / vars.to_f64().unwrap();
+    // We compute log2(a/b) as log2(a) - log2(b) to avoid converting a huge BigRational directly to f64,
+    // which overflows to inf when slicing more than ~1000 features.
+    // For each operand, we right-shift to at most 53 significant bits before converting to f64.
+    // f64 has a 53-bit significand, so this conversion is exact, and log2(n >> k) = log2(n) - k recovers the true value.
+    let log2_bigint = |n: BigInt| -> f64 {
+        let bits = n.bits();
+        if bits <= 53 {
+            n.to_f64().unwrap().log2()
+        } else {
+            let shift = bits - 53;
+            (n >> shift).to_f64().unwrap().log2() + shift as f64
+        }
+    };
+    let ratio = |a: BigInt, b: BigInt, vars: u32| (log2_bigint(a) - log2_bigint(b)) / vars as f64;
 
     // If we perform slicing, we count the original and sliced formulas here to measure the impact of slicing.
     if count || projected_count {
