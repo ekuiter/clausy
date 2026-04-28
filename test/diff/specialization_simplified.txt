@@ -1,0 +1,4 @@
+# specialization: A has 2 configs, B has 1; simplified reasoning correctly classifies as Specialization
+$clausy -q -i input/spec_a.sat -i input/spec_b.sat diff --satisfy --simplified --no-header --left false --right false --negate --cnf-dist | sed 's/\(,[^,]*\)\{10\}$//'
+---
+2,0,0,1,1,1,Specialization,,,,,,,,,,,1,0

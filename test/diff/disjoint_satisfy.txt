@@ -1,0 +1,4 @@
+# disjoint: A and B share no configs; satisfy correctly classifies as ArbitraryEdit
+$clausy -q -i input/disjoint_a.sat -i input/disjoint_b.sat diff --satisfy --no-header --left false --right false --negate | sed 's/\(,[^,]*\)\{10\}$//'
+---
+2,0,0,0,2,2,ArbitraryEdit,,,,,,,,,,,1,1

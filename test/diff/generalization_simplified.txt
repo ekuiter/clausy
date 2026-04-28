@@ -1,0 +1,4 @@
+# generalization: A has 1 config, B has 2; simplified reasoning correctly classifies as Generalization
+$clausy -q -i input/spec_b.sat -i input/spec_a.sat diff --satisfy --simplified --no-header --left false --right false --negate --cnf-dist | sed 's/\(,[^,]*\)\{10\}$//'
+---
+2,0,0,1,1,1,Generalization,,,,,,,,,,,0,1
