@@ -52,20 +52,18 @@ for rm in false true slice; do
         done
     done
 
-    for d4mode in counting proj-ddnnf-compiler projMC; do
-        for engine in "d4-$d4mode" ganak; do
-            case $engine in
-                d4-*) TOOL_FLAGS=(--d4-projection-mode "$d4mode") ;;
-                ganak) TOOL_FLAGS=(--sharp-sat-path ganak.sh) ;;
-            esac
-            for transform in tseitin dist; do
-                tf=(); [[ $transform == dist ]] && tf=(--dist)
-                for negate in false true; do
-                    nf=(); uf=()
-                    [[ $negate == true ]] && nf=(--negate) && uf=(--unsafe)
-                    run "$lm" "$rm" projected-count "$engine" "$transform" "$negate" \
-                        --projected-count "${tf[@]}" "${nf[@]}" "${uf[@]}"
-                done
+    for engine in d4-counting d4-proj-ddnnf-compiler d4-projMC ganak; do
+        case $engine in
+            d4-*) TOOL_FLAGS=(--d4-projection-mode "${engine#d4-}") ;;
+            ganak) TOOL_FLAGS=(--sharp-sat-path ganak.sh) ;;
+        esac
+        for transform in tseitin dist; do
+            tf=(); [[ $transform == dist ]] && tf=(--dist)
+            for negate in false true; do
+                nf=(); uf=()
+                [[ $negate == true ]] && nf=(--negate) && uf=(--unsafe)
+                run "$lm" "$rm" projected-count "$engine" "$transform" "$negate" \
+                    --projected-count "${tf[@]}" "${nf[@]}" "${uf[@]}"
             done
         done
     done
