@@ -1,4 +1,4 @@
 # pair 4 (.sat): distributive CNF mode; should give the same result as Tseitin
 $clausy -q -i input/4a.sat -i input/4b.sat diff --no-header --left false --right false --count --negate --cnf-dist | sed 's/\(,[^,]*\)\{9\}$//'
 ---
-3,1,1,1,2,1,,0.3125,0,0.6875,,,,,,0,5,11
+3,1,1,1,2,1,ArbitraryEdit,,0.3125,0,0.6875,,,,,,0,5,11

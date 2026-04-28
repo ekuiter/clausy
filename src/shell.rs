@@ -404,24 +404,47 @@ pub struct DiffArgs {
     #[arg(long, default_value = "false", value_parser = parse_diff_mode)]
     right: DiffMode,
 
-    /// Use model counting.
+    /// Perform model counting.
     ///
     /// With this flag, we quantify the differences between both formulas with a regular (non-projected) model counter.
     /// If the left or right [DiffMode] requests slicing, we perform it in a preliminary and separate step with FeatureIDE.
     /// FeatureIDE uses resolution-based slicing, which internally uses a distributive transformation to establish CNF,
     /// so it does not generally scale to complex formulas.
     /// Can be omitted, e.g., if only serialization of differences is requested.
-    #[arg(long)]
+    #[arg(long, conflicts_with_all = ["satisfy"])]
     count: bool,
 
-    /// Use projected model counting.
+    /// Perform projected model counting.
     ///
     /// With this flag, we quantify the differences between both formulas with a projected model counter.
     /// That means we perform slicing and counting in one combined step, skipping FeatureIDE.
     /// Incompatible with the `--uvl` and `--xml` serialization options,
     /// as our current architecture relies on counting and serialization being performed in separate steps.
-    #[arg(long, conflicts_with_all = ["count", "uvl", "xml"])]
+    #[arg(long, conflicts_with_all = ["count", "satisfy", "uvl", "xml"])]
     projected_count: bool,
+
+    /// Perform SAT-based classification.
+    ///
+    /// Classifies the difference between both formulas as Refactoring, Specialization,
+    /// Generalization, or ArbitraryEdit using two SAT queries (one for removed solutions,
+    /// one for added solutions) instead of full model counting, thus omitting a fine-grained quantification.
+    /// This is the base algorithm proposed by Thüm et al. 2009 in "Reasoning about Edits to Feature Models".
+    /// Requires negation-based reasoning (--negate), as only model counters allow for avoiding negation.
+    /// Conflicts with quantification (--count and --projected-count).
+    /// The utility of this algorithm is quite limited, because most edits are arbitrary in practice.
+    /// However, SAT-based scales much better than counting-based methods, and is especially useful for tiny edits.
+    #[arg(long, requires = "negate")]
+    satisfy: bool,
+
+    /// Use simplified reasoning for SAT-based classification.
+    ///
+    /// Instead of only two SAT queries, check each unique clause of the other individually
+    /// and terminate early on the first satisfiable query.
+    /// This is the improved algorithm proposed by Thüm et al. 2009 in "Reasoning about Edits to Feature Models".
+    /// It was developed to mitigate the limited scalability of distributive transformation, and requires it.
+    /// It is included here mostly for evaluation purposes.
+    #[arg(long, requires = "satisfy", requires = "cnf_dist")]
+    simplified: bool,
 
     /// Use distributive CNF transformation instead of Tseitin transformation.
     ///
@@ -795,6 +818,8 @@ fn execute_action(action: Action, formulas: &mut [Formula], arena: &mut Arena) {
                 args.output.as_deref(),
                 args.count,
                 args.projected_count,
+                args.satisfy,
+                args.simplified,
                 args.variables,
                 args.constraints,
                 args.uvl,

@@ -2,4 +2,4 @@
 # slice counts match since a_vars=0 and b_vars=0 (nothing to slice away)
 $clausy -q -i input/Server.uvl -i input/Server.uvl diff --count --no-header --left slice --right slice | sed 's/\(,[^,]*\)\{10\}$//'
 ---
-12,0,0,13,0,0,,0,1,0,,30,30,30,30,30,0,0
+12,0,0,13,0,0,Refactoring,,0,1,0,,30,30,30,30,30,0,0

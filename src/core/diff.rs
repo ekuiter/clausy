@@ -4,12 +4,12 @@ use crate::util::io;
 use crate::util::log::log;
 use num::{bigint::ToBigInt, BigInt, BigRational, Signed, ToPrimitive};
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     io::Write,
     time::{Duration, Instant},
 };
 
-use super::{arena::Arena, expr::Expr::And, formula::Formula, var::VarId};
+use super::{arena::Arena, clauses::Clauses, expr::Expr::And, formula::Formula, var::VarId};
 
 /// A mapping between variable names in formula A and formula B.
 ///
@@ -151,24 +151,29 @@ fn ensure_prefix_dir(prefix: &str) {
     }
 }
 
-/// Returns the number of solutions of a given formula or serializes it.
+/// Processes a formula by computing its number of solutions (the typical use case),
+/// its satisfiability, or by serializing it into a string.
 ///
 /// Optionally applies a CNF transformation on a cloned [Formula] and [Arena].
 /// Does not modify the given [Formula] or [Arena].
 /// If `cnf` is given, the clause representation fed to the model counter is written to that file.
-/// This is an ugly helper function that muddles responsibilities, but it is necessary to keep the code below DRY.
+/// If `satisfy` is true, runs a SAT solver instead of a model counter and returns 0 (UNSAT) or 1 (SAT).
+/// The result 1 only indicates that the formula is satisfiable, and is nonsensical if interpreted as a model count.
+/// Obviously, this is an ugly helper function that muddles responsibilities.
+/// However, it is needed to keep the code below somewhat DRY due to many different supported modes of operation.
 pub(crate) fn diff_helper(
     formula: &Formula,
     arena: &Arena,
     cnf_transform: Option<DiffTransform>,
-    any_count: bool,
+    count_or_satisfy: bool,
+    satisfy: bool,
     uvl: bool,
     xml: bool,
     cnf: Option<&str>,
     proj_vars: Option<&HashSet<VarId>>,
 ) -> (BigInt, Option<String>, Option<String>) {
     let minus_one = -1.to_bigint().unwrap();
-    if !any_count && !uvl && !xml && cnf.is_none() {
+    if !count_or_satisfy && !uvl && !xml && cnf.is_none() {
         (minus_one, None, None)
     } else {
         if let Some(path) = cnf {
@@ -204,10 +209,16 @@ pub(crate) fn diff_helper(
                     .unwrap_or_else(|e| panic!("failed to write clauses to '{path}': {e}"));
             }
         }
-        let count = any_count
-            .then(|| match proj_vars {
-                Some(proj_vars) => clauses.proj_count(proj_vars),
-                None => clauses.count(),
+        let count = count_or_satisfy
+            .then(|| {
+                if satisfy {
+                    BigInt::from(clauses.satisfy().is_some() as i32)
+                } else {
+                    match proj_vars {
+                        Some(proj_vars) => clauses.proj_count(proj_vars),
+                        None => clauses.count(),
+                    }
+                }
             })
             .inspect(|count| {
                 if *count == minus_one {
@@ -225,6 +236,110 @@ pub(crate) fn diff_helper(
     }
 }
 
+/// Classifies a difference of two formulas using Thüm et al. 2009's simplified reasoning algorithm.
+///
+/// Both formulas must already be in proto-CNF form and refer to the same [Arena].
+/// Requires distributive CNF because clause-level set operations need an explicit,
+/// Tseitin-free clause representation so that the same semantic clause compares equal across formulas.
+///
+/// Rather than asking a SAT solver whether the whole formula `a&!b` is satisfiable,
+/// we exploit the fact that `a` and `b` share most clauses.
+/// We only need to consider the clauses that are in `b` but not in `a`:
+/// if `a` together with the negation of any one such clause is satisfiable,
+/// then there is a solution in `a` that is not in `b`.
+/// Negating a single clause produces a small set of unit clauses,
+/// so each individual SAT query is much cheaper than the full `a&!b` query.
+/// We stop as soon as one query succeeds.
+/// Returns `cnt_removed` = 1 if at least one solution has been removed and 0 otherwise (analogous for `cnt_added`).
+fn satisfy_simplified(
+    a: &Formula,
+    b: &Formula,
+    arena: &Arena,
+) -> (BigInt, BigInt, Duration, Duration) {
+    // Run distributive transformation for both formulas independently.
+    let build_clauses = |f: &Formula| -> Clauses {
+        let mut clone = f.clone();
+        let mut arena_clone = arena.clone();
+        clone.to_cnf_dist(&mut arena_clone);
+        clone.to_clauses(&arena_clone)
+    };
+    let clauses_a = build_clauses(a);
+    let clauses_b = build_clauses(b);
+
+    // Invert var_remap to get a mapping from the clauses-local namespaces to the shared arena namespace.
+    let inv_a = clauses_a.inv_var_remap();
+    let inv_b = clauses_b.inv_var_remap();
+
+    // Translate one clause from local identifiers to signed arena identifiers and sort the literals.
+    // Sorting is required for equality comparison across two independently-built clause representations.
+    let canonicalize = |clause: &[VarId], inv: &HashMap<VarId, VarId>| -> Vec<VarId> {
+        let mut canonical: Vec<VarId> = clause
+            .iter()
+            .map(|&lit| {
+                let &id = inv
+                    .get(&lit.abs())
+                    .expect("clause literal has no arena variable");
+                if lit > 0 {
+                    id
+                } else {
+                    -id
+                }
+            })
+            .collect();
+        canonical.sort_unstable();
+        canonical
+    };
+
+    // Canonicalize all clauses to use arena identifiers.
+    let canonical_a: Vec<Vec<VarId>> = clauses_a
+        .clauses
+        .iter()
+        .map(|c| canonicalize(c, &inv_a))
+        .collect();
+    let canonical_b: Vec<Vec<VarId>> = clauses_b
+        .clauses
+        .iter()
+        .map(|c| canonicalize(c, &inv_b))
+        .collect();
+
+    // Collect clauses unique to a (not in b) and vice versa.
+    let set_a: HashSet<&Vec<VarId>> = canonical_a.iter().collect();
+    let set_b: HashSet<&Vec<VarId>> = canonical_b.iter().collect();
+    let unique_a: Vec<&Vec<VarId>> = canonical_a.iter().filter(|c| !set_b.contains(c)).collect();
+    let unique_b: Vec<&Vec<VarId>> = canonical_b.iter().filter(|c| !set_a.contains(c)).collect();
+
+    // Check one subset direction: for each unique clause, assume its negation in the other (base) formula.
+    let check_direction = |clauses: &Clauses,
+                      unique: &[&Vec<VarId>],
+                      var_remap: &HashMap<VarId, VarId>|
+     -> (BigInt, Duration) {
+        let mut total = Duration::ZERO;
+        for canonical_clause in unique {
+            // Translate canonical (arena-ID) literals to base formula's local space, then negate.
+            let negated: Vec<VarId> = canonical_clause
+                .iter()
+                .map(|&lit| {
+                    let &id = var_remap
+                        .get(&lit.abs())
+                        .expect("unique clause references variable absent from base formula");
+                    if lit > 0 { -id } else { id }
+                })
+                .collect();
+            let start = Instant::now();
+            let sat = clauses.assume(&negated).satisfy().is_some();
+            total += start.elapsed();
+            if sat {
+                return (BigInt::from(1), total);
+            }
+        }
+        (BigInt::from(0), total)
+    };
+
+    let (cnt_removed, dur_removed) = check_direction(&clauses_a, &unique_b, &clauses_a.var_remap);
+    let (cnt_added, dur_added) = check_direction(&clauses_b, &unique_a, &clauses_b.var_remap);
+    (cnt_removed, cnt_added, dur_removed, dur_added)
+}
+
 /// Prints or serializes a description of the difference between two feature-model formulas.
 ///
 /// Assumes that common variables are considered equal (e.g., equal features have equal names),
@@ -234,6 +349,8 @@ pub(crate) fn diff_helper(
 /// (creating intermediate directories as needed). Without `output`, only a CSV line is printed.
 /// `count` controls whether model counting is performed (expensive; results appear in CSV).
 /// `projected_count` uses a projected model counter instead of a regular one.
+/// `satisfy` runs Thüm et al. 2009's SAT-based classification instead of model counting.
+/// `simplified` uses Thüm et al. 2009's simplified reasoning (clause iteration) instead of a single SAT call.
 /// `uvl` and `xml` control whether UVL/XML output files are written (require `output`).
 /// `cnf` controls whether intermediate clause files are written for each counting step (requires `output`).
 pub(crate) fn diff(
@@ -245,6 +362,8 @@ pub(crate) fn diff(
     output: Option<&str>,
     count: bool,
     projected_count: bool,
+    satisfy: bool,
+    simplified: bool,
     vars: bool,
     constraints: bool,
     uvl: bool,
@@ -283,7 +402,16 @@ pub(crate) fn diff(
         }};
     }
     if count && projected_count {
-        panic!("--no-count and --projected-count are mutually exclusive");
+        panic!("--count and --projected-count are mutually exclusive");
+    }
+    if (count || projected_count) && satisfy {
+        panic!("--satisfy is mutually exclusive with --count and --projected-count");
+    }
+    if satisfy && !negate {
+        panic!("--satisfy requires --negate");
+    }
+    if simplified && (!satisfy || !cnf_dist) {
+        panic!("--simplified requires --satisfy and --dist");
     }
     if projected_count && (uvl || xml) {
         panic!("--projected-count does not support --uvl or --xml serialization");
@@ -334,7 +462,7 @@ pub(crate) fn diff(
     // Later we will print details about the semantic differences as well, but this way we can
     // still write out the syntactic differences in case of a timeout.
     if !no_header {
-        println!("common_vars,removed_vars,added_vars,common_constraints,removed_constraints,added_constraints,lost_solutions,removed_solutions,common_solutions,added_solutions,gained_solutions,left_count,left_sliced_count,right_count,right_sliced_count,common_solutions_count,removed_solutions_count,added_solutions_count,left_sliced_duration,right_sliced_duration,left_count_duration,left_sliced_count_duration,right_count_duration,right_sliced_count_duration,tseitin_duration,common_solutions_count_duration,removed_solutions_count_duration,added_solutions_count_duration,total_duration");
+        println!("common_vars,removed_vars,added_vars,common_constraints,removed_constraints,added_constraints,classification,lost_solutions,removed_solutions,common_solutions,added_solutions,gained_solutions,left_count,left_sliced_count,right_count,right_sliced_count,common_solutions_count,removed_solutions_count,added_solutions_count,left_sliced_duration,right_sliced_duration,left_count_duration,left_sliced_count_duration,right_count_duration,right_sliced_count_duration,tseitin_duration,common_solutions_count_duration,removed_solutions_count_duration,added_solutions_count_duration,total_duration");
     }
     print!("{common_vars},{a_vars},{b_vars},{common_constraints},{a_constraints},{b_constraints}");
     std::io::stdout().flush().unwrap();
@@ -503,6 +631,7 @@ pub(crate) fn diff(
                     true,
                     false,
                     false,
+                    false,
                     cnf_path("a").as_deref(),
                     None,
                 )
@@ -535,6 +664,7 @@ pub(crate) fn diff(
                         arena,
                         projected_count.then_some(cnf_transform),
                         true,
+                        false,
                         false,
                         false,
                         cnf_path("a_sliced").as_deref(),
@@ -582,6 +712,7 @@ pub(crate) fn diff(
                     true,
                     false,
                     false,
+                    false,
                     cnf_path("b").as_deref(),
                     None,
                 )
@@ -600,6 +731,7 @@ pub(crate) fn diff(
                         arena,
                         projected_count.then_some(cnf_transform),
                         true,
+                        false,
                         false,
                         false,
                         cnf.then(|| cnf_path("b_sliced")).flatten().as_deref(),
@@ -740,6 +872,7 @@ pub(crate) fn diff(
         arena,
         cnf_dist.then_some(DiffTransform::Dist),
         count || projected_count,
+        false,
         uvl,
         xml,
         cnf_path("common").as_deref(),
@@ -759,66 +892,76 @@ pub(crate) fn diff(
     // However, there are still applications for negation:
     // First, if we want to serialize the removed and added solutions, we need to use negation to actually reify the differences.
     // If we are only interested in serialization, we can thus fully avoid model counting and slicing as the only bottleneck.
-    // Second, if we merely want to classify the difference with a SAT solver (no quantification), we need negation as well.
+    // Second, if we merely want to satisfy the difference with a SAT solver (no quantification), we need negation as well.
     // This is particularly interesting if model counting does not scale to a formula, but a SAT solver does.
     // Third, it could be the case that `a&!b` happens to scale better with a model counter than `a`,
     // in which case negation is preferred (this was the original idea of [count_inc]).
     let (mut cnt_removed, mut uvl_removed, mut xml_removed) = (minus_one.clone(), None, None);
     let (mut cnt_added, mut uvl_added, mut xml_added) = (minus_one.clone(), None, None);
     if negate {
-        // By reusing the formula and switching the assumption (if possible), we can count or serialize removed satisfying assignments.
-        diff = if cnf_dist {
-            a_sliced.and_not(&b_sliced, arena)
+        if satisfy && simplified {
+            // Simplified reasoning means iterating over clauses unique to each side instead of building a&!b.
+            // Each SAT query is then tiny (assuming only a handful of unit clauses), and early termination is possible.
+            let (dur_removed, dur_added);
+            (cnt_removed, cnt_added, dur_removed, dur_added) =
+                satisfy_simplified(&a_sliced, &b_sliced, arena);
+            durations.push(dur_removed);
+            durations.push(dur_added);
         } else {
-            diff_base.assume(a_sliced.and_not_expr(&b_sliced, arena), arena)
-        };
-        if compute_removed {
-            (cnt_removed, uvl_removed, xml_removed) = measure_time!(diff_helper(
-                &diff,
-                arena,
-                cnf_dist.then_some(DiffTransform::Dist),
-                count || projected_count,
-                uvl,
-                xml,
-                cnf_path("removed").as_deref(),
-                proj_vars,
-            ))
-        } else {
-            no_duration!();
-        };
-        log(&format!("[DIFF] #removed = {}", cnt_removed));
+            // By reusing the formula and switching the assumption (if possible), we can count or serialize removed satisfying assignments.
+            diff = if cnf_dist {
+                a_sliced.and_not(&b_sliced, arena)
+            } else {
+                diff_base.assume(a_sliced.and_not_expr(&b_sliced, arena), arena)
+            };
+            if compute_removed {
+                (cnt_removed, uvl_removed, xml_removed) = measure_time!(diff_helper(
+                    &diff,
+                    arena,
+                    cnf_dist.then_some(DiffTransform::Dist),
+                    count || projected_count || satisfy,
+                    satisfy,
+                    uvl,
+                    xml,
+                    cnf_path("removed").as_deref(),
+                    proj_vars,
+                ))
+            } else {
+                no_duration!();
+            };
 
-        // Analogously, we can count or serialize added satisfying assignments.
-        diff = if cnf_dist {
-            b_sliced.and_not(&a_sliced, arena)
-        } else {
-            diff_base.assume(b_sliced.and_not_expr(&a_sliced, arena), arena)
-        };
-        if compute_added {
-            (cnt_added, uvl_added, xml_added) = measure_time!(diff_helper(
-                &diff,
-                arena,
-                cnf_dist.then_some(DiffTransform::Dist),
-                count || projected_count,
-                uvl,
-                xml,
-                cnf_path("added").as_deref(),
-                proj_vars,
-            ))
-        } else {
-            no_duration!();
-        };
-        log(&format!("[DIFF] #added = {}", cnt_added));
+            // Analogously, we can count or serialize added satisfying assignments.
+            diff = if cnf_dist {
+                b_sliced.and_not(&a_sliced, arena)
+            } else {
+                diff_base.assume(b_sliced.and_not_expr(&a_sliced, arena), arena)
+            };
+            if compute_added {
+                (cnt_added, uvl_added, xml_added) = measure_time!(diff_helper(
+                    &diff,
+                    arena,
+                    cnf_dist.then_some(DiffTransform::Dist),
+                    count || projected_count || satisfy,
+                    satisfy,
+                    uvl,
+                    xml,
+                    cnf_path("added").as_deref(),
+                    proj_vars,
+                ))
+            } else {
+                no_duration!();
+            };
+        }
     } else if count || projected_count {
         cnt_removed = cnt_a_sliced.clone() - cnt_common.clone();
-        log(&format!("[DIFF] #removed = {}", cnt_removed));
         cnt_added = cnt_b_sliced.clone() - cnt_common.clone();
-        log(&format!("[DIFF] #added = {}", cnt_added));
         no_duration!();
         no_duration!();
     }
+    log(&format!("[DIFF] #removed = {}", cnt_removed));
+    log(&format!("[DIFF] #added = {}", cnt_added));
 
-    // Finally, we derive what fraction of the union of solutions is common, removed, or added.
+    // Finally, we derive what fraction of the union of solutions is common, removed, or added (if calculable).
     let (common_ratio, removed_ratio, added_ratio) =
         if !cnt_common.is_negative() && !cnt_removed.is_negative() && !cnt_added.is_negative() {
             let cnt_union = &cnt_common + &cnt_removed + &cnt_added;
@@ -893,6 +1036,20 @@ pub(crate) fn diff(
         );
     }
 
+    // Derive Thüm et al. 2009's classification from removed/added solution data whenever available.
+    // "available" means at least one of count, projected_count, or satisfy was active and successful,
+    // giving us meaningful (non-negative) values for cnt_removed and cnt_added.
+    let classification = if !cnt_removed.is_negative() && !cnt_added.is_negative() {
+        match (cnt_removed.is_positive(), cnt_added.is_positive()) {
+            (false, false) => "Refactoring",
+            (true, false) => "Specialization",
+            (false, true) => "Generalization",
+            (true, true) => "ArbitraryEdit",
+        }
+    } else {
+        ""
+    };
+
     // Print the remaining details about the semantic differences, omitting results that are -1.
     let durations: Vec<String> = durations.iter().map(|d| d.as_nanos().to_string()).collect();
     let durations = durations.join(",");
@@ -911,7 +1068,7 @@ pub(crate) fn diff(
         }
     };
     println!(
-        ",{},{},{},{},{},{},{},{},{},{},{},{},{durations}",
+        ",{classification},{},{},{},{},{},{},{},{},{},{},{},{},{durations}",
         ff(lost_ratio),
         ff(removed_ratio),
         ff(common_ratio),

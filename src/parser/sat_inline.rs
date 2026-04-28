@@ -14,7 +14,7 @@ use pest_derive::Parser;
 ///
 /// In this format, identifiers refer to previously parsed inputs.
 /// Optionally, the parsed formula can add backbone literals to align differing sets of variables.
-/// This is done by Thüm et al. in "Reasoning about Edits to Feature Models" and related literature.
+/// This is done by Thüm et al. 2009 in "Reasoning about Edits to Feature Models" and related literature.
 /// As sub-variables, the parsed formula has the union of the sub-variables of all given formulas.
 #[derive(Parser)]
 #[grammar = "parser/sat_inline.pest"]

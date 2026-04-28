@@ -160,6 +160,30 @@ impl Clauses {
             .join(" ")
     }
 
+    /// Returns the inverse of [Clauses::var_remap], mapping representation-local variable IDs back to arena IDs.
+    pub(crate) fn inv_var_remap(&self) -> HashMap<VarId, VarId> {
+        self.var_remap
+            .iter()
+            .map(|(&arena_id, &local_id)| (local_id, arena_id))
+            .collect()
+    }
+
+    /// Returns a copy of this clause representation with additional unit clauses forcing the given literals.
+    ///
+    /// Each literal is a signed representation-local variable ID (positive = true, negative = false),
+    /// using the same ID space as [Clauses::clauses].
+    pub(crate) fn assume(&self, literals: &[VarId]) -> Self {
+        let mut clauses = self.clauses.clone();
+        for &lit in literals {
+            clauses.push(vec![lit]);
+        }
+        Self {
+            clauses,
+            vars: self.vars.clone(),
+            var_remap: self.var_remap.clone(),
+        }
+    }
+
     /// Attempts to finds a solution of this clause representation.
     pub(crate) fn satisfy(&self) -> Option<String> {
         exec::sat(&self.to_string()).map(|solution| self.solution_to_string(&solution))

@@ -1,4 +1,4 @@
 # pair 3 (.uvl): distributive CNF mode; should give the same result as Tseitin
 $clausy -q -i input/3a.uvl -i input/3b.uvl diff --no-header --left slice --right slice --count --cnf-dist | sed 's/\(,[^,]*\)\{9\}$//'
 ---
-4,1,1,1,4,4,0,0.375,0.375,0.25,0.2630344058337939,6,6,6,5,3,3,2
+4,1,1,1,4,4,ArbitraryEdit,0,0.375,0.375,0.25,0.2630344058337939,6,6,6,5,3,3,2

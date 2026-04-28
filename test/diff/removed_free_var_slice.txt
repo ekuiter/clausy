@@ -2,4 +2,4 @@
 # lost_ratio = log2(cnt_a/cnt_a_sliced) / a_vars = log2(2/1)/1 = 1
 $clausy -q -i input/simple_a.model -i input/simple_b.model diff --count --no-header --left slice --right slice | sed 's/\(,[^,]*\)\{10\}$//'
 ---
-1,1,0,1,1,0,1,0,1,0,,2,1,1,1,1,0,0
+1,1,0,1,1,0,Refactoring,1,0,1,0,,2,1,1,1,1,0,0

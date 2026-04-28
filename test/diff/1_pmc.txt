@@ -3,4 +3,4 @@
 # this is because negation and existential quantification do not commute
 $clausy -q -i input/1a.model -i input/1b.model diff --no-header --left slice --right slice --projected-count --negate --unsafe | sed 's/\(,[^,]*\)\{10\}$//'
 ---
-3,1,1,0,2,2,0.8744691179161412,0.3,0.4,0.3,0.7369655941662061,11,6,10,6,4,3,3
+3,1,1,0,2,2,ArbitraryEdit,0.8744691179161412,0.3,0.4,0.3,0.7369655941662061,11,6,10,6,4,3,3
