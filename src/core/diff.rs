@@ -428,20 +428,14 @@ pub(crate) fn diff(
     if (count || projected_count) && satisfy {
         panic!("--satisfy is mutually exclusive with --count and --projected-count");
     }
-    if (count || projected_count || satisfy) && featureide {
-        panic!("--featureide is mutually exclusive with --count, --projected-count, and --satisfy");
-    }
     if satisfy && !negate {
         panic!("--satisfy requires --negate");
     }
-    if featureide && !negate {
-        panic!("--featureide requires --negate");
+    if simplified && featureide {
+        panic!("--featureide is mutually exclusive with --simplified");
     }
-    if featureide && !cnf_dist {
-        panic!("--featureide requires --dist");
-    }
-    if simplified && (!satisfy || !cnf_dist) {
-        panic!("--simplified requires --satisfy and --dist");
+    if (simplified || featureide) && (!satisfy || !cnf_dist) {
+        panic!("--simplified and --featureide require --satisfy and --dist");
     }
     if projected_count && (uvl || xml) {
         panic!("--projected-count does not support --uvl or --xml serialization");

@@ -68,19 +68,20 @@ pub struct CliOptions {
 /// The supplied paths can be absolute or relative.
 /// Relative paths are first resolved against the working directory, and then against the directory of the clausy executable.
 /// Some options like `--force-io` control specific tool behavior.
+/// All the paths can be overridden on the command line if set in `clausy.conf`.
 #[derive(Args, Default, Debug)]
 #[command(next_help_heading = "Tool Options")]
 pub struct ToolOptions {
     /// Path to the satisfiability solver kissat.
-    #[arg(long, default_value = "kissat")]
+    #[arg(long, default_value = "kissat", overrides_with = "kissat_path")]
     pub kissat_path: String,
 
     /// Path to a satisfiability solver that takes a .cnf file and outputs "s (UN)SATISFIABLE".
-    #[arg(long)]
+    #[arg(long, overrides_with = "sat_path")]
     pub sat_path: Option<String>,
 
     /// Path to the model counter d4.
-    #[arg(long, default_value = "d4")]
+    #[arg(long, default_value = "d4", overrides_with = "d4_path")]
     pub d4_path: String,
 
     /// d4 mode used when performing projected model counting.
@@ -96,7 +97,7 @@ pub struct ToolOptions {
     /// "counting" as the second argument, indicating whether projected model counting is requested.
     /// The CNF is annotated with "c t pmc" and "c p show" when projected.
     /// Output must contain a line starting with "s " followed by the model count.
-    #[arg(long)]
+    #[arg(long, overrides_with = "sharp_sat_path")]
     pub sharp_sat_path: Option<String>,
 
     /// Timeout in seconds for model counting (0 = no timeout).
@@ -106,11 +107,11 @@ pub struct ToolOptions {
     pub sharp_sat_timeout: u64,
 
     /// Path to the AllSAT solver bc_minisat_all.
-    #[arg(long, default_value = "bc_minisat_all")]
+    #[arg(long, default_value = "bc_minisat_all", overrides_with = "bc_minisat_all_path")]
     pub bc_minisat_all_path: String,
 
     /// Path to the FeatureIDE I/O interface.
-    #[arg(long, default_value = "io.jar")]
+    #[arg(long, default_value = "io.jar", overrides_with = "io_path")]
     pub io_path: String,
 
     /// Force parsing all input files through the FeatureIDE I/O interface.
@@ -454,7 +455,7 @@ pub struct DiffArgs {
     /// Also note that the internal conversion into UVL may sometimes cause incorrect results.
     /// These issues are conceptually hard to fix due to assumptions in the tool and format boundaries.
     /// Thus, it is only recommended to use this for small-scale experiments and validation.
-    #[arg(long, requires = "negate", requires = "cnf_dist", conflicts_with_all = ["count", "projected_count", "satisfy"])]
+    #[arg(long, requires = "satisfy", requires = "cnf_dist", conflicts_with_all = ["simplified"])]
     featureide: bool,
 
     /// Use distributive CNF transformation instead of Tseitin transformation.
