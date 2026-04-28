@@ -1,5 +1,7 @@
 import de.ovgu.featureide.fm.core.base.IFeatureModel;
 import de.ovgu.featureide.fm.core.base.impl.FMFormatManager;
+import de.ovgu.featureide.fm.core.editing.Comparison;
+import de.ovgu.featureide.fm.core.editing.ModelComparator;
 import de.ovgu.featureide.fm.core.init.FMCoreLibrary;
 import de.ovgu.featureide.fm.core.init.LibraryManager;
 import de.ovgu.featureide.fm.core.io.IFeatureModelFormat;
@@ -30,7 +32,7 @@ import java.util.stream.Collectors;
 public class Main {
     public static void main(String[] args) {
         if (args.length > 3)
-            throw new RuntimeException("usage: java -jar io.jar [file|-] [uvl|xml|model|cnf|dimacs|sat] [feature,...]");
+            throw new RuntimeException("usage: java -jar io.jar [file|-] [uvl|xml|model|cnf|dimacs|sat|compare] [feature,...]");
 
         LibraryManager.registerLibrary(FMCoreLibrary.getInstance());
         FMFormatManager.getInstance().addExtension(new ModelFormat());
@@ -55,6 +57,21 @@ public class Main {
         }
         if (featureModel == null)
             throw new RuntimeException("failed to load feature model");
+
+        if (args.length >= 2 && args[1].equals("compare")) {
+            IFeatureModel modelB = FeatureModelManager.load(Paths.get(args[2]));
+            if (modelB == null)
+                throw new RuntimeException("failed to load second feature model from: " + args[2]);
+            Comparison comparison = new ModelComparator(1000000).compare(featureModel, modelB);
+            switch (comparison) {
+                case REFACTORING:    System.out.print("Refactoring");    break;
+                case SPECIALIZATION: System.out.print("Specialization"); break;
+                case GENERALIZATION: System.out.print("Generalization"); break;
+                case ARBITRARY:      System.out.print("ArbitraryEdit");  break;
+                default:             System.out.print(comparison.name()); break;
+            }
+            return;
+        }
 
         if (args.length == 3) {
             Collection<String> features = Arrays.stream(args[2].split(","))

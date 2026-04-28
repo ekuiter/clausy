@@ -9,7 +9,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use super::{arena::Arena, clauses::Clauses, expr::Expr::And, formula::Formula, var::VarId};
+use super::{
+    arena::Arena, clauses::Clauses, expr::Expr::And, file::File, formula::Formula, var::VarId,
+};
+use crate::util::exec;
 
 /// A mapping between variable names in formula A and formula B.
 ///
@@ -310,8 +313,8 @@ fn satisfy_simplified(
 
     // Check one subset direction: for each unique clause, assume its negation in the other (base) formula.
     let check_direction = |clauses: &Clauses,
-                      unique: &[&Vec<VarId>],
-                      var_remap: &HashMap<VarId, VarId>|
+                           unique: &[&Vec<VarId>],
+                           var_remap: &HashMap<VarId, VarId>|
      -> (BigInt, Duration) {
         let mut total = Duration::ZERO;
         for canonical_clause in unique {
@@ -322,7 +325,11 @@ fn satisfy_simplified(
                     let &id = var_remap
                         .get(&lit.abs())
                         .expect("unique clause references variable absent from base formula");
-                    if lit > 0 { -id } else { id }
+                    if lit > 0 {
+                        -id
+                    } else {
+                        id
+                    }
                 })
                 .collect();
             let start = Instant::now();
@@ -340,6 +347,18 @@ fn satisfy_simplified(
     (cnt_removed, cnt_added, dur_removed, dur_added)
 }
 
+/// Converts a formula to an in-memory CNF [File] by applying distributive CNF transformation.
+fn to_cnf_file_dist(formula: &Formula, arena: &Arena) -> File {
+    let mut clone = formula.clone();
+    let mut arena_clone = arena.clone();
+    clone.to_cnf_dist(&mut arena_clone);
+    // FeatureIDE does not understand the extension .cnf, use .dimacs instead.
+    File::new(
+        "-.dimacs".to_string(),
+        clone.to_clauses(&arena_clone).to_string(),
+    )
+}
+
 /// Prints or serializes a description of the difference between two feature-model formulas.
 ///
 /// Assumes that common variables are considered equal (e.g., equal features have equal names),
@@ -351,6 +370,7 @@ fn satisfy_simplified(
 /// `projected_count` uses a projected model counter instead of a regular one.
 /// `satisfy` runs Thüm et al. 2009's SAT-based classification instead of model counting.
 /// `simplified` uses Thüm et al. 2009's simplified reasoning (clause iteration) instead of a single SAT call.
+/// `featureide` uses FeatureIDE's ModelComparator for classification instead of our reimplementation.
 /// `uvl` and `xml` control whether UVL/XML output files are written (require `output`).
 /// `cnf` controls whether intermediate clause files are written for each counting step (requires `output`).
 pub(crate) fn diff(
@@ -364,6 +384,7 @@ pub(crate) fn diff(
     projected_count: bool,
     satisfy: bool,
     simplified: bool,
+    featureide: bool,
     vars: bool,
     constraints: bool,
     uvl: bool,
@@ -407,8 +428,17 @@ pub(crate) fn diff(
     if (count || projected_count) && satisfy {
         panic!("--satisfy is mutually exclusive with --count and --projected-count");
     }
+    if (count || projected_count || satisfy) && featureide {
+        panic!("--featureide is mutually exclusive with --count, --projected-count, and --satisfy");
+    }
     if satisfy && !negate {
         panic!("--satisfy requires --negate");
+    }
+    if featureide && !negate {
+        panic!("--featureide requires --negate");
+    }
+    if featureide && !cnf_dist {
+        panic!("--featureide requires --dist");
     }
     if simplified && (!satisfy || !cnf_dist) {
         panic!("--simplified requires --satisfy and --dist");
@@ -462,7 +492,7 @@ pub(crate) fn diff(
     // Later we will print details about the semantic differences as well, but this way we can
     // still write out the syntactic differences in case of a timeout.
     if !no_header {
-        println!("common_vars,removed_vars,added_vars,common_constraints,removed_constraints,added_constraints,classification,lost_solutions,removed_solutions,common_solutions,added_solutions,gained_solutions,left_count,left_sliced_count,right_count,right_sliced_count,common_solutions_count,removed_solutions_count,added_solutions_count,left_sliced_duration,right_sliced_duration,left_count_duration,left_sliced_count_duration,right_count_duration,right_sliced_count_duration,tseitin_duration,common_solutions_count_duration,removed_solutions_count_duration,added_solutions_count_duration,total_duration");
+        println!("common_vars,removed_vars,added_vars,common_constraints,removed_constraints,added_constraints,classification,lost_solutions,removed_solutions,common_solutions,added_solutions,gained_solutions,left_count,left_sliced_count,right_count,right_sliced_count,common_solutions_count,removed_solutions_count,added_solutions_count,left_sliced_duration,right_sliced_duration,left_count_duration,left_sliced_count_duration,right_count_duration,right_sliced_count_duration,tseitin_or_featureide_duration,common_solutions_count_duration,removed_solutions_count_duration,added_solutions_count_duration,total_duration");
     }
     print!("{common_vars},{a_vars},{b_vars},{common_constraints},{a_constraints},{b_constraints}");
     std::io::stdout().flush().unwrap();
@@ -484,15 +514,15 @@ pub(crate) fn diff(
         (a_sliced, a_sliced_file) = measure_time!(a_sliced_file
             .as_ref()
             .unwrap()
-            .slice_with_featureide(&common_var_ids, arena, serialize));
+            .slice_with_featureide(&common_var_ids, arena, serialize || featureide));
     } else {
         no_duration!();
     }
     if matches!(b_diff_kind, DiffKind::Slice) && !projected_count {
         (b_sliced, b_sliced_file) = measure_time!(b_sliced_file
-            .as_ref()
+            .as_ref() 
             .unwrap()
-            .slice_with_featureide(&common_var_ids, arena, serialize));
+            .slice_with_featureide(&common_var_ids, arena, serialize || featureide));
     } else {
         no_duration!();
     }
@@ -512,7 +542,7 @@ pub(crate) fn diff(
             default,
             core_vars,
             dead_vars,
-            if projected_count { &empty } else { &b_var_ids },
+            if projected_count || featureide { &empty } else { &b_var_ids },
             arena,
         );
         // Let's assume for now we are not doing projected model counting.
@@ -531,6 +561,7 @@ pub(crate) fn diff(
         // and those exclusive to `b` (which will be sliced by the projected model counter),
         // and those exclusive to `a` (which are fully determinate and don't affect the model count).
         // Consequently, there is no invariant violation when we do projected model counting.
+        // If we classify using FeatureIDE, we do not want to exclude any variables either.
         if serialize {
             // The whole invariant discussion does not apply here because we work on the file representation, which is not affected by `force_foreign_vars`.
             let mut file = b_sliced_file
@@ -539,6 +570,10 @@ pub(crate) fn diff(
                 .convert_with_featureide("uvl");
             io::uvl_file_add_vars(&mut file, "Removed Features", &a_var_ids, arena);
             b_sliced_file = Some(file);
+        } else if featureide {
+            // Serialize the variable-adjusted formula to CNF so FeatureIDE sees no foreign variables which could be forced to false during its classification.
+            // As FeatureIDE would perform a distributive transformation internally anyway, this does not limit the scalability.
+            b_sliced_file = Some(to_cnf_file_dist(&b_sliced, arena));
         }
     }
     if let DiffKind::Fixed {
@@ -552,7 +587,7 @@ pub(crate) fn diff(
             default,
             core_vars,
             dead_vars,
-            if projected_count { &empty } else { &a_var_ids },
+            if projected_count || featureide { &empty } else { &a_var_ids },
             arena,
         );
         if serialize {
@@ -562,6 +597,8 @@ pub(crate) fn diff(
                 .convert_with_featureide("uvl");
             io::uvl_file_add_vars(&mut file, "Added Features", &b_var_ids, arena);
             a_sliced_file = Some(file);
+        } else if featureide {
+            a_sliced_file = Some(to_cnf_file_dist(&a_sliced, arena));
         }
     }
 
@@ -796,15 +833,26 @@ pub(crate) fn diff(
     let mut diff_base = a_sliced.and(&b_sliced, arena);
     let mut diff;
 
-    // This commonality formula is not in CNF yet (when we counted above, we cloned the arena for a separate CNF transformation).
-    // We transform it here once using the total Tseitin transformation.
-    // However, we do not assume a root literal yet, so we can reuse this formula for determining both commonalities and differences.
-    // If the distributive transformation is requested, we have to transform every formula individually.
-    // This is because there is no equivalent to the root literals introduced by the Tseitin transformation.
+    let mut classification = String::new();
     if !cnf_dist {
+        // Our commonality formula is not in CNF yet (when we counted above, we cloned the arena for a separate CNF transformation).
+        // We transform it here once using the total Tseitin transformation.
+        // However, we do not assume a root literal yet, so we can reuse this formula for determining both commonalities and differences.
         measure_time!(diff_base.to_cnf_tseitin(false, arena));
+    } else if featureide {
+        // In case we are classifying with FeatureIDE, we need to ensure the input files are available.
+        // At this point, both files will already be in CNF (either due to FeatureIDE slicing or by calling `to_cnf_file_dist`).
+        let a_file = a_sliced_file
+            .as_ref()
+            .expect("--featureide requires a file-backed input for the left formula");
+        let b_file = b_sliced_file
+            .as_ref()
+            .expect("--featureide requires a file-backed input for the right formula");
+        classification = measure_time!(exec::io_compare(a_file, b_file));
     } else {
-        // If the distributive transformation is requested, it is applied to all three following formulas individually, and included in their respective duration measurement.
+        // If the distributive transformation is requested, we have to transform every formula individually below.
+        // This is because there is no equivalent to the root literals introduced by the Tseitin transformation.
+        // The distributed transformation is included in the counting duration measurement.
         no_duration!();
     }
 
@@ -901,7 +949,7 @@ pub(crate) fn diff(
     // in which case negation is preferred (this was the original idea of [count_inc]).
     let (mut cnt_removed, mut uvl_removed, mut xml_removed) = (minus_one.clone(), None, None);
     let (mut cnt_added, mut uvl_added, mut xml_added) = (minus_one.clone(), None, None);
-    if negate {
+    if negate && !featureide {
         if satisfy && simplified {
             // Simplified reasoning means iterating over clauses unique to each side instead of building a&!b.
             // Each SAT query is then tiny (assuming only a handful of unit clauses), and early termination is possible.
@@ -955,9 +1003,11 @@ pub(crate) fn diff(
                 no_duration!();
             };
         }
-    } else if count || projected_count {
-        cnt_removed = cnt_a_sliced.clone() - cnt_common.clone();
-        cnt_added = cnt_b_sliced.clone() - cnt_common.clone();
+    } else {
+        if count || projected_count {
+            cnt_removed = cnt_a_sliced.clone() - cnt_common.clone();
+            cnt_added = cnt_b_sliced.clone() - cnt_common.clone();
+        }
         no_duration!();
         no_duration!();
     }
@@ -1042,16 +1092,15 @@ pub(crate) fn diff(
     // Derive Thüm et al. 2009's classification from removed/added solution data whenever available.
     // "available" means at least one of count, projected_count, or satisfy was active and successful,
     // giving us meaningful (non-negative) values for cnt_removed and cnt_added.
-    let classification = if !cnt_removed.is_negative() && !cnt_added.is_negative() {
-        match (cnt_removed.is_positive(), cnt_added.is_positive()) {
+    if !cnt_removed.is_negative() && !cnt_added.is_negative() {
+        classification = match (cnt_removed.is_positive(), cnt_added.is_positive()) {
             (false, false) => "Refactoring",
             (true, false) => "Specialization",
             (false, true) => "Generalization",
             (true, true) => "ArbitraryEdit",
         }
-    } else {
-        ""
-    };
+        .to_owned();
+    }
 
     // Print the remaining details about the semantic differences, omitting results that are -1.
     let durations: Vec<String> = durations.iter().map(|d| d.as_nanos().to_string()).collect();

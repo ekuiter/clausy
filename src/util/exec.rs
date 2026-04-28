@@ -447,3 +447,67 @@ pub(crate) fn io(file: &File, output_format: &str, variables: &[&str]) -> File {
     );
     File::new(format!("-.{}", output_format), output)
 }
+
+/// Classifies the edit between two feature-model files using FeatureIDE's ModelComparator.
+///
+/// Returns one of "Refactoring", "Specialization", "Generalization", or "ArbitraryEdit".
+/// Both files are written to temporary files so FeatureIDE can load them by path.
+pub(crate) fn io_compare(file_a: &File, file_b: &File) -> String {
+    let io_path = path(&options().tool.io_path);
+    let ext = |f: &File| {
+        std::path::Path::new(&f.name)
+            .extension()
+            .and_then(|e| e.to_str())
+            .expect("file passed to io_compare has no extension")
+            .to_owned()
+    };
+    let mut tmp_a = tempfile::Builder::new()
+        .suffix(&format!(".{}", ext(file_a)))
+        .tempfile()
+        .expect("failed to create temporary file for FeatureIDE comparison");
+    let mut tmp_b = tempfile::Builder::new()
+        .suffix(&format!(".{}", ext(file_b)))
+        .tempfile()
+        .expect("failed to create temporary file for FeatureIDE comparison");
+    write!(tmp_a, "{}", file_a.contents).expect("failed to write to temporary file");
+    write!(tmp_b, "{}", file_b.contents).expect("failed to write to temporary file");
+    let args = vec![
+        OsString::from("-jar"),
+        OsString::from(&io_path),
+        tmp_a.path().as_os_str().to_owned(),
+        OsString::from("compare"),
+        tmp_b.path().as_os_str().to_owned(),
+    ];
+    log_invoked_command("java", &args);
+    log(&format!(
+        "[EXEC] starting FeatureIDE ModelComparator using {}",
+        io_path
+    ));
+    let _timing = scope("EXEC", "FeatureIDE comparison");
+    let process = Command::new("java")
+        .args(&args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect(&format!(
+            "failed to run FeatureIDE I/O interface '{io_path}'. \
+             Make sure Java is installed and on PATH"
+        ));
+    let mut output = String::new();
+    let mut error = String::new();
+    process
+        .stdout
+        .expect("FeatureIDE stdout unavailable")
+        .read_to_string(&mut output)
+        .expect("failed to read FeatureIDE output");
+    process
+        .stderr
+        .expect("FeatureIDE stderr unavailable")
+        .read_to_string(&mut error)
+        .expect("failed to read FeatureIDE errors");
+    if error.trim() == "No path set for model. Can't load imported models." {
+        error = String::new();
+    }
+    assert!(error.is_empty(), "FeatureIDE comparison failed: {}", error);
+    output.trim().to_owned()
+}

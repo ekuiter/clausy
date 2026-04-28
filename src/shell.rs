@@ -446,6 +446,17 @@ pub struct DiffArgs {
     #[arg(long, requires = "satisfy", requires = "cnf_dist")]
     simplified: bool,
 
+    /// Perform SAT-based classification as implemented in FeatureIDE.
+    ///
+    /// Algorithmically, this is the same as using --satisfy, but it relies on FeatureIDE instead.
+    /// Due to scalability issues, this is mostly used for validation purposes.
+    /// Note that the support for any [DiffMode] other than `false` is limited and may not always yield correct results.
+    /// Also note that the internal conversion into UVL may sometimes cause incorrect results.
+    /// These issues are conceptually hard to fix due to assumptions in the tool and format boundaries.
+    /// Thus, it is only recommended to use this for small-scale experiments and validation.
+    #[arg(long, requires = "negate", requires = "cnf_dist", conflicts_with_all = ["count", "projected_count", "satisfy"])]
+    featureide: bool,
+
     /// Use distributive CNF transformation instead of Tseitin transformation.
     ///
     /// With this flag, all intermediate formulas are transformed using the distributive CNF transformation.
@@ -820,6 +831,7 @@ fn execute_action(action: Action, formulas: &mut [Formula], arena: &mut Arena) {
                 args.projected_count,
                 args.satisfy,
                 args.simplified,
+                args.featureide,
                 args.variables,
                 args.constraints,
                 args.uvl,
