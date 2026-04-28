@@ -1,4 +1,4 @@
 # no-change: same formula on both sides; FeatureIDE ModelComparator classifies as Refactoring
-$clausy -q -i input/simple_a.model -i input/simple_a.model diff --no-header --left false --right false --negate --featureide --dist | sed 's/\(,[^,]*\)\{10\}$//'
+$clausy -q -i input/simple_a.model -i input/simple_a.model diff --satisfy --no-header --left false --right false --negate --featureide --dist | sed 's/\(,[^,]*\)\{10\}$//'
 ---
 2,0,0,2,0,0,Refactoring,,,,,,,,,,,,
