@@ -803,6 +803,9 @@ pub(crate) fn diff(
     // This is because there is no equivalent to the root literals introduced by the Tseitin transformation.
     if !cnf_dist {
         measure_time!(diff_base.to_cnf_tseitin(false, arena));
+    } else {
+        // If the distributive transformation is requested, it is applied to all three following formulas individually, and included in their respective duration measurement.
+        no_duration!();
     }
 
     let proj_vars: Option<&HashSet<i32>>;
