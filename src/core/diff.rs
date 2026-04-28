@@ -536,7 +536,7 @@ pub(crate) fn diff(
             default,
             core_vars,
             dead_vars,
-            if projected_count || featureide { &empty } else { &b_var_ids },
+            if projected_count { &empty } else { &b_var_ids },
             arena,
         );
         // Let's assume for now we are not doing projected model counting.
@@ -555,7 +555,13 @@ pub(crate) fn diff(
         // and those exclusive to `b` (which will be sliced by the projected model counter),
         // and those exclusive to `a` (which are fully determinate and don't affect the model count).
         // Consequently, there is no invariant violation when we do projected model counting.
-        // If we classify using FeatureIDE, we do not want to exclude any variables either.
+        if satisfy && matches!(a_diff_kind, DiffKind::Fixed { .. }) && matches!(b_diff_kind, DiffKind::Fixed { .. }) {
+            // If we do SAT-based classification, the invariant violation is a problem, because we rely on it sooner.
+            // However, we then also don't measure the impact of slicing, so we can manually restore the invariant here.
+            // It is, however, really simple, because `b_sliced` now simply refers to all variables in the arena.
+            // Why guard this to `satisfy`? Because it would mess up the slicing impact measurement as stated above.
+            b_sliced.sub_var_ids = arena.var_ids();
+        }
         if serialize {
             // The whole invariant discussion does not apply here because we work on the file representation, which is not affected by `force_foreign_vars`.
             let mut file = b_sliced_file
@@ -567,6 +573,7 @@ pub(crate) fn diff(
         } else if featureide {
             // Serialize the variable-adjusted formula to CNF so FeatureIDE sees no foreign variables which could be forced to false during its classification.
             // As FeatureIDE would perform a distributive transformation internally anyway, this does not limit the scalability.
+            // Here it is important that the invariant is not violated, which is why we restore it above.
             b_sliced_file = Some(to_cnf_file_dist(&b_sliced, arena));
         }
     }
@@ -581,9 +588,12 @@ pub(crate) fn diff(
             default,
             core_vars,
             dead_vars,
-            if projected_count || featureide { &empty } else { &a_var_ids },
+            if projected_count { &empty } else { &a_var_ids },
             arena,
         );
+        if satisfy && matches!(a_diff_kind, DiffKind::Fixed { .. }) && matches!(b_diff_kind, DiffKind::Fixed { .. }) {
+            a_sliced.sub_var_ids = arena.var_ids();
+        }
         if serialize {
             let mut file = a_sliced_file
                 .as_ref()
@@ -824,6 +834,7 @@ pub(crate) fn diff(
     // This is only not the case when both sides are to be sliced, in which case the union will return all variables anyway.
     // Thus, the conjunction of both formulas will have as `sub_vars` all variables of the arena,
     // which is fine, because we will slice those variables we do not want with the projected model counter.
+    // All this does not apply to SAT-based classification, for which we already rectified the invariant violation above.
     let mut diff_base = a_sliced.and(&b_sliced, arena);
     let mut diff;
 
@@ -947,6 +958,8 @@ pub(crate) fn diff(
         if satisfy && simplified {
             // Simplified reasoning means iterating over clauses unique to each side instead of building a&!b.
             // Each SAT query is then tiny (assuming only a handful of unit clauses), and early termination is possible.
+            // Here it is also important that the invariant is not violated, which is why we restore it above,
+            // because this simplified reasoning algorithm relies on the formula being proper.
             let (dur_removed, dur_added);
             (cnt_removed, cnt_added, dur_removed, dur_added) =
                 satisfy_simplified(&a_sliced, &b_sliced, arena);
