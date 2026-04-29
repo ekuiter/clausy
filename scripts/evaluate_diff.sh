@@ -30,19 +30,37 @@ run() {
         out=$("${cmd[@]}" || true)
     fi
     ns=$(($(date +%s%N) - ns))
-    [[ -z "$out" ]] && out="$EMPTY"
+    if [[ -z "$out" ]]; then
+        out="$EMPTY"
+    else
+        IFS=',' read -ra _fields <<< "$out"
+        if (( ${#_fields[@]} < 30 )); then
+            while (( ${#_fields[@]} < 30 )); do _fields+=(""); done
+            out=$(IFS=','; echo "${_fields[*]}")
+        fi
+    fi
     echo "$(basename "$LEFT"),$(basename "$RIGHT"),$lm,$rm,$method,$engine,$transform,$negate,$out,$ns" | tee -a "$CSV"
 }
 
-for lm in false true slice; do
-for rm in false true slice; do
+# shellcheck disable=SC2043
+# We do not evaluate every combination of diff modes here, because the experiment just takes too much time otherwise.
+# The two most extreme combinations are false-false (outer diff) and slice-slice (inner diff), and they are also the most interesting in practice.
+# for lm in false true slice; do
+# for rm in false true slice; do
+for lm in false slice; do
+for rm in false slice; do
+    if [[ $lm != "$rm" ]]; then
+        continue
+    fi
 
     for engine in d4 ganak; do
         case $engine in
             d4)    TOOL_FLAGS=() ;;
             ganak) TOOL_FLAGS=(--sharp-sat-path ganak.sh) ;;
         esac
-        for transform in tseitin dist; do
+        # In our pre-experiments, distributive transformation always times out for this method.
+        # for transform in tseitin dist; do
+        for transform in tseitin; do
             tf=(); [[ $transform == dist ]] && tf=(--dist)
             for negate in false true; do
                 nf=(); [[ $negate == true ]] && nf=(--negate)
@@ -52,12 +70,14 @@ for rm in false true slice; do
         done
     done
 
-    for engine in d4-counting d4-proj-ddnnf-compiler d4-projMC ganak; do
+    for engine in d4-counting d4-proj-ddnnf-compiler d4-projMC ganak-pmc; do
         case $engine in
             d4-*) TOOL_FLAGS=(--d4-projection-mode "${engine#d4-}") ;;
-            ganak) TOOL_FLAGS=(--sharp-sat-path ganak.sh) ;;
+            ganak-pmc) TOOL_FLAGS=(--sharp-sat-path ganak.sh) ;;
         esac
-        for transform in tseitin dist; do
+        # In our pre-experiments, distributive transformation always times out for this method.
+        # for transform in tseitin dist; do
+        for transform in tseitin; do
             tf=(); [[ $transform == dist ]] && tf=(--dist)
             for negate in false true; do
                 nf=(); uf=()
@@ -70,7 +90,9 @@ for rm in false true slice; do
 
     if [[ -n $SAT_SOLVER ]]; then
         TOOL_FLAGS=(--sat-path "$SAT_SOLVER")
-        for transform in tseitin dist; do
+        # In our pre-experiments, distributive transformation always times out for this method.
+        # for transform in tseitin dist; do
+        for transform in tseitin; do
             tf=(); [[ $transform == dist ]] && tf=(--dist)
             run "$lm" "$rm" satisfy "$SAT_SOLVER" "$transform" true \
                 --satisfy --negate "${tf[@]}"

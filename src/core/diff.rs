@@ -396,6 +396,9 @@ pub(crate) fn diff(
     negate: bool,
     arena: &mut Arena,
 ) {
+    // Start total time measurement.
+    let start = Instant::now();
+
     // Ensure both formulas are in proto-CNF form.
     a.ensure_proto_cnf(arena);
     b.ensure_proto_cnf(arena);
@@ -1108,6 +1111,9 @@ pub(crate) fn diff(
         }
         .to_owned();
     }
+
+    // Finish total time measurement.
+    durations.push(start.elapsed());
 
     // Print the remaining details about the semantic differences, omitting results that are -1.
     let durations: Vec<String> = durations.iter().map(|d| d.as_nanos().to_string()).collect();
