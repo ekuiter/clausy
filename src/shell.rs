@@ -525,6 +525,12 @@ pub struct DiffArgs {
     #[arg(long)]
     no_header: bool,
 
+    /// Report 0 for all duration columns instead of actual timings.
+    ///
+    /// Useful for deterministic output in tests.
+    #[arg(long)]
+    no_durations: bool,
+
     /// Path to a variable mapping file for handling renamed, split, or merged variables.
     ///
     /// Each non-empty, non-comment line must have the form `left=right`,
@@ -846,6 +852,7 @@ fn execute_action(action: Action, formulas: &mut [Formula], arena: &mut Arena) {
                 args.cnf_dist,
                 args.is_unsafe,
                 args.negate,
+                args.no_durations,
                 arena,
             );
         }

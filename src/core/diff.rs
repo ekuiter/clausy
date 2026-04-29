@@ -6,8 +6,11 @@ use num::{bigint::ToBigInt, BigInt, BigRational, Signed, ToPrimitive};
 use std::{
     collections::{HashMap, HashSet},
     io::Write,
+    sync::atomic::{AtomicBool, Ordering},
     time::{Duration, Instant},
 };
+
+static NO_DURATIONS: AtomicBool = AtomicBool::new(false);
 
 use super::{
     arena::Arena, clauses::Clauses, expr::Expr::And, file::File, formula::Formula, var::VarId,
@@ -29,12 +32,20 @@ macro_rules! print_column {
     }};
 }
 
-// Measure the time taken by an expression and print it.
+fn print_duration(nanos: u128) {
+    if NO_DURATIONS.load(Ordering::Relaxed) {
+        print_column!("0");
+    } else {
+        print_column!("{nanos}");
+    }
+}
+
+// Measure the time taken by an expression and print it (or 0 if NO_DURATIONS is set).
 macro_rules! measure_time {
     ($expr:expr) => {{
         let start = Instant::now();
         let result = $expr;
-        print_column!("{}", start.elapsed().as_nanos().to_string());
+        print_duration(start.elapsed().as_nanos());
         result
     }};
 }
@@ -383,7 +394,7 @@ fn satisfy_simplified(a: &Formula, b: &Formula, arena: &Arena) -> (BigInt, BigIn
                     return BigInt::from(1);
                 }
             }
-            print_column!("{}", total.as_nanos().to_string());
+            print_duration(total.as_nanos());
             BigInt::from(0)
         };
 
@@ -439,10 +450,12 @@ pub(crate) fn diff(
     cnf_dist: bool,
     is_unsafe: bool,
     negate: bool,
+    no_durations: bool,
     arena: &mut Arena,
 ) {
     // Start total time measurement.
     let start = Instant::now();
+    NO_DURATIONS.store(no_durations, Ordering::Relaxed);
 
     // Ensure both formulas are in proto-CNF form.
     a.ensure_proto_cnf(arena);
@@ -1170,5 +1183,5 @@ pub(crate) fn diff(
     print_column!("{classification}");
 
     // Print total time measurement.
-    print_column!("{}", start.elapsed().as_nanos().to_string());
+    print_duration(start.elapsed().as_nanos());
 }
