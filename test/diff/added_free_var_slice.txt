@@ -1,5 +1,5 @@
 # going from A (no B) to B (has free optional B): slice projects B to common vars, revealing no semantic difference
 # gained_ratio = log2(cnt_b/cnt_b_sliced) / b_vars = log2(2/1)/1 = 1
-$clausy -q -i input/simple_b.model -i input/simple_a.model diff --count --no-header --left slice --right slice | sed 's/\(,[^,]*\)\{10\}$//'
+$clausy -q -i input/simple_b.model -i input/simple_a.model diff --no-durations --count --no-header --left slice --right slice
 ---
-1,0,1,1,0,1,Refactoring,,0,1,0,1,1,1,2,1,1,0,0
+1,0,1,1,0,1,0,0,0,0,0,0,1,1,2,1,,1,0,0,1,0,0,0,0,0,1,0,Refactoring,0

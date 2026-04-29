@@ -1,3 +1,3 @@
-# diff embtoolkit 1.0.0 vs 1.1.0 with distributive CNF mode and negation; should time out within 10 seconds
+# diff --no-durations embtoolkit 1.0.0 vs 1.1.0 with distributive CNF mode and negation; should time out within 10 seconds
 # distributive transformation causes exponential blowup
-timeout 10 $clausy -q -i input/embtoolkit-1.0.0.model -i input/embtoolkit-1.1.0.model diff --no-header --count --cnf-dist; test $? -eq 124
+timeout 10 $clausy -q -i input/embtoolkit-1.0.0.model -i input/embtoolkit-1.1.0.model diff --no-durations --no-header --count --cnf-dist; test $? -eq 124

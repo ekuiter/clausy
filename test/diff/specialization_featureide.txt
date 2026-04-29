@@ -1,4 +1,4 @@
 # specialization: simple_a has feature B (optional), simple_b does not; FeatureIDE classifies A->B as Specialization
-$clausy -q -i input/simple_a.model -i input/simple_b.model diff --satisfy --no-header --left false --right false --negate --featureide --dist | sed 's/\(,[^,]*\)\{10\}$//'
+$clausy -q -i input/simple_a.model -i input/simple_b.model diff --no-durations --satisfy --no-header --left false --right false --negate --featureide --dist
 ---
-1,1,0,1,1,0,Specialization,,,,,,,,,,,,
+1,1,0,1,1,0,0,0,0,0,0,0,,,,,,,0,0,,0,0,,,,,,Specialization,0

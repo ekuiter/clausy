@@ -1,4 +1,4 @@
 # no-change: same formula on both sides; satisfy correctly classifies as Refactoring
-$clausy -q -i input/rename_a.sat -i input/rename_a.sat diff --satisfy --no-header --left false --right false --negate | sed 's/\(,[^,]*\)\{10\}$//'
+$clausy -q -i input/rename_a.sat -i input/rename_a.sat diff --no-durations --satisfy --no-header --left false --right false --negate
 ---
-2,0,0,2,0,0,Refactoring,,,,,,,,,,,0,0
+2,0,0,2,0,0,0,0,0,0,0,0,,,,,,,0,0,,0,0,0,0,,,,Refactoring,0

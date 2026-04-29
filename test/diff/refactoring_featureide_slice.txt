@@ -1,4 +1,4 @@
 # refactoring: slice projects both models to common features; FeatureIDE classifies as Refactoring
-$clausy -q -i input/simple_a.model -i input/simple_b.model diff --satisfy --no-header --left slice --right slice --negate --featureide --dist | sed 's/\(,[^,]*\)\{10\}$//'
+$clausy -q -i input/simple_a.model -i input/simple_b.model diff --no-durations --satisfy --no-header --left slice --right slice --negate --featureide --dist
 ---
-1,1,0,1,1,0,Refactoring,,,,,,,,,,,,
+1,1,0,1,1,0,0,0,0,0,0,0,,,,,,,0,0,,0,0,,,,,,Refactoring,0

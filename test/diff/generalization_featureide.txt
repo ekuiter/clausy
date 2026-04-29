@@ -1,4 +1,4 @@
 # generalization: simple_b has no feature B, simple_a does; FeatureIDE classifies B->A as Generalization
-$clausy -q -i input/simple_b.model -i input/simple_a.model diff --satisfy --no-header --left false --right false --negate  --featureide --dist | sed 's/\(,[^,]*\)\{10\}$//'
+$clausy -q -i input/simple_b.model -i input/simple_a.model diff --no-durations --satisfy --no-header --left false --right false --negate  --featureide --dist
 ---
-1,0,1,1,0,1,Generalization,,,,,,,,,,,,
+1,0,1,1,0,1,0,0,0,0,0,0,,,,,,,0,0,,0,0,,,,,,Generalization,0

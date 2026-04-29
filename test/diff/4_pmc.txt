@@ -1,4 +1,4 @@
 # pair 4 (.sat): projected model counting does nothing (no slicing involved)
-$clausy -q -i input/4a.sat -i input/4b.sat diff --no-header --left false --right false --projected-count --negate | sed 's/\(,[^,]*\)\{10\}$//'
+$clausy -q -i input/4a.sat -i input/4b.sat diff --no-durations --no-header --left false --right false --projected-count --negate
 ---
-3,1,1,1,2,1,ArbitraryEdit,,0.3125,0,0.6875,,,,,,0,5,11
+3,1,1,1,2,1,0,0,0,0,0,0,,,,,,,0,0,0,0,0,5,11,0.3125,0,0.6875,ArbitraryEdit,0

@@ -1,5 +1,5 @@
 # disjoint: A requires (a=T, b=F), B requires (a=F, b=T); no configurations in common
 # going from A to B loses all configs, gains all different configs
-$clausy -q -i input/disjoint_a.sat -i input/disjoint_b.sat diff --count --no-header --left false --right false --negate | sed 's/\(,[^,]*\)\{10\}$//'
+$clausy -q -i input/disjoint_a.sat -i input/disjoint_b.sat diff --no-durations --count --no-header --left false --right false --negate
 ---
-2,0,0,0,2,2,ArbitraryEdit,,0.5,0,0.5,,,,,,0,1,1
+2,0,0,0,2,2,0,0,0,0,0,0,,,,,,,0,0,0,0,0,1,1,0.5,0,0.5,ArbitraryEdit,0
