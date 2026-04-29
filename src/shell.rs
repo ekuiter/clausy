@@ -107,7 +107,11 @@ pub struct ToolOptions {
     pub sharp_sat_timeout: u64,
 
     /// Path to the AllSAT solver bc_minisat_all.
-    #[arg(long, default_value = "bc_minisat_all", overrides_with = "bc_minisat_all_path")]
+    #[arg(
+        long,
+        default_value = "bc_minisat_all",
+        overrides_with = "bc_minisat_all_path"
+    )]
     pub bc_minisat_all_path: String,
 
     /// Path to the FeatureIDE I/O interface.

@@ -11,7 +11,7 @@ CLAUSY="${CLAUSY:-$(dirname "$0")/../build/clausy}"
 [[ -f "$RIGHT" ]]  || { echo "right formula not found: $RIGHT" >&2; exit 1; }
 [[ -x "$CLAUSY" ]] || { echo "clausy not found: $CLAUSY" >&2; exit 1; }
 
-DIFF_HEADER="common_vars,removed_vars,added_vars,common_constraints,removed_constraints,added_constraints,classification,lost_solutions,removed_solutions,common_solutions,added_solutions,gained_solutions,left_count,left_sliced_count,right_count,right_sliced_count,common_solutions_count,removed_solutions_count,added_solutions_count,left_sliced_duration,right_sliced_duration,left_count_duration,left_sliced_count_duration,right_count_duration,right_sliced_count_duration,tseitin_or_featureide_duration,common_solutions_count_duration,removed_solutions_count_duration,added_solutions_count_duration,total_duration"
+DIFF_HEADER="common_vars,removed_vars,added_vars,common_constraints,removed_constraints,added_constraints,left_sliced_duration,right_sliced_duration,left_count_duration,left_sliced_count_duration,right_count_duration,right_sliced_count_duration,left_count,left_sliced_count,right_count,right_sliced_count,lost_solutions,gained_solutions,tseitin_or_featureide_duration,common_solutions_count_duration,common_solutions_count,removed_solutions_count_duration,added_solutions_count_duration,removed_solutions_count,added_solutions_count,removed_solutions,common_solutions,added_solutions,classification,total_duration"
 echo "left_formula,right_formula,left_diff_kind,right_diff_kind,method,engine,cnf_transform,negate,$DIFF_HEADER,total_duration_shell" > "$CSV"
 EMPTY=$(printf ',%.0s' {1..29})
 TOOL_FLAGS=()
@@ -45,6 +45,8 @@ run() {
 # shellcheck disable=SC2043
 # We do not evaluate every combination of diff modes here, because the experiment just takes too much time otherwise.
 # The two most extreme combinations are false-false (outer diff) and slice-slice (inner diff), and they are also the most interesting in practice.
+# Also, in our pre-experiments, distributive transformation almost always times out, except for --satisfy --simplified.
+# This is expected for larger formula inputs, even when --negate is not specified.
 # for lm in false true slice; do
 # for rm in false true slice; do
 for lm in false slice; do
@@ -58,7 +60,6 @@ for rm in false slice; do
             d4)    TOOL_FLAGS=() ;;
             ganak) TOOL_FLAGS=(--sharp-sat-path ganak.sh) ;;
         esac
-        # In our pre-experiments, distributive transformation always times out for this method.
         # for transform in tseitin dist; do
         for transform in tseitin; do
             tf=(); [[ $transform == dist ]] && tf=(--dist)
@@ -75,7 +76,6 @@ for rm in false slice; do
             d4-*) TOOL_FLAGS=(--d4-projection-mode "${engine#d4-}") ;;
             ganak-pmc) TOOL_FLAGS=(--sharp-sat-path ganak.sh) ;;
         esac
-        # In our pre-experiments, distributive transformation always times out for this method.
         # for transform in tseitin dist; do
         for transform in tseitin; do
             tf=(); [[ $transform == dist ]] && tf=(--dist)
@@ -90,7 +90,6 @@ for rm in false slice; do
 
     if [[ -n $SAT_SOLVER ]]; then
         TOOL_FLAGS=(--sat-path "$SAT_SOLVER")
-        # In our pre-experiments, distributive transformation always times out for this method.
         # for transform in tseitin dist; do
         for transform in tseitin; do
             tf=(); [[ $transform == dist ]] && tf=(--dist)

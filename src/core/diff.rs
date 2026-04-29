@@ -1,7 +1,7 @@
 //! Differencing of feature-model formulas.
 
-use crate::util::io;
 use crate::util::log::log;
+use crate::util::{exec, io};
 use num::{bigint::ToBigInt, BigInt, BigRational, Signed, ToPrimitive};
 use std::{
     collections::{HashMap, HashSet},
@@ -12,7 +12,39 @@ use std::{
 use super::{
     arena::Arena, clauses::Clauses, expr::Expr::And, file::File, formula::Formula, var::VarId,
 };
-use crate::util::exec;
+
+// Print and flush information to standard output.
+macro_rules! print_flush {
+    ($($arg:tt)*) => {{
+        print!($($arg)*);
+        std::io::stdout().flush().unwrap();
+    }};
+}
+
+// Print a new CSV column.
+macro_rules! print_column {
+    ($($arg:tt)*) => {{
+        print!(",");
+        print_flush!($($arg)*);
+    }};
+}
+
+// Measure the time taken by an expression and print it.
+macro_rules! measure_time {
+    ($expr:expr) => {{
+        let start = Instant::now();
+        let result = $expr;
+        print_column!("{}", start.elapsed().as_nanos().to_string());
+        result
+    }};
+}
+
+// Print a column with duration of zero.
+macro_rules! no_duration {
+    () => {{
+        print_column!("0");
+    }};
+}
 
 /// A mapping between variable names in formula A and formula B.
 ///
@@ -140,6 +172,24 @@ pub(crate) enum DiffKind {
     Slice,
 }
 
+/// Formats a f64, returning an empty string for negative sentinel values.
+fn format_f64(v: f64) -> String {
+    if v < 0.0 {
+        String::new()
+    } else {
+        v.to_string()
+    }
+}
+
+/// Formats a BigInt, returning an empty string for negative sentinel values.
+fn format_bigint(v: &BigInt) -> String {
+    if v.is_negative() {
+        String::new()
+    } else {
+        v.to_string()
+    }
+}
+
 /// Ensures the output directory implied by a prefix exists, creating it if needed.
 ///
 /// When the prefix contains `/`, the portion before the last `/` is treated as a directory path
@@ -254,11 +304,7 @@ pub(crate) fn diff_helper(
 /// so each individual SAT query is much cheaper than the full `a&!b` query.
 /// We stop as soon as one query succeeds.
 /// Returns `cnt_removed` = 1 if at least one solution has been removed and 0 otherwise (analogous for `cnt_added`).
-fn satisfy_simplified(
-    a: &Formula,
-    b: &Formula,
-    arena: &Arena,
-) -> (BigInt, BigInt, Duration, Duration) {
+fn satisfy_simplified(a: &Formula, b: &Formula, arena: &Arena) -> (BigInt, BigInt) {
     // Run distributive transformation for both formulas independently.
     let build_clauses = |f: &Formula| -> Clauses {
         let mut clone = f.clone();
@@ -312,39 +358,38 @@ fn satisfy_simplified(
     let unique_b: Vec<&Vec<VarId>> = canonical_b.iter().filter(|c| !set_a.contains(c)).collect();
 
     // Check one subset direction: for each unique clause, assume its negation in the other (base) formula.
-    let check_direction = |clauses: &Clauses,
-                           unique: &[&Vec<VarId>],
-                           var_remap: &HashMap<VarId, VarId>|
-     -> (BigInt, Duration) {
-        let mut total = Duration::ZERO;
-        for canonical_clause in unique {
-            // Translate canonical (arena-ID) literals to base formula's local space, then negate.
-            let negated: Vec<VarId> = canonical_clause
-                .iter()
-                .map(|&lit| {
-                    let &id = var_remap
-                        .get(&lit.abs())
-                        .expect("unique clause references variable absent from base formula");
-                    if lit > 0 {
-                        -id
-                    } else {
-                        id
-                    }
-                })
-                .collect();
-            let start = Instant::now();
-            let sat = clauses.assume(&negated).satisfy().is_some();
-            total += start.elapsed();
-            if sat {
-                return (BigInt::from(1), total);
+    let check_direction =
+        |clauses: &Clauses, unique: &[&Vec<VarId>], var_remap: &HashMap<VarId, VarId>| -> BigInt {
+            let mut total = Duration::ZERO;
+            for canonical_clause in unique {
+                // Translate canonical (arena-ID) literals to base formula's local space, then negate.
+                let negated: Vec<VarId> = canonical_clause
+                    .iter()
+                    .map(|&lit| {
+                        let &id = var_remap
+                            .get(&lit.abs())
+                            .expect("unique clause references variable absent from base formula");
+                        if lit > 0 {
+                            -id
+                        } else {
+                            id
+                        }
+                    })
+                    .collect();
+                let start = Instant::now();
+                let sat = clauses.assume(&negated).satisfy().is_some();
+                total += start.elapsed();
+                if sat {
+                    return BigInt::from(1);
+                }
             }
-        }
-        (BigInt::from(0), total)
-    };
+            print_column!("{}", total.as_nanos().to_string());
+            BigInt::from(0)
+        };
 
-    let (cnt_removed, dur_removed) = check_direction(&clauses_a, &unique_b, &clauses_a.var_remap);
-    let (cnt_added, dur_added) = check_direction(&clauses_b, &unique_a, &clauses_b.var_remap);
-    (cnt_removed, cnt_added, dur_removed, dur_added)
+    let cnt_removed = check_direction(&clauses_a, &unique_b, &clauses_a.var_remap);
+    let cnt_added = check_direction(&clauses_b, &unique_a, &clauses_b.var_remap);
+    (cnt_removed, cnt_added)
 }
 
 /// Converts a formula to an in-memory CNF [File] by applying distributive CNF transformation.
@@ -410,21 +455,7 @@ pub(crate) fn diff(
         |suffix: &str| -> Option<String> { cnf.then(|| file_path(&format!("{suffix}.cnf"))) };
     let serialize = uvl || xml;
 
-    // Prepare helpers and check options.
-    let mut durations: Vec<Duration> = vec![];
-    macro_rules! measure_time {
-        ($expr:expr) => {{
-            let start = Instant::now();
-            let result = $expr;
-            durations.push(start.elapsed());
-            result
-        }};
-    }
-    macro_rules! no_duration {
-        () => {{
-            durations.push(Duration::ZERO)
-        }};
-    }
+    // Check options.
     if count && projected_count {
         panic!("--count and --projected-count are mutually exclusive");
     }
@@ -489,10 +520,11 @@ pub(crate) fn diff(
     // Later we will print details about the semantic differences as well, but this way we can
     // still write out the syntactic differences in case of a timeout.
     if !no_header {
-        println!("common_vars,removed_vars,added_vars,common_constraints,removed_constraints,added_constraints,classification,lost_solutions,removed_solutions,common_solutions,added_solutions,gained_solutions,left_count,left_sliced_count,right_count,right_sliced_count,common_solutions_count,removed_solutions_count,added_solutions_count,left_sliced_duration,right_sliced_duration,left_count_duration,left_sliced_count_duration,right_count_duration,right_sliced_count_duration,tseitin_or_featureide_duration,common_solutions_count_duration,removed_solutions_count_duration,added_solutions_count_duration,total_duration");
+        println!("common_vars,removed_vars,added_vars,common_constraints,removed_constraints,added_constraints,left_sliced_duration,right_sliced_duration,left_count_duration,left_sliced_count_duration,right_count_duration,right_sliced_count_duration,left_count,left_sliced_count,right_count,right_sliced_count,lost_solutions,gained_solutions,tseitin_or_featureide_duration,common_solutions_count_duration,common_solutions_count,removed_solutions_count_duration,added_solutions_count_duration,removed_solutions_count,added_solutions_count,removed_solutions,common_solutions,added_solutions,classification,total_duration");
     }
-    print!("{common_vars},{a_vars},{b_vars},{common_constraints},{a_constraints},{b_constraints}");
-    std::io::stdout().flush().unwrap();
+    print_flush!(
+        "{common_vars},{a_vars},{b_vars},{common_constraints},{a_constraints},{b_constraints}"
+    );
 
     // We now start with the actual semantic differencing.
     // Note that `a_sliced` can both refer to the original formula `a` or a sliced version of it, depending on whether slicing is requested.
@@ -517,7 +549,7 @@ pub(crate) fn diff(
     }
     if matches!(b_diff_kind, DiffKind::Slice) && !projected_count {
         (b_sliced, b_sliced_file) = measure_time!(b_sliced_file
-            .as_ref() 
+            .as_ref()
             .unwrap()
             .slice_with_featureide(&common_var_ids, arena, serialize || featureide));
     } else {
@@ -558,7 +590,10 @@ pub(crate) fn diff(
         // and those exclusive to `b` (which will be sliced by the projected model counter),
         // and those exclusive to `a` (which are fully determinate and don't affect the model count).
         // Consequently, there is no invariant violation when we do projected model counting.
-        if satisfy && matches!(a_diff_kind, DiffKind::Fixed { .. }) && matches!(b_diff_kind, DiffKind::Fixed { .. }) {
+        if satisfy
+            && matches!(a_diff_kind, DiffKind::Fixed { .. })
+            && matches!(b_diff_kind, DiffKind::Fixed { .. })
+        {
             // If we do SAT-based classification, the invariant violation is a problem, because we rely on it sooner.
             // However, we then also don't measure the impact of slicing, so we can manually restore the invariant here.
             // It is, however, really simple, because `b_sliced` now simply refers to all variables in the arena.
@@ -577,6 +612,7 @@ pub(crate) fn diff(
             // Serialize the variable-adjusted formula to CNF so FeatureIDE sees no foreign variables which could be forced to false during its classification.
             // As FeatureIDE would perform a distributive transformation internally anyway, this does not limit the scalability.
             // Here it is important that the invariant is not violated, which is why we restore it above.
+            // For simplicity, we do not report the duration here.
             b_sliced_file = Some(to_cnf_file_dist(&b_sliced, arena));
         }
     }
@@ -594,7 +630,10 @@ pub(crate) fn diff(
             if projected_count { &empty } else { &a_var_ids },
             arena,
         );
-        if satisfy && matches!(a_diff_kind, DiffKind::Fixed { .. }) && matches!(b_diff_kind, DiffKind::Fixed { .. }) {
+        if satisfy
+            && matches!(a_diff_kind, DiffKind::Fixed { .. })
+            && matches!(b_diff_kind, DiffKind::Fixed { .. })
+        {
             a_sliced.sub_var_ids = arena.var_ids();
         }
         if serialize {
@@ -818,6 +857,15 @@ pub(crate) fn diff(
         no_duration!();
         no_duration!();
     }
+    print_column!(
+        "{},{},{},{},{},{}",
+        format_bigint(&cnt_a),
+        format_bigint(&cnt_a_sliced),
+        format_bigint(&cnt_b),
+        format_bigint(&cnt_b_sliced),
+        format_f64(lost_ratio),
+        format_f64(gained_ratio),
+    );
 
     // At this point, we have a pretty clear understanding of the impact of slicing, if requested.
     // We now want to compare the actual formulas, and we can do it because they now refer to the same set of variables.
@@ -938,6 +986,7 @@ pub(crate) fn diff(
         proj_vars,
     ));
     log(&format!("[DIFF] #common = {}", cnt_common));
+    print_column!("{}", format_bigint(&cnt_common));
 
     // Here we have to decide whether to use the big guns (negation-based reasoning) or avoid it.
     // The general idea is as follows:
@@ -963,11 +1012,7 @@ pub(crate) fn diff(
             // Each SAT query is then tiny (assuming only a handful of unit clauses), and early termination is possible.
             // Here it is also important that the invariant is not violated, which is why we restore it above,
             // because this simplified reasoning algorithm relies on the formula being proper.
-            let (dur_removed, dur_added);
-            (cnt_removed, cnt_added, dur_removed, dur_added) =
-                satisfy_simplified(&a_sliced, &b_sliced, arena);
-            durations.push(dur_removed);
-            durations.push(dur_added);
+            (cnt_removed, cnt_added) = satisfy_simplified(&a_sliced, &b_sliced, arena);
         } else {
             // By reusing the formula and switching the assumption (if possible), we can count or serialize removed satisfying assignments.
             diff = if cnf_dist {
@@ -1023,6 +1068,11 @@ pub(crate) fn diff(
     }
     log(&format!("[DIFF] #removed = {}", cnt_removed));
     log(&format!("[DIFF] #added = {}", cnt_added));
+    print_column!(
+        "{},{}",
+        format_bigint(&cnt_removed),
+        format_bigint(&cnt_added)
+    );
 
     // Finally, we derive what fraction of the union of solutions is common, removed, or added (if calculable).
     let (common_ratio, removed_ratio, added_ratio) =
@@ -1045,6 +1095,12 @@ pub(crate) fn diff(
             ));
             (-1f64, -1f64, -1f64)
         };
+    print_column!(
+        "{},{},{}",
+        format_f64(removed_ratio),
+        format_f64(common_ratio),
+        format_f64(added_ratio)
+    );
 
     // Write UVL files for the semantic differences, if requested.
     // For the commonalities, we serialize two versions, one using the feature hierarchy of the left and right formula, respectively.
@@ -1111,40 +1167,8 @@ pub(crate) fn diff(
         }
         .to_owned();
     }
+    print_column!("{classification}");
 
-    // Finish total time measurement.
-    durations.push(start.elapsed());
-
-    // Print the remaining details about the semantic differences, omitting results that are -1.
-    let durations: Vec<String> = durations.iter().map(|d| d.as_nanos().to_string()).collect();
-    let durations = durations.join(",");
-    let ff = |v: f64| {
-        if v < 0.0 {
-            String::new()
-        } else {
-            v.to_string()
-        }
-    };
-    let fb = |v: &BigInt| {
-        if v.is_negative() {
-            String::new()
-        } else {
-            v.to_string()
-        }
-    };
-    println!(
-        ",{classification},{},{},{},{},{},{},{},{},{},{},{},{},{durations}",
-        ff(lost_ratio),
-        ff(removed_ratio),
-        ff(common_ratio),
-        ff(added_ratio),
-        ff(gained_ratio),
-        fb(&cnt_a),
-        fb(&cnt_a_sliced),
-        fb(&cnt_b),
-        fb(&cnt_b_sliced),
-        fb(&cnt_common),
-        fb(&cnt_removed),
-        fb(&cnt_added)
-    );
+    // Print total time measurement.
+    print_column!("{}", start.elapsed().as_nanos().to_string());
 }
