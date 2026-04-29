@@ -28,7 +28,7 @@ else
     make -C "$(dirname "$0")/.." >/dev/null 2>&1
 fi
 
-mapfile -t files < <(cd "$DIR" && find . ! -empty -type f -name '*.model' | sort -V)
+mapfile -t files < <(cd "$DIR" && find . ! -empty -type f | sort -V)
 
 for ((i = 0; i < ${#files[@]}-1; i++)); do
     left="$DIR/${files[i]}"
