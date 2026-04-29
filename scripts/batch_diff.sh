@@ -1,37 +1,37 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-TIMEOUT=${2:-300}
-DOCKER=${3:-n}
+set -euo pipefail
 
-if [[ $# -lt 1 ]]; then
-    echo Please pass a directory with .model files as the first argument. >&2
-    exit 1
-fi
+[[ $# -ge 2 ]] || { echo "usage: $0 <dir> <output_csv> [timeout_sec] [docker:y/n] [sat_solver]" >&2; exit 1; }
+
+DIR=$(readlink -f "$1") CSV=$2 TIMEOUT=${3:-300} DOCKER=${4:-n} SAT_SOLVER=${5:-}
+EVALUATE="$(dirname "$0")/evaluate_diff.sh"
+
+wrapper=""
+trap 'rm -f "$wrapper"' EXIT
 
 if [[ $DOCKER == y ]]; then
-    CLAUSY=(docker run --rm -i -v "$(readlink -f "$1")":/mnt clausy)
-    DIR=/mnt
+    abs_dir=$DIR
+    wrapper=$(mktemp)
+    chmod +x "$wrapper"
+    cat > "$wrapper" <<EOF
+#!/usr/bin/env bash
+args=()
+for arg in "\$@"; do
+    [[ "\$arg" == "$abs_dir/"* ]] && arg="/mnt/\${arg#$abs_dir/}"
+    args+=("\$arg")
+done
+docker run --rm -v "$abs_dir:/mnt" clausy "\${args[@]}"
+EOF
+    export CLAUSY="$wrapper"
 else
-    CLAUSY=("$(dirname "$0")/../build/clausy")
-    DIR=$1
+    make -C "$(dirname "$0")/.." >/dev/null 2>&1
 fi
 
-make >/dev/null 2>&1
-f=($(cd "$1" && find . ! -empty -type f -name '*.model' | sort -V | tr '\n' ' '))
-echo old_revision,new_revision,left_diff_kind,right_diff_kind,engine,common_features,removed_features,added_features,common_constraints,removed_constraints,added_constraints,lost_solutions,removed_solutions,common_solutions,added_solutions,gained_solutions,old_revision_count,old_revision_slice_count,new_revision_count,new_revision_slice_count,common_solutions_count,removed_solutions_count,added_solutions_count,old_revision_slice_duration,new_revision_slice_duration,old_revision_count_duration,old_revision_slice_count_duration,new_revision_count_duration,new_revision_slice_count_duration,tseitin_duration,common_solutions_count_duration,removed_solutions_count_duration,added_solutions_count_duration,total_duration
-for left in false true slice; do
-    for right in false true slice; do
-# for left in false slice; do
-#     for right in false slice; do
-        # if [[ $left == false && $right == false ]]; then continue; fi
-        for ((i = 0; i < ${#f[@]}-1; i++)); do
-            for engine in count projected-count; do
-                cmd=(timeout -s KILL "$TIMEOUT" "${CLAUSY[@]}" -i "$DIR/${f[i]}" -i "$DIR/${f[i+1]}" diff --no-header --left "$left" --right "$right" "--$engine")
-                start=$(date +%s%N)
-                echo -n "$(basename "${f[i]}" .model),$(basename "${f[i+1]}" .model),$left,$right,$engine,$("${cmd[@]}" || echo ,,,,,,,,,,,,,,,,,,,,,,),"
-                end=$(date +%s%N)
-                echo "$((end - start))"
-            done
-        done
-    done
+mapfile -t files < <(cd "$DIR" && find . ! -empty -type f -name '*.model' | sort -V)
+
+for ((i = 0; i < ${#files[@]}-1; i++)); do
+    left="$DIR/${files[i]}"
+    right="$DIR/${files[i+1]}"
+    "$EVALUATE" "$left" "$right" "$CSV" "$TIMEOUT" "$SAT_SOLVER"
 done

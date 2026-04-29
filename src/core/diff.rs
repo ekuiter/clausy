@@ -391,6 +391,7 @@ fn satisfy_simplified(a: &Formula, b: &Formula, arena: &Arena) -> (BigInt, BigIn
                 let sat = clauses.assume(&negated).satisfy().is_some();
                 total += start.elapsed();
                 if sat {
+                    print_duration(total.as_nanos());
                     return BigInt::from(1);
                 }
             }

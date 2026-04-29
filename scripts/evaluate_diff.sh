@@ -89,7 +89,9 @@ for rm in false slice; do
     done
 
     if [[ -n $SAT_SOLVER ]]; then
-        TOOL_FLAGS=(--sat-path "$SAT_SOLVER")
+        if [[ $SAT_SOLVER != kissat ]]; then
+            TOOL_FLAGS=(--sat-path "$SAT_SOLVER")
+        fi
         # for transform in tseitin dist; do
         for transform in tseitin; do
             tf=(); [[ $transform == dist ]] && tf=(--dist)
