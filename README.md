@@ -11,7 +11,7 @@ git clone --recursive https://github.com/ekuiter/clausy.git
 cd clausy
 
 # option 1: build as Docker image
-DOCKER_DEFAULT_PLATFORM=linux/amd64 # necessary on macOS for external solvers
+export DOCKER_DEFAULT_PLATFORM=linux/amd64 # necessary on macOS for external solvers
 docker build -t clausy .
 cat meta/simple.sat | docker run --rm -i clausy
 
@@ -50,10 +50,10 @@ echo '(def(a)|!def(a))' | build/clausy -i -.model -i '(-1)' -t cnf-tseitin satis
 build/clausy -i a.model -i b.model -i '+(*(-1 2) *(1 -2))' -t cnf-tseitin satisfy &>/dev/null; test $? -eq 20
 
 # compute diff statistics
-build/clausy -i a.model -i b.model diff
+build/clausy -i test/input/simple_a.model -i test/input/simple_b.model diff --count
 
 # serialize diff
-build/clausy -i a.model -i b.model diff --left slice --right slice --output-prefix a_to_b
+build/clausy -i test/input/simple_a.model -i test/input/simple_b.model diff --negate --output output/ --uvl --xml
  
 # simplify a given CNF
 build/clausy -i model.dimacs
@@ -62,7 +62,7 @@ build/clausy -i model.dimacs
 cat meta/simple.sat | docker run --rm -i clausy -i -.sat -t cnf-tseitin count
 
 # advanced usage via Docker (file I/O with volumes)
-docker run --rm -v ./a.xml:/a.xml -v ./b.xml:/b.xml -v ./diff:/diff clausy -i /a.xml -i /b.xml diff --left slice --right slice --output-prefix /diff/a_to_b
+docker run --rm -v ./test/input:/mnt clausy -i /mnt/simple_a.model -i /mnt/simple_b.model diff --count
 
 # run tests
 make test

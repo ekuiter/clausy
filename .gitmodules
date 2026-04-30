@@ -1,6 +1,3 @@
-[submodule "src/external/d4v2"]
-	path = src/external/d4v2
-	url = https://github.com/ekuiter/d4v2.git
 [submodule "src/external/sharpsat-td"]
 	path = src/external/sharpsat-td
 	url = https://github.com/Laakeri/sharpsat-td

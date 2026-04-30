@@ -1,0 +1,6 @@
+# pair 1 (.model): projected model counting with projMC gives the wrong result
+# PMC reports 4 common, 3 removed, 3 added instead of the correct 4/2/2
+# this is because negation and existential quantification do not commute
+$clausy -q --d4-projection-mode projMC -i input/1a.model -i input/1b.model diff --no-durations --no-header --left slice --right slice --projected-count --negate --unsafe
+---
+3,1,1,0,2,2,0,0,0,0,0,0,11,6,10,6,0.8744691179161412,0.7369655941662061,0,0,4,0,0,3,3,0.3,0.4,0.3,ArbitraryEdit,0

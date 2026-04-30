@@ -8,7 +8,7 @@ CHECK_CMD = $(if $(shell command -v $(1)),,$(call CMD_NOT_FOUND,$(1)))
 
 # by default, assume Linux build (this is also used in the Dockerfile)
 external_linux: $(BUILD_DIR)/kissat \
-	$(BUILD_DIR)/d4 \
+	$(BUILD_DIR)/d4-x86_64-linux \
 	$(BUILD_DIR)/ganak \
 	$(BUILD_DIR)/bc_minisat_all \
 	$(BUILD_DIR)/clausy.conf
@@ -21,14 +21,14 @@ external_all: $(BUILD_DIR)/tinisat \
 	$(BUILD_DIR)/kissat \
 	$(BUILD_DIR)/sbva_cadical.py \
 	$(BUILD_DIR)/sharpsat-td \
-	$(BUILD_DIR)/d4 \
+	$(BUILD_DIR)/d4-x86_64-linux \
 	$(BUILD_DIR)/bc_minisat_all \
 	$(BUILD_DIR)/clausy.conf
 kissat: $(BUILD_DIR)/kissat
 tinisat: $(BUILD_DIR)/tinisat
 sbva_cadical: $(BUILD_DIR)/sbva_cadical.py
 sharpsat-td: $(BUILD_DIR)/sharpsat-td
-d4: $(BUILD_DIR)/d4
+d4-x86_64-linux: $(BUILD_DIR)/d4-x86_64-linux
 d4-aarch64-darwin: $(BUILD_DIR)/d4-aarch64-darwin
 ganak: $(BUILD_DIR)/ganak
 bc_minisat_all: $(BUILD_DIR)/bc_minisat_all
@@ -84,12 +84,18 @@ $(BUILD_DIR)/sharpsat-td:
 	cp $(TMP_DIR)/sharpsat-td/bin/sharpSAT $(BUILD_DIR)/sharpsat-td
 
 # used by default for model counting
-# has a complex build process that only works on Linux
-$(BUILD_DIR)/d4:
-	$(call CHECK_CMD,cmake)
-	(cd d4v2; ./build.sh -s)
+# we used to build this from scratch on the host machine
+# currently, we use a binary distribution including the projected model counter pd4
+# the binary was obtained from https://github.com/SoftVarE-Group/d4v2/releases
+$(BUILD_DIR)/d4-x86_64-linux:
+	rm -rf $(TMP_DIR)/d4-x86_64-linux
+	mkdir -p $(TMP_DIR)/d4-x86_64-linux
+	tar xzf d4-x86_64-linux.tar.gz -C $(TMP_DIR)/d4-x86_64-linux
 	mkdir -p $(BUILD_DIR)
-	cp d4v2/build/d4_static $(BUILD_DIR)/d4
+	cp $(TMP_DIR)/d4-x86_64-linux/bin/d4 $(BUILD_DIR)/d4-x86_64-linux
+	cp -R $(TMP_DIR)/d4-x86_64-linux/lib $(BUILD_DIR)/lib_d4
+	printf '#!/bin/sh\nLD_LIBRARY_PATH="$$(dirname "$$0")/lib_d4" "$$(dirname "$$0")/d4-x86_64-linux" "$$@"\n' > $(BUILD_DIR)/d4
+	chmod +x $(BUILD_DIR)/d4
 
 # used for model counting on macOS
 # this just unzips a precompiled binary which works on Apple Silicon
