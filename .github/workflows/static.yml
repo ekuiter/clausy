@@ -21,6 +21,9 @@ concurrency:
   group: "pages"
   cancel-in-progress: false
 
+env:
+  DOCKER_DEFAULT_PLATFORM: linux/amd64
+
 jobs:
   build:
     runs-on: ubuntu-latest

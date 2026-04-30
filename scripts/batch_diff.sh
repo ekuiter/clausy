@@ -21,7 +21,7 @@ for arg in "\$@"; do
     [[ "\$arg" == "$abs_dir/"* ]] && arg="/mnt/\${arg#$abs_dir/}"
     args+=("\$arg")
 done
-docker run --rm -v "$abs_dir:/mnt" clausy "\${args[@]}"
+docker run --platform linux/amd64 --rm -v "$abs_dir:/mnt" clausy "\${args[@]}"
 EOF
     export CLAUSY="$wrapper"
 else

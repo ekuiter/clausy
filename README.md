@@ -11,6 +11,7 @@ git clone --recursive https://github.com/ekuiter/clausy.git
 cd clausy
 
 # option 1: build as Docker image
+DOCKER_DEFAULT_PLATFORM=linux/amd64 # necessary on macOS for external solvers
 docker build -t clausy .
 cat meta/simple.sat | docker run --rm -i clausy
 
