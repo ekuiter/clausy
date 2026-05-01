@@ -108,3 +108,20 @@ for rm in false slice; do
 
 done
 done
+
+# approximate counting seems not to work at all due to nondeterminism, which is why we omit it here. my hypothesis why this is the case: we need to calculate three numbers (common removed and added), all of which are estimated, but their estimates are not "in sync" with each other, i.e., each solver call is initialized differently and cannot be expected to return a result that makes sense in relation to other previous results (which unfortunately is a requirement of most feature-model analyses, even basic once such as feature cardinalities).
+# for run in {1..20}; do docker run --platform linux/amd64 --rm -v ./test/input:/mnt clausy -q -i /mnt/embtoolkit-1.0.0.model -i /mnt/embtoolkit-1.1.0.model --sharp-sat-path approcs-fm.sh diff --left slice --right slice --count --negate --no-header; done
+# the correct difference between these two versions is 95% common, 5% added:
+# 0,0.9466894327452097,0.053310567254790366,Generalization
+# approximate counting yields the follows with --negate:
+# 0,0.000000000000000000000000021928702648155287,1,Generalization
+# 0,0.04312872077720065,0.9568712792227994,Generalization
+# 0,0.09649855404193043,0.9035014459580696,Generalization
+# 0,0.9839393088397025,0.01606069116029756,Generalization
+# 0,0.9849755086538787,0.01502449134612129,Generalization
+# 0,0.9919565718383653,0.00804342816163477,Generalization
+# 0,0.9919799485654769,0.008020051434523154,Generalization
+# 0,0.9979809418934963,0.0020190581065036893,Generalization
+# 0,0.9998462650876122,0.00015373491238784539,Generalization
+# which is essentially random garbage. even taking the median run is still pretty off.
+# the runtimes are too: running d4 exactly takes about 10-16 seconds, depending on whether we do project at mode counting or not. the measured run times of approximate counting are 22,41,79,42,13,31,74,82, which are almost all slower and very erratic.

@@ -11,6 +11,7 @@ external_linux: $(BUILD_DIR)/kissat \
 	$(BUILD_DIR)/d4-x86_64-linux \
 	$(BUILD_DIR)/ganak \
 	$(BUILD_DIR)/bc_minisat_all \
+	$(BUILD_DIR)/approcs-fm/approcs-fm \
 	$(BUILD_DIR)/clausy.conf
 external_macos: $(BUILD_DIR)/tinisat \
 	$(BUILD_DIR)/d4-aarch64-darwin \
@@ -23,6 +24,7 @@ external_all: $(BUILD_DIR)/tinisat \
 	$(BUILD_DIR)/sharpsat-td \
 	$(BUILD_DIR)/d4-x86_64-linux \
 	$(BUILD_DIR)/bc_minisat_all \
+	$(BUILD_DIR)/approcs-fm/approcs-fm \
 	$(BUILD_DIR)/clausy.conf
 kissat: $(BUILD_DIR)/kissat
 tinisat: $(BUILD_DIR)/tinisat
@@ -109,7 +111,7 @@ $(BUILD_DIR)/d4-aarch64-darwin:
 	printf '#!/bin/sh\nDYLD_LIBRARY_PATH="$$(dirname "$$0")/lib_d4" "$$(dirname "$$0")/d4-aarch64-darwin" "$$@"\n' > $(BUILD_DIR)/d4
 	chmod +x $(BUILD_DIR)/d4
 
-# used for model counting as and also very fast alternative to d4
+# used for (projected) model counting as a fast alternative to d4
 # this just unzips a precompiled binary
 GANAK_ARCHIVE := $(if $(filter Darwin,$(shell uname -s)),ganak-2.5.3-mac-arm64.tar.gz,ganak-2.5.3-linux-amd64.tar.gz)
 GANAK_EXTRACT_DIR := $(if $(filter Darwin,$(shell uname -s)),ganak-mac-arm64,ganak-linux-amd64)
@@ -121,6 +123,18 @@ $(BUILD_DIR)/ganak:
 	cp -R $(TMP_DIR)/ganak/$(GANAK_EXTRACT_DIR)/* $(BUILD_DIR)
 	printf '#!/bin/sh\n"$$(dirname "$$0")/ganak" "$$1" | grep -v ^s | sed "s/c s exact arb int/s/"\n' > $(BUILD_DIR)/ganak.sh
 	chmod +x $(BUILD_DIR)/ganak.sh
+
+# these binaries were obtained from https://github.com/zurlage/approcs-fm-evaluation/tree/main/bin
+# they only work on Linux, a macOS variant is not currently supported
+$(BUILD_DIR)/approcs-fm/approcs-fm:
+	rm -rf $(TMP_DIR)/approcs-fm
+	mkdir -p $(TMP_DIR)/approcs-fm
+	tar xzf approcs-fm-linux-amd64.tar.gz -C $(TMP_DIR)/approcs-fm
+	mkdir -p $(BUILD_DIR)
+	cp -R $(TMP_DIR)/approcs-fm $(BUILD_DIR)
+	printf '#!/bin/sh\ncd "$$(dirname "$$0")/approcs-fm"; ./approcs-fm "$$1" | grep ^Result: | sed "s/Result: /s /"\n' > $(BUILD_DIR)/approcs-fm.sh
+	chmod +x $(BUILD_DIR)/approcs-fm/*
+	chmod +x $(BUILD_DIR)/approcs-fm.sh
 
 # used by default for model enumeration
 $(BUILD_DIR)/bc_minisat_all:
