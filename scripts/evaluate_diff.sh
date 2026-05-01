@@ -47,6 +47,9 @@ run() {
 # The two most extreme combinations are false-false (outer diff) and slice-slice (inner diff), and they are also the most interesting in practice.
 # Also, in our pre-experiments, distributive transformation almost always times out, except for --satisfy --simplified.
 # This is expected for larger formula inputs, even when --negate is not specified.
+# We also omit the projected model counting implementation projMC in d4, because it almost always performed consistently worse than its alternatives.
+# for example on BusyBox, at times out on 118 comparisons after 3 minutes, in contrast to the alternatives, which time out on 17 or less comparisons.
+# We include ganak + ganak-pmc, which performs badly on Automotive, but never times out on BusyBox.
 # for lm in false true slice; do
 # for rm in false true slice; do
 for lm in false slice; do
@@ -71,7 +74,8 @@ for rm in false slice; do
         done
     done
 
-    for engine in d4-counting d4-proj-ddnnf-compiler d4-projMC ganak-pmc; do
+    # for engine in d4-counting d4-proj-ddnnf-compiler d4-projMC ganak-pmc; do
+    for engine in d4-counting d4-proj-ddnnf-compiler ganak-pmc; do
         case $engine in
             d4-*) TOOL_FLAGS=(--d4-projection-mode "${engine#d4-}") ;;
             ganak-pmc) TOOL_FLAGS=(--sharp-sat-path ganak.sh) ;;
