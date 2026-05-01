@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # A useful script to evaluate a whole folder of formulas to compare.
 # Can be automated to run on a remote server on multiple systems for example as follows:
-# screen -dmSL diff bash -c "for system in toybox FinancialServices01 automotive2 axtls busybox embtoolkit uclibc-ng; do scripts/batch_diff.sh ../models/$system output/$system.csv 180 n kissat; done"
+# # mkdir -p output && screen -dmSL diff bash -c "for system in toybox axtls uclibc-ng busybox FinancialServices01 embtoolkit automotive2 linux; do scripts/batch_diff.sh ../models/$system output/$system.csv 300 n kissat; done"
 
 set -euo pipefail
 
