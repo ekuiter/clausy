@@ -380,13 +380,22 @@ pub(crate) fn bc_minisat_all(cnf: &str) -> (impl Iterator<Item = Vec<VarId>>, Na
 /// Runs the tool FeatureIDE using the Java runtime environment, which is assumed to be available on the PATH variable.
 pub(crate) fn io(file: &File, output_format: &str, variables: &[&str]) -> File {
     let io_path = path(&options().tool.io_path);
-    let args = vec![
+    let vars_tmp = if variables.len() > 0 {
+        let mut tmp = NamedTempFile::new().expect("failed to create temporary file for variables");
+        write!(tmp, "{}", variables.join("\n")).expect("failed to write variables to temporary file");
+        Some(tmp)
+    } else {
+        None
+    };
+    let mut args = vec![
         OsString::from("-jar"),
         OsString::from(&io_path),
         OsString::from(&file.name),
         OsString::from(output_format),
-        OsString::from(variables.join(",")),
     ];
+    if let Some(ref tmp) = vars_tmp {
+        args.push(tmp.path().as_os_str().to_owned());
+    }
     log_invoked_command("java", &args);
     log(&format!(
         "[EXEC] starting FeatureIDE conversion from {} to {} using {}",

@@ -20,6 +20,8 @@ import de.ovgu.featureide.fm.core.analysis.cnf.CNF;
 import de.ovgu.featureide.fm.core.base.FeatureUtils;
 import de.ovgu.featureide.fm.core.io.dimacs.DimacsWriter;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -32,7 +34,7 @@ import java.util.stream.Collectors;
 public class Main {
     public static void main(String[] args) {
         if (args.length > 3)
-            throw new RuntimeException("usage: java -jar io.jar [file|-] [uvl|xml|model|cnf|dimacs|sat|compare] [feature,...]");
+            throw new RuntimeException("usage: java -jar io.jar [file|-] [uvl|xml|model|cnf|dimacs|sat|compare] [features-file]");
 
         LibraryManager.registerLibrary(FMCoreLibrary.getInstance());
         FMFormatManager.getInstance().addExtension(new ModelFormat());
@@ -74,9 +76,14 @@ public class Main {
         }
 
         if (args.length == 3) {
-            Collection<String> features = Arrays.stream(args[2].split(","))
+            Collection<String> features;
+            try {
+                features = Files.lines(Paths.get(args[2]))
                         .filter(s -> !s.trim().isEmpty())
                         .collect(Collectors.toSet());
+            } catch (IOException e) {
+                throw new RuntimeException("failed to read features file: " + args[2], e);
+            }
             if (!features.isEmpty()) {
                 if (args[1].equals("cnf") || args[1].equals("dimacs")) {
                     ArrayList<String> removeFeatures = new ArrayList<>(FeatureUtils.getFeatureNames(featureModel));
