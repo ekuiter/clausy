@@ -441,7 +441,7 @@ pub(crate) fn io(file: &File, output_format: &str, variables: &[&str]) -> File {
         error = String::new();
     }
     if !error.is_empty() {
-        println!("{}", error);
+        eprintln!("{}", error);
     }
     assert!(
         error.is_empty() && !output.is_empty(),
