@@ -242,6 +242,7 @@ pub enum Action {
     ///
     /// This expects exactly two formulas to be loaded with `--input`.
     /// All `--transform` options will be ignored by this command, which implements its own transformation logic.
+    /// Note that computing differences between UVL formulas may lead to unintuitive results due to auxiliary variables introduced by FeatureIDE (https://github.com/FeatureIDE/FeatureIDE/issues/1515).
     Diff(DiffArgs),
 }
 
