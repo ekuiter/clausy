@@ -488,6 +488,12 @@ pub(crate) fn diff(
     if projected_count && (uvl || xml) {
         panic!("--projected-count does not support --uvl or --xml serialization");
     }
+    if !var_maps.is_empty() && (matches!(a_diff_kind, DiffKind::Slice) || matches!(b_diff_kind, DiffKind::Slice)) && !projected_count {
+        // There is a subtle bug when we want to apply variable mappings and slice at the same time, because the call to `apply_var_maps` below
+        // only manipulates the in-memory formulas `a` and `b`, but not `a.file` and `b.file`, the input files that are passed to FeatureIDE for slicing.
+        // Instead of a complicated fix, we simply disallow this combination of options for now and refer the user to projected mode counting.
+        panic!("--variable-map requires --projected-count");
+    }
     let cnf_transform = if cnf_dist {
         DiffTransform::Dist
     } else {
