@@ -1,0 +1,14 @@
+# Root is the root
+(def(Root))
+
+# a is an optional child of the root
+(!def(a)|def(Root))
+
+# c, d are or-group children of a
+(!def(c)|def(a))
+(!def(d)|def(a))
+(!def(a)|def(c)|def(d))
+
+# b is a mandatory child of the root
+(!def(b)|def(Root))
+(!def(Root)|def(b))

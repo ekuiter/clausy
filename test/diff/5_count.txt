@@ -1,0 +1,5 @@
+# pair 5 (.model): variable map maps 'b' in A to 'b1'/'b2' in B; regular model counting
+# 2 common, 2 removed, 3 added solutions
+$clausy -q -i input/5a.model -i input/5b.model diff --no-durations --no-header --count --variable-map input/split2.map
+---
+5,1,1,4,5,6,0,0,0,0,0,0,4,4,5,5,,,0,0,2,0,0,2,3,0.2857142857142857,0.2857142857142857,0.42857142857142855,ArbitraryEdit,0

@@ -1,0 +1,5 @@
+# pair 5 (.model): projected model counting gives the wrong result
+# PMC reports 3 common, 3 removed, 4 added instead of the correct 3/0/2
+$clausy -q -i input/5a.model -i input/5b.model diff --no-durations --no-header --left slice --right slice --projected-count --negate --unsafe --variable-map input/split2.map
+---
+5,1,1,4,5,6,0,0,0,0,0,0,4,3,5,5,0.4150374992788439,0,0,0,3,0,0,3,4,0.3,0.3,0.4,ArbitraryEdit,0

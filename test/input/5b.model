@@ -1,0 +1,20 @@
+# Root is the root
+(def(Root))
+
+# a is an optional child of the root
+(!def(a)|def(Root))
+
+# c, e are alternative children of a
+(!def(c)|def(a))
+(!def(e)|def(a))
+(!def(a)|def(c)|def(e))
+(!def(c)|!def(e))
+
+# b1 is a mandatory child of the root
+# b2 is an optional child of the root
+(!def(b1)|def(Root))
+(def(b1))
+(!def(b2)|def(Root))
+
+# cross-tree constraints
+(!def(c)|def(b2))
