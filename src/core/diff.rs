@@ -479,8 +479,8 @@ pub(crate) fn diff(
     if (count || projected_count) && satisfy {
         panic!("--satisfy is mutually exclusive with --count and --projected-count");
     }
-    if satisfy && !negate {
-        panic!("--satisfy requires --negate");
+    if (satisfy || matches!(a_diff_kind, DiffKind::Unconstrained) || matches!(b_diff_kind, DiffKind::Unconstrained)) && !negate {
+        panic!("--satisfy and --left/--right unconstrained require --negate");
     }
     if simplified && featureide {
         panic!("--featureide is mutually exclusive with --simplified");
