@@ -166,7 +166,7 @@ pub(crate) enum DiffTransform {
     Dist,
 }
 
-/// How foreign variables are handled when differencing two formulas.
+/// How foreign variables are handled when differencing two formulas (see [crate::shell::DiffMode]).
 pub(crate) enum DiffKind {
     /// Fixes all foreign variables to a default boolean value, with optional per-variable overrides.
     ///
@@ -178,6 +178,9 @@ pub(crate) enum DiffKind {
         core_vars: HashSet<VarId>,
         dead_vars: HashSet<VarId>,
     },
+
+    /// Leaves all foreign variables unconstrained.
+    Unconstrained,
 
     /// Projects the chosen formula onto the common variables of both formulas via slicing.
     Slice,
@@ -488,7 +491,10 @@ pub(crate) fn diff(
     if projected_count && (uvl || xml) {
         panic!("--projected-count does not support --uvl or --xml serialization");
     }
-    if !var_maps.is_empty() && (matches!(a_diff_kind, DiffKind::Slice) || matches!(b_diff_kind, DiffKind::Slice)) && !projected_count {
+    if !var_maps.is_empty()
+        && (matches!(a_diff_kind, DiffKind::Slice) || matches!(b_diff_kind, DiffKind::Slice))
+        && !projected_count
+    {
         // There is a subtle bug when we want to apply variable mappings and slice at the same time, because the call to `apply_var_maps` below
         // only manipulates the in-memory formulas `a` and `b`, but not `a.file` and `b.file`, the input files that are passed to FeatureIDE for slicing.
         // Instead of a complicated fix, we simply disallow this combination of options for now and refer the user to projected mode counting.
@@ -580,15 +586,20 @@ pub(crate) fn diff(
     // This is a bit intricate because we need to handle a variety of cases correctly.
     // In particular, `a|b_sliced` may at this point have been sliced to the common variables, or not.
     let empty = HashSet::new();
-    if let DiffKind::Fixed {
-        default,
-        ref core_vars,
-        ref dead_vars,
-    } = a_diff_kind
-    {
+    if let DiffKind::Fixed { .. } | DiffKind::Unconstrained = a_diff_kind {
+        let (default, core_vars, dead_vars) = match a_diff_kind {
+            DiffKind::Fixed {
+                default,
+                ref core_vars,
+                ref dead_vars,
+            } => (default, core_vars, dead_vars),
+            DiffKind::Unconstrained => (false, &empty, &empty),
+            _ => unreachable!(),
+        };
         // `b_sliced` currently has as `sub_vars` the common variables (if sliced) or possibly also those exclusive to `b` (if not sliced).
-        b_sliced = b_sliced.force_foreign_vars(
+        b_sliced = b_sliced.set_foreign_vars(
             default,
+            matches!(a_diff_kind, DiffKind::Unconstrained),
             core_vars,
             dead_vars,
             if projected_count { &empty } else { &b_var_ids },
@@ -636,15 +647,20 @@ pub(crate) fn diff(
             b_sliced_file = Some(to_cnf_file_dist(&b_sliced, arena));
         }
     }
-    if let DiffKind::Fixed {
-        default,
-        ref core_vars,
-        ref dead_vars,
-    } = b_diff_kind
-    {
+    if let DiffKind::Fixed { .. } | DiffKind::Unconstrained = b_diff_kind {
+        let (default, core_vars, dead_vars) = match b_diff_kind {
+            DiffKind::Fixed {
+                default,
+                ref core_vars,
+                ref dead_vars,
+            } => (default, core_vars, dead_vars),
+            DiffKind::Unconstrained => (false, &empty, &empty),
+            _ => unreachable!(),
+        };
         // This logic is symmetric to the logic above.
-        a_sliced = a_sliced.force_foreign_vars(
+        a_sliced = a_sliced.set_foreign_vars(
             default,
+            matches!(b_diff_kind, DiffKind::Unconstrained),
             core_vars,
             dead_vars,
             if projected_count { &empty } else { &a_var_ids },

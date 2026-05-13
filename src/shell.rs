@@ -242,7 +242,7 @@ pub enum Action {
     ///
     /// This expects exactly two formulas to be loaded with `--input`.
     /// All `--transform` options will be ignored by this command, which implements its own transformation logic.
-    /// Note that computing differences between UVL formulas may lead to unintuitive results due to auxiliary variables introduced by FeatureIDE (https://github.com/FeatureIDE/FeatureIDE/issues/1515).
+    /// Note that computing differences between UVL formulas may lead to unintuitive results due to auxiliary variables introduced by FeatureIDE (<https://github.com/FeatureIDE/FeatureIDE/issues/1515>).
     Diff(DiffArgs),
 }
 
@@ -296,22 +296,26 @@ pub struct CountIncArgs {
 /// Diff mode for one side.
 ///
 /// Accepted values:
-/// - `slice` — slice both formulas to their common variables
 /// - `true` — fix all foreign variables to true
 /// - `false` — fix all foreign variables to false
 /// - `true,<true-file>,<false-file>` — fix foreign variables to true by default, with per-variable
 ///   overrides from newline-separated files (empty path = no overrides for that set)
 /// - `false,<true-file>,<false-file>` — fix foreign variables to false by default, with per-variable
 ///   overrides from newline-separated files (empty path = no overrides for that set)
-/// In the literature, `false` is typically used.
+/// - `unconstrained` — leave all foreign variables unconstrained
+/// - `slice` — slice both formulas to their common variables
+/// In the literature, `false` is typically used (see Thüm et al. 2009, aka closed-world semantics).
+/// `unconstrained` applies the open-world semantics proposed by Drave et al. 2019.
+/// `slice` applies even more relaxed semantics, as it completely drops (i.e., doesn't care about) unshared variables.
 #[derive(Clone, Debug)]
 pub enum DiffMode {
-    Slice,
     Fixed {
         default: bool,
         true_file: Option<String>,
         false_file: Option<String>,
     },
+    Unconstrained,
+    Slice,
 }
 
 impl FromStr for DiffMode {
@@ -326,7 +330,6 @@ impl FromStr for DiffMode {
             )
         };
         match s {
-            "slice" => Ok(DiffMode::Slice),
             "true" => Ok(DiffMode::Fixed {
                 default: true,
                 true_file: None,
@@ -337,6 +340,8 @@ impl FromStr for DiffMode {
                 true_file: None,
                 false_file: None,
             }),
+            "unconstrained" => Ok(DiffMode::Unconstrained),
+            "slice" => Ok(DiffMode::Slice),
             _ => {
                 let parts: Vec<&str> = s.splitn(3, ',').collect();
                 if parts.len() == 3 {
@@ -373,7 +378,6 @@ fn parse_diff_mode(s: &str) -> Result<DiffMode, String> {
 impl DiffMode {
     fn into_diff_kind(self, arena: &mut Arena) -> DiffKind {
         match self {
-            DiffMode::Slice => DiffKind::Slice,
             DiffMode::Fixed {
                 default,
                 true_file,
@@ -391,6 +395,8 @@ impl DiffMode {
                     dead_vars,
                 }
             }
+            DiffMode::Unconstrained => DiffKind::Unconstrained,
+            DiffMode::Slice => DiffKind::Slice,
         }
     }
 }
@@ -400,13 +406,13 @@ impl DiffMode {
 pub struct DiffArgs {
     /// Left-side diff mode.
     ///
-    /// By default, we use `slice` (i.e., project onto common variables).
+    /// By default, we use `false` (i.e., fix all foreign variables to false).
     #[arg(long, default_value = "false", value_parser = parse_diff_mode)]
     left: DiffMode,
 
     /// Right-side diff mode.
     ///
-    /// By default, we use `slice` (i.e., project onto common variables).
+    /// By default, we use `false` (i.e., fix all foreign variables to false).
     #[arg(long, default_value = "false", value_parser = parse_diff_mode)]
     right: DiffMode,
 
@@ -618,7 +624,7 @@ fn parse_inputs(inputs: &[String], arena: &mut Arena) -> Vec<Formula> {
             formulas.push(arena.parse(file, parser(extension)));
         } else if SatInlineFormulaParser::can_parse(input) {
             log("[SHELL] parsing inline SAT expression from --input item");
-            log("[SHELL] forcing foreign variables across all formulas to false, if any");
+            log("[SHELL] setting foreign variables across all formulas to false, if any");
             formulas
                 .push(SatInlineFormulaParser::new(&formulas, Some(false)).parse_into(input, arena));
         } else {

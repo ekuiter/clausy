@@ -71,15 +71,20 @@ impl Formula {
         *root_id = arena.get_expr(&arena.exprs[*root_id]).unwrap();
     }
 
-    /// Returns a formula that forces all variables only occurring in the given arena to a fixed value.
+    /// Returns a formula that sets all variables only occurring in the given arena to a fixed value.
     ///
     /// Variables in `core_vars` are forced to true, variables in `dead_vars` are forced to false,
     /// and all remaining foreign variables not in `sub_var_ids` or `exclude_vars` are forced to `default`.
     /// The returned formula has all variables of the arena except those in `exclude_vars`.
     /// Does not modify this formula.
-    pub(crate) fn force_foreign_vars(
+    /// This applies the closed-world semantics proposed by Thüm et al. 2009 in "Reasoning about Edits to Feature Models".
+    /// To apply the open-world semantics mentioned in Drave et al. 2019 in "Semantic Evolution Analysis of Feature Models",
+    /// set `unconstrained` to `true`. If set, no variable values will be forced, but the returned formula can be used
+    /// in the same contexts as the one with `unconstrained` set to `false` (the same assumptions hold about its variable set).
+    pub(crate) fn set_foreign_vars(
         &self,
         default: bool,
+        unconstrained: bool,
         core_vars: &HashSet<VarId>,
         dead_vars: &HashSet<VarId>,
         exclude_vars: &HashSet<VarId>,
@@ -91,47 +96,53 @@ impl Formula {
         } else {
             ids = vec![self.root_id];
         }
-        let mut remaining_core = core_vars.clone();
-        let mut remaining_dead = dead_vars.clone();
-        ids.extend(
-            arena
-                .vars(|var_id, _| {
-                    !self.sub_var_ids.contains(&var_id) && !exclude_vars.contains(&var_id)
-                })
-                .into_iter()
-                .map(|(var_id, _)| {
-                    let top = if remaining_core.remove(&var_id) {
-                        true
-                    } else if remaining_dead.remove(&var_id) {
-                        false
-                    } else {
-                        default
-                    };
-                    let expr = arena.expr(Var(var_id));
-                    if top {
-                        expr
-                    } else {
-                        arena.expr(Not(expr))
-                    }
-                }),
-        );
-        assert!(
-            remaining_core.is_empty(),
-            "core_vars contained variables that are not foreign to this formula: {}",
-            arena.var_strs(&remaining_core).join(", ")
-        );
-        assert!(
-            remaining_dead.is_empty(),
-            "dead_vars contained variables that are not foreign to this formula: {}",
-            arena.var_strs(&remaining_dead).join(", ")
-        );
+        if !unconstrained {
+            let mut remaining_core = core_vars.clone();
+            let mut remaining_dead = dead_vars.clone();
+            ids.extend(
+                arena
+                    .vars(|var_id, _| {
+                        !self.sub_var_ids.contains(&var_id) && !exclude_vars.contains(&var_id)
+                    })
+                    .into_iter()
+                    .map(|(var_id, _)| {
+                        let top = if remaining_core.remove(&var_id) {
+                            true
+                        } else if remaining_dead.remove(&var_id) {
+                            false
+                        } else {
+                            default
+                        };
+                        let expr = arena.expr(Var(var_id));
+                        if top {
+                            expr
+                        } else {
+                            arena.expr(Not(expr))
+                        }
+                    }),
+            );
+            assert!(
+                remaining_core.is_empty(),
+                "core_vars contained variables that are not foreign to this formula: {}",
+                arena.var_strs(&remaining_core).join(", ")
+            );
+            assert!(
+                remaining_dead.is_empty(),
+                "dead_vars contained variables that are not foreign to this formula: {}",
+                arena.var_strs(&remaining_dead).join(", ")
+            );
+        }
         let sub_var_ids = arena
             .var_ids()
             .difference(exclude_vars)
             .map(|var| *var)
             .collect();
         let root_id = arena.expr(And(ids));
-        Self::new(sub_var_ids, root_id, None)
+        Self::new(
+            sub_var_ids,
+            if unconstrained { self.root_id } else { root_id },
+            None,
+        )
     }
 
     /// Returns all sub-variables of this formula and their identifiers.

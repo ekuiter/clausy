@@ -382,7 +382,8 @@ pub(crate) fn io(file: &File, output_format: &str, variables: &[&str]) -> File {
     let io_path = path(&options().tool.io_path);
     let vars_tmp = if variables.len() > 0 {
         let mut tmp = NamedTempFile::new().expect("failed to create temporary file for variables");
-        write!(tmp, "{}", variables.join("\n")).expect("failed to write variables to temporary file");
+        write!(tmp, "{}", variables.join("\n"))
+            .expect("failed to write variables to temporary file");
         Some(tmp)
     } else {
         None

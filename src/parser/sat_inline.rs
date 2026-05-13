@@ -20,14 +20,14 @@ use pest_derive::Parser;
 #[grammar = "parser/sat_inline.pest"]
 pub(crate) struct SatInlineFormulaParser<'a> {
     formulas: &'a Vec<Formula>,
-    force_foreign_vars: Option<bool>,
+    set_foreign_vars: Option<bool>,
 }
 
 impl<'a> SatInlineFormulaParser<'a> {
-    pub(crate) fn new(formulas: &'a Vec<Formula>, force_foreign_vars: Option<bool>) -> Self {
+    pub(crate) fn new(formulas: &'a Vec<Formula>, set_foreign_vars: Option<bool>) -> Self {
         SatInlineFormulaParser {
             formulas,
-            force_foreign_vars,
+            set_foreign_vars,
         }
     }
 
@@ -44,7 +44,7 @@ impl<'a> SatInlineFormulaParser<'a> {
                 .expect("inline SAT parser missing root expression"),
             arena,
         );
-        let sub_var_ids = if self.force_foreign_vars.is_some() {
+        let sub_var_ids = if self.set_foreign_vars.is_some() {
             arena.var_ids()
         } else {
             self.formulas
@@ -77,11 +77,12 @@ impl<'a> SatInlineFormulaParser<'a> {
                     .expect("inline SAT variable reference must be positive");
                 let formula = &self.formulas[idx - 1];
                 let mut root_id = formula.root_id;
-                if self.force_foreign_vars.is_some() {
+                if self.set_foreign_vars.is_some() {
                     root_id = formula
-                        .force_foreign_vars(
-                            self.force_foreign_vars
-                                .expect("force_foreign_vars flag unexpectedly missing"),
+                        .set_foreign_vars(
+                            self.set_foreign_vars
+                                .expect("set_foreign_vars flag unexpectedly missing"),
+                            false,
                             &HashSet::new(),
                             &HashSet::new(),
                             &HashSet::new(),
