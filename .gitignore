@@ -6,6 +6,7 @@ build
 .vscode
 /.claude
 /meta/linux
+/meta/plans
 /models
 /*.csv
 /*.ipynb
