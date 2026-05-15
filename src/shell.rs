@@ -158,19 +158,25 @@ pub enum D4ProjectionMode {
 #[derive(Args, Default, Debug)]
 #[command(next_help_heading = "Output Options")]
 pub struct OutputOptions {
-    /// Print expression identifiers, useful when debugging
+    /// Print expression identifiers, useful when debugging.
     #[arg(long)]
     pub print_ids: bool,
 
-    /// Prefix for auxiliary variables introduced by Tseitin transformation
+    /// Prefix for auxiliary variables introduced by Tseitin transformation.
     #[arg(long, default_value = "_aux_")]
     pub aux_prefix: String,
 
-    /// Disable optional SAT-style informational logs (`c ...`)
+    /// Disable optional SAT-style informational logs (`c ...`).
     #[arg(short = 'q', long)]
     pub quiet: bool,
 
-    /// Output file path (- for stdout)
+    /// Redirect all log output to stdout instead of stderr.
+    /// 
+    /// Critical errors will still be printed to stderr, so this only affects informational logs.
+    #[arg(short = 'e', long)]
+    pub error_to_output: bool,
+
+    /// Output file path (- for stdout).
     #[arg(short = 'o', long = "output", default_value = "-")]
     pub output_file: String,
 }

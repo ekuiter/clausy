@@ -22,7 +22,11 @@ pub(crate) fn log(msg: &str) {
     if options().output.quiet {
         return;
     }
-    eprintln!("c {msg}");
+    if options().output.error_to_output {
+        println!("c {msg}");
+    } else {
+        eprintln!("c {msg}");
+    }
 }
 
 /// RAII timer that logs duration when dropped.
