@@ -14,7 +14,8 @@ RUN apt-get update && apt install -y \
     libssl-dev \
     cmake \
     wget \
-    libtbb-dev
+    libtbb-dev \
+    parallel
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 WORKDIR /home
