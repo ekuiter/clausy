@@ -39,7 +39,7 @@ run() {
             out=$(IFS=','; echo "${_fields[*]}")
         fi
     fi
-    echo "$(basename "$LEFT"),$(basename "$RIGHT"),$lm,$rm,$method,$engine,$transform,$negate,$out,$ns" | tee -a "$CSV"
+    echo "$LEFT,$RIGHT,$lm,$rm,$method,$engine,$transform,$negate,$out,$ns" | tee -a "$CSV"
 }
 
 # shellcheck disable=SC2043
