@@ -1,3 +1,4 @@
+# platform-override=linux/amd64
 FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt install -y \
