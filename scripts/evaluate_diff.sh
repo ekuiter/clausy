@@ -19,17 +19,20 @@ TOOL_FLAGS=()
 run() {
     # run <left_mode> <right_mode> <method> <engine> <transform> <negate> <diff subcommand flags...>
     local lm=$1 rm=$2 method=$3 engine=$4 transform=$5 negate=$6; shift 6
-    local out ns
-    local cmd=("$CLAUSY" "${TOOL_FLAGS[@]}" -i "$LEFT" -i "$RIGHT" diff --no-header --left "$lm" --right "$rm" "$@")
-    echo >&2
-    echo "==> ${cmd[*]}" >&2
+    local out ns tmp
+    tmp=$(mktemp)
+    local cmd=("$CLAUSY" -e "${TOOL_FLAGS[@]}" -i "$LEFT" -i "$RIGHT" -o "$tmp" diff --no-header --left "$lm" --right "$rm" "$@")
+    echo
+    echo "==> ${cmd[*]}"
     ns=$(date +%s%N)
     if [[ $TIMEOUT -gt 0 ]]; then
-        out=$(timeout -s KILL "$TIMEOUT" "${cmd[@]}" || true)
+        timeout -s KILL "$TIMEOUT" "${cmd[@]}" || true
     else
-        out=$("${cmd[@]}" || true)
+        "${cmd[@]}" || true
     fi
     ns=$(($(date +%s%N) - ns))
+    out=$(cat "$tmp")
+    rm -f "$tmp"
     if [[ -z "$out" ]]; then
         out="$EMPTY"
     else
@@ -39,7 +42,7 @@ run() {
             out=$(IFS=','; echo "${_fields[*]}")
         fi
     fi
-    echo "$LEFT,$RIGHT,$lm,$rm,$method,$engine,$transform,$negate,$out,$ns" | tee -a "$CSV"
+    echo "$LEFT,$RIGHT,$lm,$rm,$method,$engine,$transform,$negate,$out,$ns" >> "$CSV"
 }
 
 # shellcheck disable=SC2043
