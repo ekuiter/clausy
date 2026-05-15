@@ -4,6 +4,7 @@ use crate::core::count_inc::count_inc;
 use crate::core::diff::{diff, DiffKind, VarMap};
 use crate::core::file::File;
 use crate::parser::sat_inline::SatInlineFormulaParser;
+use crate::util::output;
 use crate::{
     core::{arena::Arena, formula::Formula, var::VarId},
     parser::{parser, FormulaParsee},
@@ -13,6 +14,7 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::collections::HashSet;
 use std::env;
 use std::fs;
+use std::io::Write;
 use std::process;
 use std::str::FromStr;
 use std::sync::OnceLock;
@@ -167,6 +169,10 @@ pub struct OutputOptions {
     /// Disable optional SAT-style informational logs (`c ...`)
     #[arg(short = 'q', long)]
     pub quiet: bool,
+
+    /// Output file path (- for stdout)
+    #[arg(short = 'o', long = "output", default_value = "-")]
+    pub output_file: String,
 }
 
 /// Supported transformations.
@@ -777,25 +783,35 @@ fn execute_action(action: Action, formulas: &mut [Formula], arena: &mut Arena) {
             let clauses = formula.to_clauses(arena);
             let projection = count_projection_vars(&args, formula, arena);
             if let Some(proj_vars) = projection {
-                print!("{}", clauses.to_projected_string(&proj_vars));
+                write!(
+                    output::writer(),
+                    "{}",
+                    clauses.to_projected_string(&proj_vars)
+                )
+                .unwrap();
             } else {
-                print!("{}", clauses);
+                write!(output::writer(), "{}", clauses).unwrap();
             }
         }
-        Action::PrintFormula => println!("{}", current_formula(formulas).as_ref(arena)),
+        Action::PrintFormula => writeln!(
+            output::writer(),
+            "{}",
+            current_formula(formulas).as_ref(arena)
+        )
+        .unwrap(),
         Action::PrintSubExprs => {
             let sub_expr_ids = current_formula(formulas).sub_exprs(arena);
             for id in sub_expr_ids {
-                println!("{}", arena.as_formula(id).as_ref(arena));
+                writeln!(output::writer(), "{}", arena.as_formula(id).as_ref(arena)).unwrap();
             }
         }
         Action::Nop => {}
         Action::Satisfy => {
             if let Some(solution) = current_formula(formulas).to_clauses(arena).satisfy() {
-                eprintln!("s SATISFIABLE");
-                println!("c {solution}");
+                writeln!(output::writer(), "s SATISFIABLE").unwrap();
+                writeln!(output::writer(), "c {solution}").unwrap();
             } else {
-                eprintln!("s UNSATISFIABLE");
+                writeln!(output::writer(), "s UNSATISFIABLE").unwrap();
                 process::exit(UNSAT_EXIT_CODE);
             }
         }
@@ -804,9 +820,9 @@ fn execute_action(action: Action, formulas: &mut [Formula], arena: &mut Arena) {
             let clauses = formula.to_clauses(arena);
             let projection = count_projection_vars(&args, formula, arena);
             if let Some(proj_vars) = projection {
-                println!("{}", clauses.proj_count(&proj_vars));
+                writeln!(output::writer(), "{}", clauses.proj_count(&proj_vars)).unwrap();
             } else {
-                println!("{}", clauses.count());
+                writeln!(output::writer(), "{}", clauses.count()).unwrap();
             }
         }
         Action::AssertCount => {
@@ -824,10 +840,12 @@ fn execute_action(action: Action, formulas: &mut [Formula], arena: &mut Arena) {
             let [a, b] = formulas else {
                 panic!("this command requires exactly two loaded formulas");
             };
-            println!(
+            writeln!(
+                output::writer(),
                 "{}",
                 count_inc(a, b, args.left_model_count.as_deref(), arena)
-            );
+            )
+            .unwrap();
         }
         Action::Diff(args) => {
             let var_maps = args
@@ -875,6 +893,7 @@ pub fn main() {
     args.splice(1..1, config_file_args);
     let mut cli = CliOptions::parse_from(args);
 
+    output::init(&cli.output_options.output_file);
     OPTIONS
         .set(Options {
             tool: cli.tool_options,

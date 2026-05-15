@@ -16,18 +16,19 @@ use super::{
     arena::Arena, clauses::Clauses, expr::Expr::And, file::File, formula::Formula, var::VarId,
 };
 
-// Print and flush information to standard output.
+// Print and flush to the output writer.
 macro_rules! print_flush {
     ($($arg:tt)*) => {{
-        print!($($arg)*);
-        std::io::stdout().flush().unwrap();
+        let mut out = crate::util::output::writer();
+        write!(out, $($arg)*).unwrap();
+        out.flush().unwrap();
     }};
 }
 
 // Print a new CSV column.
 macro_rules! print_column {
     ($($arg:tt)*) => {{
-        print!(",");
+        print_flush!(",");
         print_flush!($($arg)*);
     }};
 }
@@ -479,7 +480,11 @@ pub(crate) fn diff(
     if (count || projected_count) && satisfy {
         panic!("--satisfy is mutually exclusive with --count and --projected-count");
     }
-    if (satisfy || matches!(a_diff_kind, DiffKind::Unconstrained) || matches!(b_diff_kind, DiffKind::Unconstrained)) && !negate {
+    if (satisfy
+        || matches!(a_diff_kind, DiffKind::Unconstrained)
+        || matches!(b_diff_kind, DiffKind::Unconstrained))
+        && !negate
+    {
         panic!("--satisfy and --left/--right unconstrained require --negate");
     }
     if simplified && featureide {
@@ -546,7 +551,7 @@ pub(crate) fn diff(
     // Later we will print details about the semantic differences as well, but this way we can
     // still write out the syntactic differences in case of a timeout.
     if !no_header {
-        println!("common_vars,removed_vars,added_vars,common_constraints,removed_constraints,added_constraints,left_sliced_duration,right_sliced_duration,left_count_duration,left_sliced_count_duration,right_count_duration,right_sliced_count_duration,left_count,left_sliced_count,right_count,right_sliced_count,lost_solutions,gained_solutions,tseitin_or_featureide_duration,common_solutions_count_duration,common_solutions_count,removed_solutions_count_duration,added_solutions_count_duration,removed_solutions_count,added_solutions_count,removed_solutions,common_solutions,added_solutions,classification,total_duration");
+        print_flush!("common_vars,removed_vars,added_vars,common_constraints,removed_constraints,added_constraints,left_sliced_duration,right_sliced_duration,left_count_duration,left_sliced_count_duration,right_count_duration,right_sliced_count_duration,left_count,left_sliced_count,right_count,right_sliced_count,lost_solutions,gained_solutions,tseitin_or_featureide_duration,common_solutions_count_duration,common_solutions_count,removed_solutions_count_duration,added_solutions_count_duration,removed_solutions_count,added_solutions_count,removed_solutions,common_solutions,added_solutions,classification,total_duration\n");
     }
     print_flush!(
         "{common_vars},{a_vars},{b_vars},{common_constraints},{a_constraints},{b_constraints}"

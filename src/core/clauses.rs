@@ -7,8 +7,9 @@ use super::{
     formula_ref::FormulaRef,
     var::{Var, VarId},
 };
-use crate::util::{exec, log::log};
+use crate::util::{exec, log::log, output};
 use std::fmt::Write as _;
+use std::io::Write as IoWrite;
 use std::{
     collections::{HashMap, HashSet},
     fmt, slice,
@@ -194,7 +195,9 @@ impl Clauses {
     /// Prints solutions to standard output as soon as they are known, instead of returning them.
     pub(crate) fn enumerate(&self) {
         let (iter, tmp_in) = exec::bc_minisat_all(&self.to_string());
-        iter.for_each(|solution| println!("{}", self.solution_to_string(&solution)));
+        iter.for_each(|solution| {
+            writeln!(output::writer(), "{}", self.solution_to_string(&solution)).unwrap()
+        });
         drop(tmp_in);
     }
 
