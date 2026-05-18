@@ -1,5 +1,5 @@
 char = { !("(" | ")") ~ ANY }
-name = @{ char+ }
+name = @{ (char | "(" ~ name ~ ")")+ }
 
 var = { "def" ~ "(" ~ name ~ ")" }
 unsupported = { "<unsupported>" }
