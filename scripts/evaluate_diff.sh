@@ -77,24 +77,26 @@ for rm in false slice; do
         done
     done
 
-    # for engine in d4-counting d4-proj-ddnnf-compiler d4-projMC ganak-pmc; do
-    for engine in d4-counting d4-proj-ddnnf-compiler ganak-pmc; do
-        case $engine in
-            d4-*) TOOL_FLAGS=(--d4-projection-mode "${engine#d4-}") ;;
-            ganak-pmc) TOOL_FLAGS=(--sharp-sat-path ganak.sh) ;;
-        esac
-        # for transform in tseitin dist; do
-        for transform in tseitin; do
-            tf=(); [[ $transform == dist ]] && tf=(--dist)
-            # for negate in false true; do
-            for negate in false; do
-                nf=(); uf=()
-                [[ $negate == true ]] && nf=(--negate) && uf=(--unsafe)
-                run "$lm" "$rm" projected-count "$engine" "$transform" "$negate" \
-                    --projected-count "${tf[@]}" "${nf[@]}" "${uf[@]}"
+    if [[ $lm == slice ]] || [[ $rm == slice ]]; then
+        # for engine in d4-counting d4-proj-ddnnf-compiler d4-projMC ganak-pmc; do
+        for engine in d4-counting d4-proj-ddnnf-compiler ganak-pmc; do
+            case $engine in
+                d4-*) TOOL_FLAGS=(--d4-projection-mode "${engine#d4-}") ;;
+                ganak-pmc) TOOL_FLAGS=(--sharp-sat-path ganak.sh) ;;
+            esac
+            # for transform in tseitin dist; do
+            for transform in tseitin; do
+                tf=(); [[ $transform == dist ]] && tf=(--dist)
+                # for negate in false true; do
+                for negate in false; do
+                    nf=(); uf=()
+                    [[ $negate == true ]] && nf=(--negate) && uf=(--unsafe)
+                    run "$lm" "$rm" projected-count "$engine" "$transform" "$negate" \
+                        --projected-count "${tf[@]}" "${nf[@]}" "${uf[@]}"
+                done
             done
         done
-    done
+    fi
 
     if [[ -n $SAT_SOLVER ]]; then
         if [[ $SAT_SOLVER != kissat ]]; then
