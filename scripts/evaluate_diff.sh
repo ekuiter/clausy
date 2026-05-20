@@ -7,9 +7,11 @@ set -euo pipefail
 LEFT=$1 RIGHT=$2 CSV=$3 TIMEOUT=${4:-0} SAT_SOLVER=${5:-}
 CLAUSY="${CLAUSY:-$(dirname "$0")/../build/clausy}"
 
-[[ -f "$LEFT" ]]   || { echo "left formula not found: $LEFT" >&2; exit 1; }
-[[ -f "$RIGHT" ]]  || { echo "right formula not found: $RIGHT" >&2; exit 1; }
-[[ -x "$CLAUSY" ]] || { echo "clausy not found: $CLAUSY" >&2; exit 1; }
+if [[ ${DRY_RUN:-} != y ]]; then
+    [[ -f "$LEFT" ]]   || { echo "left formula not found: $LEFT" >&2; exit 1; }
+    [[ -f "$RIGHT" ]]  || { echo "right formula not found: $RIGHT" >&2; exit 1; }
+    [[ -x "$CLAUSY" ]] || { echo "clausy not found: $CLAUSY" >&2; exit 1; }
+fi
 
 DIFF_HEADER="common_vars,removed_vars,added_vars,common_constraints,removed_constraints,added_constraints,left_sliced_duration,right_sliced_duration,left_count_duration,left_sliced_count_duration,right_count_duration,right_sliced_count_duration,left_count,left_sliced_count,right_count,right_sliced_count,lost_solutions,gained_solutions,tseitin_or_featureide_duration,common_solutions_count_duration,common_solutions_count,removed_solutions_count_duration,added_solutions_count_duration,removed_solutions_count,added_solutions_count,removed_solutions,common_solutions,added_solutions,classification,total_duration"
 [[ -s "$CSV" ]] || echo "left_formula,right_formula,left_diff_kind,right_diff_kind,method,engine,cnf_transform,negate,$DIFF_HEADER,total_duration_shell" > "$CSV"
@@ -44,6 +46,13 @@ run() {
     fi
     echo "$LEFT,$RIGHT,$lm,$rm,$method,$engine,$transform,$negate,$out,$ns" >> "$CSV"
 }
+
+if [[ ${DRY_RUN:-} == y ]]; then
+    run() {
+        local lm=$1 rm=$2 method=$3 engine=$4 transform=$5 negate=$6
+        echo "$LEFT,$RIGHT,$lm,$rm,$method,$engine,$transform,$negate,$EMPTY,0" >> "$CSV"
+    }
+fi
 
 # shellcheck disable=SC2043
 # We do not evaluate every combination of diff modes here, because the experiment just takes too much time otherwise.
