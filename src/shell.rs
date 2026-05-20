@@ -171,7 +171,7 @@ pub struct OutputOptions {
     pub quiet: bool,
 
     /// Redirect all log output to stdout instead of stderr.
-    /// 
+    ///
     /// Critical errors will still be printed to stderr, so this only affects informational logs.
     #[arg(short = 'e', long)]
     pub error_to_output: bool,
@@ -544,6 +544,18 @@ pub struct DiffArgs {
     #[arg(long)]
     no_header: bool,
 
+    /// Compute only the minimum information needed for classification and quantification.
+    ///
+    /// Skips model counts that are only needed for loss/gain ratio computation:
+    /// - With negation-based reasoning (--negate): skips counting the original and sliced formulas entirely,
+    ///   since removed and added solutions are counted directly via negation.
+    /// - Without negation-based reasoning: skips counting the original (unsliced) formula when slicing is
+    ///   active, since only the sliced count is needed for the subtraction identity.
+    /// This is useful if only the classification and quantification results are needed,
+    /// and to reduce the overall computation time (and keep it fairly comparable).
+    #[arg(long)]
+    bare: bool,
+
     /// Report 0 for all duration columns instead of actual timings.
     ///
     /// Useful for deterministic output in tests.
@@ -883,6 +895,7 @@ fn execute_action(action: Action, formulas: &mut [Formula], arena: &mut Arena) {
                 args.cnf_dist,
                 args.is_unsafe,
                 args.negate,
+                args.bare,
                 args.no_durations,
                 arena,
             );

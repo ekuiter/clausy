@@ -21,7 +21,7 @@ run() {
     local lm=$1 rm=$2 method=$3 engine=$4 transform=$5 negate=$6; shift 6
     local out ns tmp
     tmp=$(mktemp)
-    local cmd=("$CLAUSY" -e "${TOOL_FLAGS[@]}" -i "$LEFT" -i "$RIGHT" -o "$tmp" diff --no-header --left "$lm" --right "$rm" "$@")
+    local cmd=("$CLAUSY" -e "${TOOL_FLAGS[@]}" -i "$LEFT" -i "$RIGHT" -o "$tmp" diff --no-header --bare --left "$lm" --right "$rm" "$@")
     echo
     echo "==> ${cmd[*]}"
     ns=$(date +%s%N)
@@ -86,7 +86,8 @@ for rm in false slice; do
         # for transform in tseitin dist; do
         for transform in tseitin; do
             tf=(); [[ $transform == dist ]] && tf=(--dist)
-            for negate in false true; do
+            # for negate in false true; do
+            for negate in false; do
                 nf=(); uf=()
                 [[ $negate == true ]] && nf=(--negate) && uf=(--unsafe)
                 run "$lm" "$rm" projected-count "$engine" "$transform" "$negate" \

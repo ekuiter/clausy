@@ -455,6 +455,7 @@ pub(crate) fn diff(
     cnf_dist: bool,
     is_unsafe: bool,
     negate: bool,
+    bare: bool,
     no_durations: bool,
     arena: &mut Arena,
 ) {
@@ -743,25 +744,32 @@ pub(crate) fn diff(
     let ratio = |a: BigInt, b: BigInt, vars: u32| (log2_bigint(a) - log2_bigint(b)) / vars as f64;
 
     // If we perform slicing, we count the original and sliced formulas here to measure the impact of slicing.
-    if count || projected_count {
+    // With --bare and --negate, skip this entire block, as removed/added are counted directly via negation below.
+    // With --bare without --negate, we still need to count a_sliced/b_sliced.
+    if (count || projected_count) && !(bare && negate) {
         if matches!(a_diff_kind, DiffKind::Slice) || !negate {
             // Here we count the original and sliced formulas for `a`.
             // First, we can easily count `a`, which has as `sub_vars` the common variables and those exclusive to `a`.
-            cnt_a = measure_time!(
-                diff_helper(
-                    a,
-                    arena,
-                    Some(cnf_transform),
-                    true,
-                    false,
-                    false,
-                    false,
-                    cnf_path("a").as_deref(),
-                    None,
-                )
-                .0
-            );
-            log(&format!("[DIFF] #a = {}", cnt_a));
+            // With --bare and slicing, skip counting `a` (only needed for the lost ratio).
+            if bare && matches!(a_diff_kind, DiffKind::Slice) {
+                no_duration!();
+            } else {
+                cnt_a = measure_time!(
+                    diff_helper(
+                        a,
+                        arena,
+                        Some(cnf_transform),
+                        true,
+                        false,
+                        false,
+                        false,
+                        cnf_path("a").as_deref(),
+                        None,
+                    )
+                    .0
+                );
+                log(&format!("[DIFF] #a = {}", cnt_a));
+            }
             if matches!(a_diff_kind, DiffKind::Slice) {
                 // Let's assume for now we don't do projected model counting, so any slicing was performed above with FeatureIDE.
                 // In that case, to count the sliced formula, the subtlety mentioned above comes into play:
@@ -828,21 +836,25 @@ pub(crate) fn diff(
         }
         if matches!(b_diff_kind, DiffKind::Slice) || !negate {
             // This logic is symmetric to the logic above.
-            cnt_b = measure_time!(
-                diff_helper(
-                    b,
-                    arena,
-                    Some(cnf_transform),
-                    true,
-                    false,
-                    false,
-                    false,
-                    cnf_path("b").as_deref(),
-                    None,
-                )
-                .0
-            );
-            log(&format!("[DIFF] #b = {}", cnt_b));
+            if bare && matches!(b_diff_kind, DiffKind::Slice) {
+                no_duration!();
+            } else {
+                cnt_b = measure_time!(
+                    diff_helper(
+                        b,
+                        arena,
+                        Some(cnf_transform),
+                        true,
+                        false,
+                        false,
+                        false,
+                        cnf_path("b").as_deref(),
+                        None,
+                    )
+                    .0
+                );
+                log(&format!("[DIFF] #b = {}", cnt_b));
+            }
             if matches!(b_diff_kind, DiffKind::Slice) {
                 let proj_vars = b_sliced
                     .sub_var_ids
