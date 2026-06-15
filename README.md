@@ -2,6 +2,8 @@
 
 **clausy transforms feature-model formulas into conjunctive normal form (CNF) for subsequent analysis.**
 
+<img src="meta/demo.gif">
+
 ## Getting Started
 
 To transform any [`.sat`](meta/satformat.pdf), [`.model`](https://github.com/ckaestne/kconfigreader), or [FeatureIDE](https://featureide.github.io/)-compatible file into [`.cnf`](meta/satformat.pdf) (aka [`.dimacs`](meta/satformat.pdf)), run:
