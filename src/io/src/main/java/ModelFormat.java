@@ -53,7 +53,35 @@ public class ModelFormat extends AFeatureModelFormat {
 		}
 	}
 
+	private static String fixParenthesesInNames(String l) {
+		StringBuilder sb = new StringBuilder();
+		for (int i = 0; i < l.length(); i++) {
+			if (!l.startsWith("def(", i)) {
+				sb.append(l.charAt(i));
+				continue;
+			}
+			sb.append("def(");
+			i += 4;
+			int depth = 0;
+			for (; i < l.length(); i++) {
+				char c = l.charAt(i);
+				if (c == '(') {
+					depth++;
+					sb.append("__LPAREN__");
+				} else if (c == ')' && depth > 0) {
+					depth--;
+					sb.append("__RPAREN__");
+				} else {
+					sb.append(c);
+					if (c == ')') break;
+				}
+			}
+		}
+		return sb.toString();
+	}
+
 	private static String fixNonBooleanConstraints(String l) {
+		l = fixParenthesesInNames(l);
 		Matcher matcher = equivalencePattern.matcher(l);
 		l = matcher.replaceAll(matchResult -> String.format("(%s<eq>%s)", matchResult.group(1), matchResult.group(2)));
 		return l.replace("=", "__EQUALS__")
@@ -64,7 +92,8 @@ public class ModelFormat extends AFeatureModelFormat {
 				.replace("/", "__SLASH__")
 				.replace("\\", "__BACKSLASH__")
 				.replace(" ", "__SPACE__")
-				.replace("-", "__DASH__");
+				.replace("-", "__DASH__")
+				.replace("$", "__DOLLAR__");
 	}
 
 	@Override
