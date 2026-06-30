@@ -1,0 +1,4 @@
+# Regression: simplified SAT differencing must preserve the polarity of arena variable 0.
+simplified=$($clausy -q -i input/busybox_1_16_2_zero_var_regression.model -i input/busybox_1_17_0_zero_var_regression.model diff --no-durations --no-header --bare --left slice --right slice --satisfy --simplified --negate --dist | tail -n 1)
+regular=$($clausy -q -i input/busybox_1_16_2_zero_var_regression.model -i input/busybox_1_17_0_zero_var_regression.model diff --no-durations --no-header --bare --left slice --right slice --satisfy --negate | tail -n 1)
+test "$simplified" = "$regular"
