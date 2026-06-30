@@ -1,0 +1,58 @@
+#item HAS_FPU
+((def(CONFIG_SH5)&def(CHOICE_6))|(def(UCLIBC_HAS_FLOATS)&!def(ARCH_HAS_NO_FPU))|!def(HAS_FPU)|(def(HAVE_ELF)&def(TARGET_alpha))|(def(HAVE_ELF)&def(TARGET_i386))|(def(CONFIG_SH4)&def(CHOICE_6)))
+((def(CONFIG_SH5)&def(CHOICE_6))|(def(UCLIBC_HAS_FLOATS)&!def(ARCH_HAS_NO_FPU))|!def(HAS_FPU)|(def(HAVE_ELF)&def(TARGET_alpha))|(def(HAVE_ELF)&def(TARGET_i386))|(def(CONFIG_SH4)&def(CHOICE_6)))
+(def(HAS_FPU)|((!def(CONFIG_SH4)|!def(CHOICE_6))&(!def(CONFIG_SH5)|!def(CHOICE_6))&(!def(HAVE_ELF)|!def(TARGET_i386))&(!def(HAVE_ELF)|!def(TARGET_alpha))))
+(def(HAS_FPU)|((!def(CONFIG_SH4)|!def(CHOICE_6))&(!def(CONFIG_SH5)|!def(CHOICE_6))&(!def(HAVE_ELF)|!def(TARGET_i386))&(!def(HAVE_ELF)|!def(TARGET_alpha))))
+#item HAS_NO_THREADS
+(!def(HAS_NO_THREADS)|(def(HAVE_ELF)&def(TARGET_i960))|(def(HAVE_ELF)&def(TARGET_alpha)))
+(def(HAS_NO_THREADS)|((!def(HAVE_ELF)|!def(TARGET_alpha))&(!def(HAVE_ELF)|!def(TARGET_i960))))
+(def(HAS_NO_THREADS)|((!def(HAVE_ELF)|!def(TARGET_alpha))&(!def(HAVE_ELF)|!def(TARGET_i960))))
+#item HAS_SHADOW
+#item HAVE_DOT_CONFIG
+def(HAVE_DOT_CONFIG)
+#item HAVE_DOT_HIDDEN
+(!def(TARGET_sh)|def(HAVE_DOT_HIDDEN))
+(!def(HAVE_DOT_HIDDEN)|def(TARGET_sh))
+(!def(HAVE_DOT_HIDDEN)|def(TARGET_sh))
+#item HAVE_NO_PIC
+(!def(HAVE_NO_PIC)|(def(HAVE_ELF)&def(TARGET_v850)))
+(!def(HAVE_ELF)|!def(TARGET_v850)|def(HAVE_NO_PIC))
+(!def(HAVE_ELF)|!def(TARGET_v850)|def(HAVE_NO_PIC))
+#item HAVE_NO_SHARED
+((def(HAVE_ELF)&def(TARGET_m68k))|(def(HAVE_ELF)&def(TARGET_microblaze))|(def(HAVE_ELF)&def(TARGET_v850))|(def(HAVE_ELF)&def(TARGET_h8300))|!def(HAVE_NO_SHARED)|(def(HAVE_ELF)&def(TARGET_sparc))|(def(HAVE_ELF)&def(TARGET_i960))|(def(HAVE_ELF)&def(TARGET_alpha))|(def(HAVE_ELF)&def(TARGET_e1)))
+(def(HAVE_NO_SHARED)|((!def(HAVE_ELF)|!def(TARGET_microblaze))&(!def(HAVE_ELF)|!def(TARGET_m68k))&(!def(HAVE_ELF)|!def(TARGET_alpha))&(!def(HAVE_ELF)|!def(TARGET_h8300))&(!def(HAVE_ELF)|!def(TARGET_sparc))&(!def(HAVE_ELF)|!def(TARGET_e1))&(!def(HAVE_ELF)|!def(TARGET_v850))&(!def(HAVE_ELF)|!def(TARGET_i960))))
+(def(HAVE_NO_SHARED)|((!def(HAVE_ELF)|!def(TARGET_microblaze))&(!def(HAVE_ELF)|!def(TARGET_m68k))&(!def(HAVE_ELF)|!def(TARGET_alpha))&(!def(HAVE_ELF)|!def(TARGET_h8300))&(!def(HAVE_ELF)|!def(TARGET_sparc))&(!def(HAVE_ELF)|!def(TARGET_e1))&(!def(HAVE_ELF)|!def(TARGET_v850))&(!def(HAVE_ELF)|!def(TARGET_i960))))
+#item HAVE_SHARED
+(!def(HAVE_SHARED)|(def(DOPIC)&!def(HAVE_NO_SHARED)))
+(!def(HAVE_SHARED)|(def(DOPIC)&!def(HAVE_NO_SHARED)))
+#item KERNEL_SOURCE
+!def(KERNEL_SOURCE=n)
+(def(KERNEL_SOURCE=)|def(KERNEL_SOURCE=nonempty)|def(KERNEL_SOURCE=/usr/src/linux)|def(KERNEL_SOURCE=n))
+(!def(KERNEL_SOURCE=)|!def(KERNEL_SOURCE=nonempty))
+(!def(KERNEL_SOURCE=)|!def(KERNEL_SOURCE=/usr/src/linux))
+(!def(KERNEL_SOURCE=)|!def(KERNEL_SOURCE=n))
+(!def(KERNEL_SOURCE=nonempty)|!def(KERNEL_SOURCE=/usr/src/linux))
+(!def(KERNEL_SOURCE=nonempty)|!def(KERNEL_SOURCE=n))
+(!def(KERNEL_SOURCE=/usr/src/linux)|!def(KERNEL_SOURCE=n))
+#item SHARED_LIB_LOADER_PREFIX
+(!def(BUILD_UCLIBC_LDSO)|!def(SHARED_LIB_LOADER_PREFIX=n))
+(def(SHARED_LIB_LOADER_PREFIX=)|def(SHARED_LIB_LOADER_PREFIX=nonempty)|def(SHARED_LIB_LOADER_PREFIX=$(DEVEL_PREFIX)/lib)|def(SHARED_LIB_LOADER_PREFIX=n))
+(def(BUILD_UCLIBC_LDSO)|(!def(SHARED_LIB_LOADER_PREFIX=)&!def(SHARED_LIB_LOADER_PREFIX=nonempty)&!def(SHARED_LIB_LOADER_PREFIX=$(DEVEL_PREFIX)/lib)))
+(def(BUILD_UCLIBC_LDSO)|(!def(SHARED_LIB_LOADER_PREFIX=)&!def(SHARED_LIB_LOADER_PREFIX=nonempty)&!def(SHARED_LIB_LOADER_PREFIX=$(DEVEL_PREFIX)/lib)))
+(!def(SHARED_LIB_LOADER_PREFIX=)|!def(SHARED_LIB_LOADER_PREFIX=nonempty))
+(!def(SHARED_LIB_LOADER_PREFIX=)|!def(SHARED_LIB_LOADER_PREFIX=$(DEVEL_PREFIX)/lib))
+(!def(SHARED_LIB_LOADER_PREFIX=)|!def(SHARED_LIB_LOADER_PREFIX=n))
+(!def(SHARED_LIB_LOADER_PREFIX=nonempty)|!def(SHARED_LIB_LOADER_PREFIX=$(DEVEL_PREFIX)/lib))
+(!def(SHARED_LIB_LOADER_PREFIX=nonempty)|!def(SHARED_LIB_LOADER_PREFIX=n))
+(!def(SHARED_LIB_LOADER_PREFIX=$(DEVEL_PREFIX)/lib)|!def(SHARED_LIB_LOADER_PREFIX=n))
+#item SYSTEM_LDSO
+(!def(HAVE_SHARED)|def(BUILD_UCLIBC_LDSO)|!def(SYSTEM_LDSO=n))
+(def(SYSTEM_LDSO=)|def(SYSTEM_LDSO=nonempty)|def(SYSTEM_LDSO=/lib/ld-linux.so.2)|def(SYSTEM_LDSO=n))
+((!def(SYSTEM_LDSO=)&!def(SYSTEM_LDSO=nonempty)&!def(SYSTEM_LDSO=/lib/ld-linux.so.2))|(def(HAVE_SHARED)&!def(BUILD_UCLIBC_LDSO)))
+((!def(SYSTEM_LDSO=)&!def(SYSTEM_LDSO=nonempty)&!def(SYSTEM_LDSO=/lib/ld-linux.so.2))|(def(HAVE_SHARED)&!def(BUILD_UCLIBC_LDSO)))
+(!def(SYSTEM_LDSO=)|!def(SYSTEM_LDSO=nonempty))
+(!def(SYSTEM_LDSO=)|!def(SYSTEM_LDSO=/lib/ld-linux.so.2))
+(!def(SYSTEM_LDSO=)|!def(SYSTEM_LDSO=n))
+(!def(SYSTEM_LDSO=nonempty)|!def(SYSTEM_LDSO=/lib/ld-linux.so.2))
+(!def(SYSTEM_LDSO=nonempty)|!def(SYSTEM_LDSO=n))
+(!def(SYSTEM_LDSO=/lib/ld-linux.so.2)|!def(SYSTEM_LDSO=n))

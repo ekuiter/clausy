@@ -1,0 +1,4 @@
+# Regression: uClibc slice counts must agree between explicit FeatureIDE slicing and projected model counting.
+count=$($clausy -q -i input/uclibc_0_9_22_slice_regression.model -i input/uclibc_0_9_23_slice_regression.model diff --no-durations --no-header --left slice --right slice --count | tail -n 1)
+projected=$($clausy -q -i input/uclibc_0_9_22_slice_regression.model -i input/uclibc_0_9_23_slice_regression.model diff --no-durations --no-header --left slice --right slice --projected-count | tail -n 1)
+test "$count" = "$projected"
