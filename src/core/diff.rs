@@ -335,6 +335,8 @@ fn satisfy_simplified(a: &Formula, b: &Formula, arena: &Arena) -> (BigInt, BigIn
     let inv_b = clauses_b.inv_var_remap();
 
     // Translate one clause from local identifiers to signed arena identifiers and sort the literals.
+    // Arena identifiers are zero-based, so we encode literals as +/- (arena_id + 1)
+    // to preserve the sign of variable 0 (as there is no difference between +/-0).
     // Sorting is required for equality comparison across two independently-built clause representations.
     let canonicalize = |clause: &[VarId], inv: &HashMap<VarId, VarId>| -> Vec<VarId> {
         let mut canonical: Vec<VarId> = clause
@@ -344,9 +346,9 @@ fn satisfy_simplified(a: &Formula, b: &Formula, arena: &Arena) -> (BigInt, BigIn
                     .get(&lit.abs())
                     .expect("clause literal has no arena variable");
                 if lit > 0 {
-                    id
+                    id + 1
                 } else {
-                    -id
+                    -(id + 1)
                 }
             })
             .collect();
@@ -381,8 +383,9 @@ fn satisfy_simplified(a: &Formula, b: &Formula, arena: &Arena) -> (BigInt, BigIn
                 let negated: Vec<VarId> = canonical_clause
                     .iter()
                     .map(|&lit| {
+                        let arena_id = lit.abs() - 1;
                         let &id = var_remap
-                            .get(&lit.abs())
+                            .get(&arena_id)
                             .expect("unique clause references variable absent from base formula");
                         if lit > 0 {
                             -id
