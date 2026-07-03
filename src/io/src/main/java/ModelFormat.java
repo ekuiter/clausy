@@ -92,8 +92,12 @@ public class ModelFormat extends AFeatureModelFormat {
 				.replace("/", "__SLASH__")
 				.replace("\\", "__BACKSLASH__")
 				.replace(" ", "__SPACE__")
-				.replace("-", "__DASH__")
-				.replace("$", "__DOLLAR__");
+				.replace("-", "__MINUS__")
+				.replace("+", "__PLUS__")
+				.replace("$", "__DOLLAR__")
+				.replace("#", "__HASH__")
+				.replace("@", "__AT__")
+				.replace("%", "__PERCENT__");
 	}
 
 	@Override

@@ -19,10 +19,14 @@ pub(crate) fn name_to_io(str: &str) -> String {
         .replace("/", "__SLASH__")
         .replace("\\", "__BACKSLASH__")
         .replace(" ", "__SPACE__")
-        .replace("-", "__DASH__")
+        .replace("-", "__MINUS__")
+        .replace("+", "__PLUS__")
         .replace("(", "__LPAREN__")
         .replace(")", "__RPAREN__")
         .replace("$", "__DOLLAR__")
+        .replace("#", "__HASH__")
+        .replace("@", "__AT__")
+        .replace("%", "__PERCENT__")
 }
 
 /// Retrieves a name from a given form compatible with FeatureIDE.
@@ -34,10 +38,14 @@ pub(crate) fn name_from_io(str: &str) -> String {
         .replace("__SLASH__", "/")
         .replace("__BACKSLASH__", "\\")
         .replace("__SPACE__", " ")
-        .replace("__DASH__", "-")
+        .replace("__MINUS__", "-")
+        .replace("__PLUS__", "+")
         .replace("__LPAREN__", "(")
         .replace("__RPAREN__", ")")
         .replace("__DOLLAR__", "$")
+        .replace("__HASH__", "#")
+        .replace("__AT__", "@")
+        .replace("__PERCENT__", "%")
 }
 
 /// Given a UVL file, only returns its feature hierarchy, omitting its constraints.
