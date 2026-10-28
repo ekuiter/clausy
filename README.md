@@ -33,7 +33,7 @@ Depending on the invocation, external tools may be needed (e.g., Java for parsin
 
 ## Advanced Usage, Documentation, and Tests
 
-Documentation for clausy is available [online](https://elias-kuiter.de/clausy/).
+Documentation for clausy is available [online](https://ekuiter.github.io/clausy/).
 
 ```
 # equivalent to the above, but more explicit
@@ -78,7 +78,7 @@ make doc-live
 
 ## CNF Transformation Zoo
 
-We also maintain a [detailed table](https://elias-kuiter.de/torte-research/#transformations) of tools that implement a CNF transformation.
+We also maintain a [detailed table](https://ekuiter.github.io/torte-research/#transformations) of tools that implement a CNF transformation.
 Key differences to clausy include:
 
 - Most of the listed tools are not or only sparsely documented.
